@@ -54,17 +54,17 @@
     <span class="spacer"></span>
     <button class="run-btn" id="btn-run" onclick="startRun()" disabled>▶ 运行</button>
     <button class="stop-btn" id="btn-stop" onclick="stopRun()" disabled>⏹ 停止</button>
-    <button onclick="document.getElementById('file-input').click()">📂 打开</button>
-    <input type="file" id="file-input" accept=".json,.objproj" multiple />
+    <button onclick="document.getElementById('file-input').click()">📂 打开文件夹</button>
+    <input type="file" id="file-input" webkitdirectory directory multiple />
   </header>
 
   <div class="main-area">
     <!-- Load Zone -->
     <div class="load-zone" id="load-zone">
       <h2>🎮 Objector Web Player</h2>
-      <p>拖拽项目文件到这里，或点击下方按钮加载</p>
-      <label class="browse-btn" for="file-input">📂 选择文件 (main.json / project.json)</label>
-      <input type="file" id="file-input-2" accept=".json,.objproj" multiple style="display:none" />
+      <p>拖拽项目文件夹到这里，或点击下方按钮选择文件夹</p>
+      <label class="browse-btn" for="file-input">📂 选择项目文件夹</label>
+      <input type="file" id="file-input-2" webkitdirectory directory multiple style="display:none" />
       <div class="or">── 或者粘贴 JSON 数据 ──</div>
       <textarea id="paste-area" placeholder='将 main.json 的内容粘贴到这里，然后点击"加载"'></textarea>
       <br/>
@@ -100,6 +100,7 @@ let keyHandler = null;
 let mouseX = 0, mouseY = 0, mouseDown = false;
 let pressedKeys = {};
 let broadcastListeners = [];
+let classes = {};
 let output = [];
 let turboMode = 0;
 let projectName = '未命名项目';
@@ -108,12 +109,37 @@ let projectName = '未命名项目';
 const loadZone = document.getElementById('load-zone');
 const stageContainer = document.getElementById('stage-container');
 
-// Drag & Drop
+// Drag & Drop - 支持文件夹拖拽
 loadZone.addEventListener('dragover', e => { e.preventDefault(); loadZone.classList.add('drag-over'); });
 loadZone.addEventListener('dragleave', () => loadZone.classList.remove('drag-over'));
-loadZone.addEventListener('drop', e => {
+loadZone.addEventListener('drop', async e => {
   e.preventDefault();
   loadZone.classList.remove('drag-over');
+  
+  // 尝试使用 webkitGetAsEntry 读取文件夹内容
+  const items = e.dataTransfer.items;
+  if (items && items.length > 0) {
+    const entry = items[0].webkitGetAsEntry && items[0].webkitGetAsEntry();
+    if (entry && entry.isDirectory) {
+      // 读取文件夹内容
+      const reader = entry.createReader();
+      const allFiles = [];
+      const readBatch = () => new Promise((resolve) => {
+        reader.readEntries((entries) => {
+          if (entries.length === 0) { resolve(); return; }
+          const filePromises = entries.filter(e => e.isFile).map(e => new Promise(r => e.file(f => r(f))));
+          Promise.all(filePromises).then(files => { allFiles.push(...files); resolve(); });
+        });
+      });
+      await readBatch(); // 可能需要多次读取
+      await readBatch();
+      if (allFiles.length > 0) {
+        handleFiles(allFiles);
+        return;
+      }
+    }
+  }
+  // fallback: 使用普通文件列表
   handleFiles(e.dataTransfer.files);
 });
 
@@ -125,35 +151,63 @@ async function handleFiles(fileList) {
   const files = Array.from(fileList);
   let blocksData = null;
   let projectData = null;
+  let folderName = '';
 
-  for (const file of files) {
-    const text = await file.text();
+  // 提取文件夹名称（从第一个文件的 webkitRelativePath 中获取）
+  if (files.length > 0 && files[0].webkitRelativePath) {
+    folderName = files[0].webkitRelativePath.split('/')[0];
+  }
+
+  // 优先查找 main.json 或 project.json
+  const mainFile = files.find(f => f.name === 'main.json');
+  const projectFile = files.find(f => f.name === 'project.json');
+  
+  // 先读取 project.json（如果有）
+  if (projectFile) {
     try {
-      const json = JSON.parse(text);
-      if (file.name === 'project.json' || json.sprites) {
-        projectData = json;
-      }
-      // If it has block-like structure (objects with type, x, y), treat as blocks
-      if (json && typeof json === 'object' && !Array.isArray(json)) {
-        const vals = Object.values(json);
-        if (vals.length > 0 && vals[0] && vals[0].type) {
-          blocksData = json;
-        } else if (!blocksData && !projectData) {
-          // Could be blocks
-          blocksData = json;
-        }
-      }
+      const text = await projectFile.text();
+      projectData = JSON.parse(text);
     } catch (e) {
-      console.warn('Failed to parse', file.name, e);
+      console.warn('Failed to parse project.json', e);
+    }
+  }
+  
+  // 再读取 main.json（积木数据）
+  if (mainFile) {
+    try {
+      const text = await mainFile.text();
+      blocksData = JSON.parse(text);
+    } catch (e) {
+      console.warn('Failed to parse main.json', e);
+    }
+  }
+  
+  // 如果没有找到标准文件，尝试解析第一个 JSON 文件
+  if (!blocksData && !projectData) {
+    for (const file of files) {
+      if (!file.name.endsWith('.json')) continue;
+      try {
+        const text = await file.text();
+        const json = JSON.parse(text);
+        if (json && typeof json === 'object' && !Array.isArray(json)) {
+          const vals = Object.values(json);
+          if (vals.length > 0 && vals[0] && vals[0].type) {
+            blocksData = json;
+            break;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to parse', file.name, e);
+      }
     }
   }
 
   if (!blocksData && !projectData) {
-    alert('无法解析项目文件。请确保文件是有效的 Objector JSON 格式。');
+    alert('无法解析项目。请确保文件夹中包含 main.json 或 project.json 文件。');
     return;
   }
 
-  loadProject(blocksData, projectData);
+  loadProject(blocksData, projectData, folderName);
 }
 
 function loadFromPaste() {
@@ -161,15 +215,23 @@ function loadFromPaste() {
   if (!text) { alert('请先粘贴 JSON 数据'); return; }
   try {
     const json = JSON.parse(text);
-    loadProject(json, null);
+    loadProject(json, null, '粘贴项目');
   } catch (e) {
     alert('JSON 解析失败: ' + e.message);
   }
 }
 
-function loadProject(blocksData, projectData) {
+function loadProject(blocksData, projectData, folderName) {
   blocks = blocksData || {};
   sprites = [];
+
+  // 设置项目名称
+  if (projectData && projectData.name) {
+    projectName = projectData.name;
+  } else if (folderName) {
+    projectName = folderName;
+  }
+  document.getElementById('project-name').textContent = projectName;
 
   if (projectData) {
     if (projectData.sprites) {
@@ -177,7 +239,6 @@ function loadProject(blocksData, projectData) {
     }
     if (projectData.stageWidth) canvas.width = projectData.stageWidth;
     if (projectData.stageHeight) canvas.height = projectData.stageHeight;
-    if (projectData.name) projectName = projectData.name;
   }
 
   // Init sprites
@@ -449,6 +510,7 @@ async function executeBlock(block, scope) {
   const type = block.type;
   if (type==='event_start') {}
   else if (type==='event_broadcast') { const msg=String(p.msg); broadcastListeners.forEach(rb=>{ if(String(rb.params?.msg||'')===msg) executeChain(rb,{}).catch(e=>log('广播错误:'+e.message)); }); }
+  else if (type==='event_broadcast_wait') { const msg=String(p.msg); const promises=[]; broadcastListeners.forEach(rb=>{ if(String(rb.params?.msg||'')===msg) promises.push(executeChain(rb,{})); }); if(promises.length>0) await Promise.all(promises); }
   else if (type==='event_receive') {}
   else if (type==='event_timer') {}
   else if (type==='event_key_pressed') {}
@@ -478,6 +540,11 @@ async function executeBlock(block, scope) {
   else if (type==='looks_show') setSpriteVisible(0, true);
   else if (type==='looks_hide') setSpriteVisible(0, false);
   else if (type==='looks_say') { setSpriteSay(0,String(p.text)); await delay(Number(p.sec)*1000); setSpriteSay(0,''); }
+  else if (type==='looks_say_nowait') { setSpriteSay(0,String(p.text)); }
+  else if (type==='looks_think') { setSpriteSay(0,'💭 '+String(p.text)); }
+  else if (type==='looks_next_costume') { const s=getActiveSprite(); if(s){s._costumeIdx=((s._costumeIdx||0)+1)%(s.costumes?s.costumes.length:1);} }
+  else if (type==='looks_set_color') { /* web: color effect limited */ }
+  else if (type==='looks_clear_effects') { /* web: clear effects limited */ }
   else if (type==='looks_set_size') setSpriteSize(0, Number(p.size));
   else if (type==='looks_change_size') changeSpriteSize(0, Number(p.n));
   else if (type==='looks_set_costume') { /* web: limited costume support */ }
@@ -496,6 +563,8 @@ async function executeBlock(block, scope) {
   // Variables
   else if (type==='var_set') setVar(p.name, p.val, scope);
   else if (type==='var_change') { const cur=getVar(p.name,scope); setVar(p.name,Number(cur)+Number(p.val),scope); }
+  else if (type==='var_show') { /* web: variable display limited */ }
+  else if (type==='var_hide') { /* web: variable hide limited */ }
   // IO
   else if (type==='io_print') log(p.text);
   else if (type==='io_print_line') log(p.text + '\n');
@@ -522,6 +591,9 @@ async function executeBlock(block, scope) {
   // OOP
   else if (type==='class_define') {}
   else if (type==='class_set_attr') { const obj=scope.self||scope; obj[p.attr]=p.val; }
+  else if (type==='class_create') { const className=String(p.cls); const cls=classes[className]; if(cls){const instance={__className:className}; if(cls.initBlock){const next=cls.initBlock.flowOut?blocks[cls.initBlock.flowOut]:null;const fnScope={self:instance};const argsStr=String(p.args||'');const argNames=(cls.initBlock.params?.args||'').split(',').map(s=>s.trim()).filter(Boolean);const argValues=argsStr.split(',').map(s=>s.trim());argNames.forEach((name,i)=>{fnScope[name]=argValues[i]||'';});if(next) await executeChain(next,fnScope);} globalVars['__obj_'+className+'_'+Date.now()]=instance; return instance;} else { log('警告: 找不到类 "'+className+'"');} }
+  else if (type==='class_call_method') { const objName=String(p.obj);const methodName=String(p.method);const obj=scope[objName]||globalVars[objName]; if(obj&&obj.__className){const cls=classes[obj.__className];if(cls&&cls.methods[methodName]){const methodBlock=cls.methods[methodName];const next=methodBlock.flowOut?blocks[methodBlock.flowOut]:null;const fnScope={self:obj};const argsStr=String(p.args||'');const argNames=(methodBlock.params?.args||'').split(',').map(s=>s.trim()).filter(Boolean);const argValues=argsStr.split(',').map(s=>s.trim());argNames.forEach((name,i)=>{fnScope[name]=argValues[i]||'';});const subTop=getSubTop(methodBlock,'body');if(subTop){await executeChain(subTop,fnScope);}return fnScope.__return;}log('警告: 对象 "'+objName+'" 没有方法 "'+methodName+'"');}else{log('警告: 找不到对象 "'+objName+'"');} }
+  else if (type==='class_call_method_reporter') { const objName=String(p.obj);const methodName=String(p.method);const obj=scope[objName]||globalVars[objName]; if(obj&&obj.__className){const cls=classes[obj.__className];if(cls&&cls.methods[methodName]){const methodBlock=cls.methods[methodName];const fnScope={self:obj};const argsStr=String(p.args||'');const argNames=(methodBlock.params?.args||'').split(',').map(s=>s.trim()).filter(Boolean);const argValues=argsStr.split(',').map(s=>s.trim());argNames.forEach((name,i)=>{fnScope[name]=argValues[i]||'';});const subTop=getSubTop(methodBlock,'body');if(subTop){await executeChain(subTop,fnScope);}return fnScope.__return;}} return undefined; }
   // Clone
   else if (type==='clone_self') { const s=getActiveSprite(); if(s){sprites.push({...s,x:s.x+20,y:s.y+20,_posHistory:[],image:s.image});} }
   else if (type==='delete_clone') { if(sprites.length>1) sprites.pop(); }
@@ -531,7 +603,7 @@ async function executeBlock(block, scope) {
 async function startRun() {
   if (running) return;
   running = true; stopRequested = false;
-  globalVars = {}; output = []; turboMode = 0;
+  globalVars = {}; output = []; turboMode = 0; classes = {};
   outputEl.textContent = '';
   window.__timerStart = Date.now();
   window.__answer = '';
@@ -568,6 +640,19 @@ async function startRun() {
 
   // Register broadcast receivers
   broadcastListeners = Object.values(blocks).filter(b => b.type === 'event_receive');
+
+  // Register classes (OOP preprocessing)
+  Object.values(blocks).filter(b => b.type === 'class_define').forEach(b => {
+    const name = String(b.params?.name || '');
+    if (!name) return;
+    classes[name] = { name, initBlock: null, methods: {} };
+    let cur = b.flowOut ? blocks[b.flowOut] : null;
+    while (cur) {
+      if (cur.type === 'class_init') classes[name].initBlock = cur;
+      if (cur.type === 'class_method') classes[name].methods[cur.params.name] = cur;
+      cur = cur.flowOut ? blocks[cur.flowOut] : null;
+    }
+  });
 
   // Start rendering
   renderRunning = true;
