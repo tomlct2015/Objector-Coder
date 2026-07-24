@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Objector Web Player</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg:#1e1e2e; --surface:#313244; --text:#cdd6f4; --accent:#89b4fa;
+      --green:#a6e3a1; --red:#f38ba8; --muted:#6c7086;
+    }
+    body { background:var(--bg); color:var(--text); font-family:'Segoe UI','Microsoft YaHei',sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; }
+    header { width:100%; background:var(--surface); padding:12px 24px; display:flex; align-items:center; gap:16px; border-bottom:1px solid rgba(137,180,250,.2); }
+    header .logo { font-size:18px; font-weight:700; color:var(--accent); }
+    header .sep { color:var(--muted); }
+    header .project-name { font-size:14px; color:var(--text); }
+    header .spacer { flex:1; }
+    header button { background:var(--surface); color:var(--text); border:1px solid rgba(255,255,255,.1); border-radius:6px; padding:6px 14px; cursor:pointer; font-size:13px; transition:all .2s; }
+    header button:hover { background:rgba(255,255,255,.1); border-color:var(--accent); }
+    header .run-btn { background:#1a3a1a; color:var(--green); border-color:#2d5a2d; }
+    header .run-btn:hover { background:#2d5a2d; }
+    header .stop-btn { background:#3a1a1a; color:var(--red); border-color:#5a2d2d; }
+    header .stop-btn:hover { background:#5a2d2d; }
+
+    .main-area { flex:1; display:flex; flex-direction:column; align-items:center; padding:24px; gap:16px; width:100%; max-width:800px; }
+
+    /* Load zone */
+    .load-zone { width:100%; border:2px dashed rgba(137,180,250,.3); border-radius:12px; padding:48px 24px; text-align:center; transition:all .3s; cursor:pointer; }
+    .load-zone:hover, .load-zone.drag-over { border-color:var(--accent); background:rgba(137,180,250,.05); }
+    .load-zone h2 { font-size:18px; color:var(--accent); margin-bottom:8px; }
+    .load-zone p { font-size:13px; color:var(--muted); margin-bottom:16px; }
+    .load-zone .or { color:var(--muted); margin:12px 0; font-size:12px; }
+    .load-zone input[type="file"] { display:none; }
+    .load-zone .browse-btn { display:inline-block; background:var(--surface); color:var(--text); border:1px solid rgba(255,255,255,.1); border-radius:8px; padding:8px 20px; cursor:pointer; font-size:13px; }
+    .load-zone .browse-btn:hover { border-color:var(--accent); }
+    .load-zone textarea { width:100%; max-width:500px; height:80px; background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.1); border-radius:8px; color:var(--text); padding:8px; font-family:'Cascadia Code','Consolas',monospace; font-size:11px; resize:vertical; }
+    .load-zone textarea::placeholder { color:var(--muted); }
+    .load-zone .paste-btn { display:inline-block; background:var(--surface); color:var(--text); border:1px solid rgba(255,255,255,.1); border-radius:6px; padding:6px 14px; cursor:pointer; font-size:12px; margin-top:8px; }
+
+    /* Stage */
+    .stage-container { display:none; flex-direction:column; align-items:center; gap:12px; width:100%; }
+    .stage-container.visible { display:flex; }
+    #stage { background:#fff; border-radius:8px; box-shadow:0 8px 32px rgba(0,0,0,.5); cursor:crosshair; }
+    #output { color:var(--text); font-family:'Cascadia Code','Consolas',monospace; font-size:12px; width:100%; max-width:480px; height:140px; overflow-y:auto; background:rgba(0,0,0,.3); border-radius:8px; padding:10px; white-space:pre-wrap; border:1px solid rgba(255,255,255,.05); }
+    .status-bar { font-size:12px; color:var(--muted); width:100%; max-width:480px; display:flex; justify-content:space-between; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="logo">⚡ Objector Player</span>
+    <span class="sep">|</span>
+    <span class="project-name" id="project-name">未加载项目</span>
+    <span class="spacer"></span>
+    <button class="run-btn" id="btn-run" onclick="startRun()" disabled>▶ 运行</button>
+    <button class="stop-btn" id="btn-stop" onclick="stopRun()" disabled>⏹ 停止</button>
+    <button onclick="document.getElementById('file-input').click()">📂 打开</button>
+    <input type="file" id="file-input" accept=".json,.objproj" multiple />
+  </header>
+
+  <div class="main-area">
+    <!-- Load Zone -->
+    <div class="load-zone" id="load-zone">
+      <h2>🎮 Objector Web Player</h2>
+      <p>拖拽项目文件到这里，或点击下方按钮加载</p>
+      <label class="browse-btn" for="file-input">📂 选择文件 (main.json / project.json)</label>
+      <input type="file" id="file-input-2" accept=".json,.objproj" multiple style="display:none" />
+      <div class="or">── 或者粘贴 JSON 数据 ──</div>
+      <textarea id="paste-area" placeholder='将 main.json 的内容粘贴到这里，然后点击"加载"'></textarea>
+      <br/>
+      <button class="paste-btn" onclick="loadFromPaste()">📋 从粘贴内容加载</button>
+    </div>
+
+    <!-- Stage -->
+    <div class="stage-container" id="stage-container">
+      <canvas id="stage" width="480" height="360"></canvas>
+      <div class="status-bar">
+        <span id="status-text">就绪</span>
+        <span id="block-count">积木: 0</span>
+      </div>
+      <div id="output"></div>
+    </div>
+  </div>
+
+<script>
+// ===== Objector Web Player Runtime =====
+const STAGE_W = 480, STAGE_H = 360;
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d');
+const outputEl = document.getElementById('output');
+const statusEl = document.getElementById('status-text');
+const blockCountEl = document.getElementById('block-count');
+
+let running = false, stopRequested = false;
+let globalVars = {};
+let sprites = [];
+let blocks = {};
+let timers = [];
+let keyHandler = null;
+let mouseX = 0, mouseY = 0, mouseDown = false;
+let pressedKeys = {};
+let broadcastListeners = [];
+let output = [];
+let turboMode = 0;
+let projectName = '未命名项目';
+
+// ===== File Loading =====
+const loadZone = document.getElementById('load-zone');
+const stageContainer = document.getElementById('stage-container');
+
+// Drag & Drop
+loadZone.addEventListener('dragover', e => { e.preventDefault(); loadZone.classList.add('drag-over'); });
+loadZone.addEventListener('dragleave', () => loadZone.classList.remove('drag-over'));
+loadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  loadZone.classList.remove('drag-over');
+  handleFiles(e.dataTransfer.files);
+});
+
+// File inputs
+document.getElementById('file-input').addEventListener('change', e => handleFiles(e.target.files));
+document.getElementById('file-input-2').addEventListener('change', e => handleFiles(e.target.files));
+
+async function handleFiles(fileList) {
+  const files = Array.from(fileList);
+  let blocksData = null;
+  let projectData = null;
+
+  for (const file of files) {
+    const text = await file.text();
+    try {
+      const json = JSON.parse(text);
+      if (file.name === 'project.json' || json.sprites) {
+        projectData = json;
+      }
+      // If it has block-like structure (objects with type, x, y), treat as blocks
+      if (json && typeof json === 'object' && !Array.isArray(json)) {
+        const vals = Object.values(json);
+        if (vals.length > 0 && vals[0] && vals[0].type) {
+          blocksData = json;
+        } else if (!blocksData && !projectData) {
+          // Could be blocks
+          blocksData = json;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to parse', file.name, e);
+    }
+  }
+
+  if (!blocksData && !projectData) {
+    alert('无法解析项目文件。请确保文件是有效的 Objector JSON 格式。');
+    return;
+  }
+
+  loadProject(blocksData, projectData);
+}
+
+function loadFromPaste() {
+  const text = document.getElementById('paste-area').value.trim();
+  if (!text) { alert('请先粘贴 JSON 数据'); return; }
+  try {
+    const json = JSON.parse(text);
+    loadProject(json, null);
+  } catch (e) {
+    alert('JSON 解析失败: ' + e.message);
+  }
+}
+
+function loadProject(blocksData, projectData) {
+  blocks = blocksData || {};
+  sprites = [];
+
+  if (projectData) {
+    if (projectData.sprites) {
+      sprites = projectData.sprites;
+    }
+    if (projectData.stageWidth) canvas.width = projectData.stageWidth;
+    if (projectData.stageHeight) canvas.height = projectData.stageHeight;
+    if (projectData.name) projectName = projectData.name;
+  }
+
+  // Init sprites
+  sprites.forEach(s => {
+    s.x = s.x || 0; s.y = s.y || 0;
+    s.direction = s.direction || 90;
+    s.size = s.size || 100;
+    s.visible = s.visible !== false;
+    s.sayText = ''; s.sayTimer = null;
+    s.vx = 0; s.vy = 0;
+    s.rotationStyle = 'allAround';
+    s._posHistory = [];
+    s.image = null;
+    if (s.costumePath) {
+      const img = new Image();
+      img.onload = () => { s.image = img; renderFrame(); };
+      img.src = s.costumePath;
+    }
+  });
+
+  if (sprites.length === 0) {
+    sprites.push({ name:'Sprite1', x:0, y:0, direction:90, size:100, visible:true, sayText:'', vx:0, vy:0, rotationStyle:'allAround', color:'#89b4fa', image:null, _posHistory:[] });
+  }
+
+  // Show stage
+  loadZone.style.display = 'none';
+  stageContainer.classList.add('visible');
+  document.getElementById('project-name').textContent = projectName;
+  document.getElementById('btn-run').disabled = false;
+  blockCountEl.textContent = '积木: ' + Object.keys(blocks).length;
+  outputEl.textContent = '';
+  output = [];
+
+  renderFrame();
+  statusEl.textContent = '项目已加载，点击 ▶ 运行';
+}
+
+// ===== Mouse tracking =====
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  mouseX = Math.round((e.clientX - r.left) / r.width * STAGE_W - STAGE_W/2);
+  mouseY = Math.round((e.clientY - r.top) / r.height * STAGE_H - STAGE_H/2);
+});
+canvas.addEventListener('mousedown', () => { mouseDown = true; });
+canvas.addEventListener('mouseup', () => { mouseDown = false; });
+
+function log(msg) {
+  output.push(String(msg));
+  outputEl.textContent = output.join('\n');
+  outputEl.scrollTop = outputEl.scrollHeight;
+}
+function delay(ms) {
+  if (turboMode > 0) return Promise.resolve();
+  return new Promise(r => setTimeout(r, ms));
+}
+function getActiveSprite() { return sprites[0]; }
+function getActiveSpriteIdx() { return 0; }
+function setSpritePos(idx, x, y) { sprites[idx].x = x; sprites[idx].y = y; }
+function setSpriteDir(idx, d) { sprites[idx].direction = ((d - 90) % 360 + 360) % 360 + 90; }
+function rotateSprite(idx, d) { sprites[idx].direction += d; }
+function moveSprite(idx, steps) {
+  const s = sprites[idx]; if (!s) return;
+  const rad = (s.direction - 90) * Math.PI / 180;
+  s.x += steps * Math.cos(rad);
+  s.y += steps * Math.sin(rad);
+}
+function setSpriteVisible(idx, v) { sprites[idx].visible = v; }
+function setSpriteSay(idx, text) { sprites[idx].sayText = text; }
+function setSpriteSize(idx, sz) { sprites[idx].size = sz; }
+function changeSpriteSize(idx, n) { sprites[idx].size += n; }
+function bounceSprite(idx) {
+  const s = sprites[idx]; if (!s) return;
+  const hw = STAGE_W/2, hh = STAGE_H/2;
+  if (s.x < -hw || s.x > hw) s.direction = 180 - s.direction;
+  if (s.y < -hh || s.y > hh) s.direction = -s.direction;
+}
+function pointTowards(idx, tx, ty) {
+  const s = sprites[idx]; if (!s) return;
+  const dx = tx - s.x, dy = ty - s.y;
+  s.direction = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+}
+function moveTowards(idx, tx, ty, steps) {
+  const s = sprites[idx]; if (!s) return;
+  const dx = tx - s.x, dy = ty - s.y;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  if (dist < 1) return;
+  s.x += (dx/dist) * steps;
+  s.y += (dy/dist) * steps;
+}
+function getDistanceToPoint(idx, tx, ty) {
+  const s = sprites[idx]; if (!s) return 0;
+  return Math.sqrt((tx-s.x)**2 + (ty-s.y)**2);
+}
+function getDirectionToPoint(idx, tx, ty) {
+  const s = sprites[idx]; if (!s) return 0;
+  return Math.atan2(ty - s.y, tx - s.x) * 180 / Math.PI + 90;
+}
+function isTouchingEdge(idx) {
+  const s = sprites[idx]; if (!s) return false;
+  const hw = STAGE_W/2, hh = STAGE_H/2;
+  return s.x <= -hw || s.x >= hw || s.y <= -hh || s.y >= hh;
+}
+function clampToStage(idx) {
+  const s = sprites[idx]; if (!s) return;
+  const hw = STAGE_W/2, hh = STAGE_H/2;
+  s.x = Math.max(-hw, Math.min(hw, s.x));
+  s.y = Math.max(-hh, Math.min(hh, s.y));
+}
+function mapKey(key) {
+  const map = { ' ':'space','ArrowUp':'up','ArrowDown':'down','ArrowLeft':'left','ArrowRight':'right','Enter':'enter','Shift':'shift','Control':'control','Alt':'alt','Escape':'escape','Tab':'tab','Backspace':'backspace' };
+  return map[key] || key.toLowerCase();
+}
+
+// ===== Rendering =====
+let renderRunning = false;
+function renderFrame() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  sprites.forEach(s => {
+    if (!s.visible) return;
+    ctx.save();
+    ctx.translate(s.x + canvas.width/2, s.y + canvas.height/2);
+    if (s.rotationStyle === 'allAround') ctx.rotate((s.direction - 90) * Math.PI / 180);
+    else if (s.rotationStyle === 'leftRight' && s.direction > 180) ctx.scale(-1, 1);
+    const sz = s.size / 100;
+    ctx.scale(sz, sz);
+    if (s.image) {
+      ctx.drawImage(s.image, -30, -30, 60, 60);
+    } else {
+      ctx.fillStyle = s.color || '#89b4fa';
+      ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(6, -10); ctx.lineTo(-6, -10); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+    if (s.sayText) {
+      const bx = s.x + canvas.width/2 + 25, by = s.y + canvas.height/2 - 30;
+      ctx.fillStyle = '#fff'; ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+      ctx.font = '12px sans-serif';
+      const tw = ctx.measureText(s.sayText).width;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx, by, tw+12, 22, 6);
+      else { ctx.rect(bx, by, tw+12, 22); }
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#333'; ctx.fillText(s.sayText, bx+6, by+15);
+    }
+  });
+  if (renderRunning) requestAnimationFrame(renderFrame);
+}
+
+// ===== Execution Engine =====
+async function executeChain(block, scope) {
+  let cur = block;
+  while (cur && !stopRequested) {
+    const r = await executeBlock(cur, scope);
+    if (r === '__RETURN__' || r === '__STOP__') return r;
+    cur = cur.flowOut ? blocks[cur.flowOut] : null;
+  }
+}
+function resolveParams(block, scope) {
+  const result = {};
+  if (block.params) {
+    for (const [k, v] of Object.entries(block.params)) {
+      const connId = block.paramConnections && block.paramConnections[k];
+      if (connId && blocks[connId]) {
+        result[k] = evaluateReporter(blocks[connId], scope);
+      } else {
+        result[k] = v;
+      }
+    }
+  }
+  return result;
+}
+function evaluateReporter(block, scope) {
+  const p = resolveParams(block, scope);
+  switch(block.type) {
+    case 'op_add': return Number(p.a) + Number(p.b);
+    case 'op_sub': return Number(p.a) - Number(p.b);
+    case 'op_mul': return Number(p.a) * Number(p.b);
+    case 'op_div': return Number(p.b) ? Number(p.a) / Number(p.b) : 0;
+    case 'op_mod': return Number(p.a) % Number(p.b);
+    case 'op_random': return Math.floor(Math.random() * (Number(p.b) - Number(p.a) + 1)) + Number(p.a);
+    case 'op_random_float': return Math.random();
+    case 'op_pow': return Math.pow(Number(p.a), Number(p.b));
+    case 'op_lt': return Number(p.a) < Number(p.b);
+    case 'op_gt': return Number(p.a) > Number(p.b);
+    case 'op_lte': return Number(p.a) <= Number(p.b);
+    case 'op_gte': return Number(p.a) >= Number(p.b);
+    case 'op_eq': return p.a == p.b;
+    case 'op_neq': return p.a != p.b;
+    case 'op_and': return !!p.a && !!p.b;
+    case 'op_or': return !!p.a || !!p.b;
+    case 'op_not': return !p.a;
+    case 'op_join': return String(p.a) + String(p.b);
+    case 'op_strlen': return String(p.s).length;
+    case 'op_substr': return String(p.s).substring(Number(p.start) - 1, Number(p.end));
+    case 'op_str_contains': return String(p.s).includes(String(p.sub));
+    case 'op_str_upper': return String(p.s).toUpperCase();
+    case 'op_str_lower': return String(p.s).toLowerCase();
+    case 'op_str_trim': return String(p.s).trim();
+    case 'op_str_repeat': return String(p.s).repeat(Math.max(0, Number(p.n)));
+    case 'op_str_replace': return String(p.s).split(String(p.from)).join(String(p.to));
+    case 'op_char_at': return String(p.s).charAt(Number(p.n) - 1) || '';
+    case 'op_to_number': return Number(p.s) || 0;
+    case 'op_to_string': return String(p.n);
+    case 'op_min': return Math.min(Number(p.a), Number(p.b));
+    case 'op_max': return Math.max(Number(p.a), Number(p.b));
+    case 'op_clamp': return Math.min(Math.max(Number(p.n), Number(p.min)), Number(p.max));
+    case 'op_lerp': return Number(p.a) + (Number(p.b) - Number(p.a)) * Number(p.t);
+    case 'op_pi': return Math.PI;
+    case 'op_e': return Math.E;
+    case 'op_math': { const n=Number(p.n); const fn=p.fn; if(fn==='abs')return Math.abs(n); if(fn==='floor')return Math.floor(n); if(fn==='ceil')return Math.ceil(n); if(fn==='round')return Math.round(n); if(fn==='sqrt')return Math.sqrt(n); if(fn==='sin')return Math.sin(n); if(fn==='cos')return Math.cos(n); if(fn==='tan')return Math.tan(n); if(fn==='log')return Math.log(n); if(fn==='sign')return Math.sign(n); return n; }
+    case 'var_get': return getVar(p.name, scope);
+    case 'func_param_get': return getVar(p.name, scope);
+    case 'get_x': return getActiveSprite()?.x || 0;
+    case 'get_y': return getActiveSprite()?.y || 0;
+    case 'get_direction': return getActiveSprite()?.direction || 90;
+    case 'get_vx': return getActiveSprite()?.vx || 0;
+    case 'get_vy': return getActiveSprite()?.vy || 0;
+    case 'get_speed': { const s=getActiveSprite(); return s ? Math.sqrt(s.vx*s.vx+s.vy*s.vy) : 0; }
+    case 'sensing_mouse_x': return mouseX;
+    case 'sensing_mouse_y': return mouseY;
+    case 'sensing_mouse_down': return mouseDown;
+    case 'sensing_key_pressed': return !!pressedKeys[p.key];
+    case 'sensing_timer': return (Date.now() - window.__timerStart) / 1000;
+    case 'sensing_touching_edge': return isTouchingEdge(0);
+    case 'sensing_current': { const now=new Date(); switch(p.unit){case'年':return now.getFullYear();case'月':return now.getMonth()+1;case'日':return now.getDate();case'时':return now.getHours();case'分':return now.getMinutes();case'秒':return now.getSeconds();default:return now.getSeconds();} }
+    case 'sensing_answer': return window.__answer || '';
+    case 'io_answer': return window.__answer || '';
+    case 'list_create': return [];
+    case 'list_get': { const arr=resolveListArray(p.list,scope); return Array.isArray(arr)?arr[Number(p.idx)-1]:undefined; }
+    case 'list_length': { const arr=resolveListArray(p.list,scope); return Array.isArray(arr)?arr.length:0; }
+    case 'list_contains': { const arr=resolveListArray(p.list,scope); return Array.isArray(arr)?arr.includes(p.val):false; }
+    case 'list_index_of': { const arr=resolveListArray(p.list,scope); if(!Array.isArray(arr))return 0; const idx=arr.indexOf(p.val); return idx===-1?0:idx+1; }
+    case 'list_join': { const arr=resolveListArray(p.list,scope); return Array.isArray(arr)?arr.join(String(p.sep)):''; }
+    case 'distance_to_mouse': return getDistanceToPoint(0, mouseX, mouseY);
+    case 'direction_to_mouse': return getDirectionToPoint(0, mouseX, mouseY);
+    case 'is_at_edge': return isTouchingEdge(0);
+    case 'looks_get_size': return getActiveSprite()?.size || 100;
+    case 'class_get_attr': { const obj = p.obj === 'self' ? (scope.self || scope) : globalVars[p.obj]; return obj ? obj[p.attr] : undefined; }
+    case 'class_self': return scope.self || null;
+    case 'io_load_data': return globalVars['__data_' + p.key] || '';
+    default: return p[Object.keys(p)[0]] || 0;
+  }
+}
+function resolveBool(val, block, paramName, scope) {
+  if (block && paramName) {
+    const connId = block.paramConnections && block.paramConnections[paramName];
+    if (connId && blocks[connId]) return !!evaluateReporter(blocks[connId], scope);
+  }
+  return !!val;
+}
+function getVar(name, scope) { if (scope[name]!==undefined) return scope[name]; return globalVars[name]; }
+function setVar(name, val, scope) { if (scope[name]!==undefined) scope[name]=val; else if(scope.__local) scope[name]=val; else globalVars[name]=val; }
+function resolveListArray(val, scope) { if (Array.isArray(val)) return val; const v=getVar(String(val),scope); return Array.isArray(v)?v:null; }
+function getSubTop(block, subName) { const subId = block.subBlocks && block.subBlocks[subName]; return subId ? blocks[subId] : null; }
+function findFunction(name) { return Object.values(blocks).find(b => b.type === 'func_define' && b.params.name === name); }
+function findBlockByLabel(label) {
+  return Object.values(blocks).find(b => {
+    if (b.type === 'control_label_run' && b.params && b.params.label === label) return true;
+    if (b._importantLabel === label) return true;
+    return false;
+  });
+}
+
+async function executeBlock(block, scope) {
+  const p = resolveParams(block, scope);
+  const type = block.type;
+  if (type==='event_start') {}
+  else if (type==='event_broadcast') { const msg=String(p.msg); broadcastListeners.forEach(rb=>{ if(String(rb.params?.msg||'')===msg) executeChain(rb,{}).catch(e=>log('广播错误:'+e.message)); }); }
+  else if (type==='event_receive') {}
+  else if (type==='event_timer') {}
+  else if (type==='event_key_pressed') {}
+  // Motion
+  else if (type==='move_steps') moveSprite(0, Number(p.steps));
+  else if (type==='turn_right') rotateSprite(0, Number(p.deg));
+  else if (type==='turn_left') rotateSprite(0, -Number(p.deg));
+  else if (type==='go_to_xy') setSpritePos(0, Number(p.x), Number(p.y));
+  else if (type==='go_to_random') { const hw=STAGE_W/2,hh=STAGE_H/2; setSpritePos(0,Math.random()*hw*2-hw,Math.random()*hh*2-hh); }
+  else if (type==='go_to_mouse') setSpritePos(0, mouseX, mouseY);
+  else if (type==='change_x') { const s=getActiveSprite(); if(s) s.x+=Number(p.dx); }
+  else if (type==='set_x') { const s=getActiveSprite(); if(s) s.x=Number(p.x); }
+  else if (type==='change_y') { const s=getActiveSprite(); if(s) s.y+=Number(p.dy); }
+  else if (type==='set_y') { const s=getActiveSprite(); if(s) s.y=Number(p.y); }
+  else if (type==='set_direction') setSpriteDir(0, Number(p.deg));
+  else if (type==='point_towards_mouse') pointTowards(0, mouseX, mouseY);
+  else if (type==='change_direction') rotateSprite(0, Number(p.ddir));
+  else if (type==='bounce_edge') bounceSprite(0);
+  else if (type==='rotation_style') { const s=getActiveSprite(); if(s){if(p.mode==='左右翻转')s.rotationStyle='leftRight';else if(p.mode==='不旋转')s.rotationStyle='noRotate';else s.rotationStyle='allAround';} }
+  else if (type==='glide_to') { const s=getActiveSprite(); if(s){const sx=s.x,sy=s.y,tx=Number(p.x),ty=Number(p.y),ms=Math.max(Number(p.sec)*1000,16),st=Date.now(); while(!stopRequested){const t=Math.min((Date.now()-st)/ms,1);setSpritePos(0,sx+(tx-sx)*t,sy+(ty-sy)*t);if(t>=1)break;await delay(16);} } }
+  else if (type==='random_move') { const mn=Number(p.min),mx=Number(p.max); moveSprite(0,Math.random()*(mx-mn)+mn); }
+  else if (type==='random_turn') { const mn=Number(p.min),mx=Number(p.max); rotateSprite(0,Math.random()*(mx-mn)+mn); }
+  else if (type==='clamp_to_stage') clampToStage(0);
+  else if (type==='move_towards_mouse') moveTowards(0,mouseX,mouseY,p.steps);
+  else if (type==='go_back') { const s=getActiveSprite(); if(s&&s._posHistory&&s._posHistory.length>0){const prev=s._posHistory.pop();s.x=prev.x;s.y=prev.y;} }
+  // Looks
+  else if (type==='looks_show') setSpriteVisible(0, true);
+  else if (type==='looks_hide') setSpriteVisible(0, false);
+  else if (type==='looks_say') { setSpriteSay(0,String(p.text)); await delay(Number(p.sec)*1000); setSpriteSay(0,''); }
+  else if (type==='looks_set_size') setSpriteSize(0, Number(p.size));
+  else if (type==='looks_change_size') changeSpriteSize(0, Number(p.n));
+  else if (type==='looks_set_costume') { /* web: limited costume support */ }
+  // Control
+  else if (type==='wait') await delay(Number(p.sec)*1000);
+  else if (type==='repeat') { const n=Number(p.times); for(let i=0;i<n&&!stopRequested;i++){const sub=getSubTop(block,'body');if(sub){const r=await executeChain(sub,{...scope,__i:i});if(r==='__RETURN__')return r;}} }
+  else if (type==='forever') { while(!stopRequested){const sub=getSubTop(block,'body');if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__')return r;}await delay(16);} }
+  else if (type==='if_then') { if(resolveBool(p.cond,block,'cond',scope)){const sub=getSubTop(block,'body');if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__')return r;}} }
+  else if (type==='if_else') { if(resolveBool(p.cond,block,'cond',scope)){const sub=getSubTop(block,'then');if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__')return r;}}else{const sub=getSubTop(block,'else');if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__')return r;}} }
+  else if (type==='repeat_until') { while(!stopRequested&&!resolveBool(p.cond,block,'cond',scope)){const sub=getSubTop(block,'body');if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__')return r;}await delay(16);} }
+  else if (type==='stop_all') return '__STOP__';
+  else if (type==='control_label_run') { const sub=getSubTop(block,'body'); if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__')return r;} }
+  else if (type==='control_turbo') { turboMode++; try{const sub=getSubTop(block,'body');if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__'){turboMode--;return r;}}}finally{turboMode--;} }
+  else if (type==='control_goto_label') { const targetLabel=String(p.label); const target=findBlockByLabel(targetLabel); if(target){const nextBlock=target.flowOut?blocks[target.flowOut]:null; if(nextBlock){const r=await executeChain(nextBlock,scope);if(r==='__RETURN__'||r==='__STOP__')return r;} return '__STOP__';} else { log('警告: 找不到代码标签 "'+targetLabel+'"'); } }
+  else if (type==='scope_local') { const localScope={...scope,__local:true}; const sub=getSubTop(block,'body'); if(sub){const r=await executeChain(sub,localScope);if(r==='__RETURN__')return r;} }
+  // Variables
+  else if (type==='var_set') setVar(p.name, p.val, scope);
+  else if (type==='var_change') { const cur=getVar(p.name,scope); setVar(p.name,Number(cur)+Number(p.val),scope); }
+  // IO
+  else if (type==='io_print') log(p.text);
+  else if (type==='io_print_line') log(p.text + '\n');
+  else if (type==='io_clear_output') { output=[]; outputEl.textContent=''; }
+  else if (type==='io_alert') { alert(String(p.msg)); }
+  else if (type==='io_log') { console.log('[Objector]', p.text); log('[日志] ' + p.text); }
+  else if (type==='io_input') { log('询问: '+p.q); window.__answer=prompt(String(p.q))||''; log('回答: '+window.__answer); }
+  else if (type==='io_save_data') { globalVars['__data_'+p.key]=p.val; }
+  else if (type==='io_load_data') { return globalVars['__data_'+p.key]||''; }
+  else if (type==='sensing_reset_timer') window.__timerStart=Date.now();
+  // Functions
+  else if (type==='func_define') { /* registered */ }
+  else if (type==='func_call') { const fn=findFunction(p.name); if(fn){const callArgs=(block._extraParams||[]).map(ep=>{const connId=block.paramConnections&&block.paramConnections[ep.name];if(connId&&blocks[connId])return evaluateReporter(blocks[connId],scope);return block.params[ep.name]||'';});const fnScope={};const defParamNames=(fn._extraParams||[]).map(ep=>String(fn.params[ep.name]||'').trim()).filter(Boolean);defParamNames.forEach((name,i)=>{fnScope[name]=callArgs[i]!==undefined?callArgs[i]:'';});const next=fn.flowOut?blocks[fn.flowOut]:null;if(next){const r=await executeChain(next,fnScope);if(r==='__RETURN__')return fnScope.__return;}} }
+  else if (type==='func_return') { scope.__return=p.val; return '__RETURN__'; }
+  // Lists
+  else if (type==='list_push') { const arr=resolveListArray(p.list,scope); if(Array.isArray(arr))arr.push(p.val); }
+  else if (type==='list_delete') { const arr=resolveListArray(p.list,scope); if(Array.isArray(arr))arr.splice(Number(p.idx)-1,1); }
+  else if (type==='list_insert') { const arr=resolveListArray(p.list,scope); if(Array.isArray(arr))arr.splice(Number(p.idx)-1,0,p.val); }
+  else if (type==='list_set') { const arr=resolveListArray(p.list,scope); if(Array.isArray(arr))arr[Number(p.idx)-1]=p.val; }
+  else if (type==='list_clear') { const arr=resolveListArray(p.list,scope); if(Array.isArray(arr))arr.length=0; }
+  else if (type==='list_sort') { const arr=resolveListArray(p.list,scope); if(Array.isArray(arr)){arr.sort((a,b)=>{const na=Number(a),nb=Number(b);if(!isNaN(na)&&!isNaN(nb))return p.order==='降序'?nb-na:na-nb;return p.order==='降序'?String(b).localeCompare(String(a)):String(a).localeCompare(String(b));});} }
+  else if (type==='list_reverse') { const arr=resolveListArray(p.list,scope); if(Array.isArray(arr))arr.reverse(); }
+  else if (type==='list_foreach') { const arr=resolveListArray(p.list,scope); const list=Array.isArray(arr)?arr:[]; for(let i=0;i<list.length&&!stopRequested;i++){const subScope={...scope,[p.var]:list[i]};const sub=getSubTop(block,'body');if(sub){const r=await executeChain(sub,subScope);if(r==='__RETURN__')return r;}} }
+  // OOP
+  else if (type==='class_define') {}
+  else if (type==='class_set_attr') { const obj=scope.self||scope; obj[p.attr]=p.val; }
+  // Clone
+  else if (type==='clone_self') { const s=getActiveSprite(); if(s){sprites.push({...s,x:s.x+20,y:s.y+20,_posHistory:[],image:s.image});} }
+  else if (type==='delete_clone') { if(sprites.length>1) sprites.pop(); }
+  await delay(1);
+}
+
+async function startRun() {
+  if (running) return;
+  running = true; stopRequested = false;
+  globalVars = {}; output = []; turboMode = 0;
+  outputEl.textContent = '';
+  window.__timerStart = Date.now();
+  window.__answer = '';
+
+  document.getElementById('btn-run').disabled = true;
+  document.getElementById('btn-stop').disabled = false;
+  statusEl.textContent = '运行中...';
+
+  // Register key events
+  const keyBlocks = Object.values(blocks).filter(b => b.type === 'event_key_pressed');
+  const firedKeys = {};
+  if (keyBlocks.length > 0) {
+    keyHandler = (e) => {
+      if (!running || stopRequested) return;
+      const kn = mapKey(e.key);
+      pressedKeys[kn] = true;
+      keyBlocks.forEach(b => {
+        const tk = (b.params && b.params.key) || 'space';
+        if (tk === kn && !firedKeys[kn]) { firedKeys[kn] = true; executeChain(b, {}).catch(err => log(err.message)); }
+      });
+    };
+    const upHandler = (e) => { const kn = mapKey(e.key); delete firedKeys[kn]; delete pressedKeys[kn]; };
+    document.addEventListener('keydown', keyHandler);
+    document.addEventListener('keyup', upHandler);
+    keyHandler._up = upHandler;
+  }
+
+  // Register timer events
+  const timerBlocks = Object.values(blocks).filter(b => b.type === 'event_timer');
+  timerBlocks.forEach(tb => {
+    const ms = Math.max(Number(tb.params?.sec || 1) * 1000, 50);
+    timers.push(setInterval(() => { if (!stopRequested) executeChain(tb, {}).catch(e => log(e.message)); }, ms));
+  });
+
+  // Register broadcast receivers
+  broadcastListeners = Object.values(blocks).filter(b => b.type === 'event_receive');
+
+  // Start rendering
+  renderRunning = true;
+  renderFrame();
+
+  // Run event_start blocks
+  const starts = Object.values(blocks).filter(b => b.type === 'event_start');
+  for (const s of starts) { if (stopRequested) break; await executeChain(s, {}); }
+
+  // Keep alive for events
+  const hasEvents = keyBlocks.length > 0 || timerBlocks.length > 0 || broadcastListeners.length > 0;
+  if (hasEvents && !stopRequested) {
+    statusEl.textContent = '运行中（等待事件...）';
+    while (!stopRequested) await delay(100);
+  }
+
+  stopRun();
+}
+
+function stopRun() {
+  stopRequested = true;
+  running = false;
+  renderRunning = false;
+  timers.forEach(id => clearInterval(id));
+  timers = [];
+  broadcastListeners = [];
+  pressedKeys = {};
+  turboMode = 0;
+  if (keyHandler) {
+    document.removeEventListener('keydown', keyHandler);
+    if (keyHandler._up) document.removeEventListener('keyup', keyHandler._up);
+    keyHandler = null;
+  }
+  document.getElementById('btn-run').disabled = false;
+  document.getElementById('btn-stop').disabled = true;
+  statusEl.textContent = '运行结束';
+  renderFrame(); // final render
+}
+
+// URL hash load support
+window.addEventListener('load', () => {
+  const hash = window.location.hash;
+  if (hash.startsWith('#data=')) {
+    try {
+      const data = JSON.parse(decodeURIComponent(hash.slice(6)));
+      if (data.blocks) loadProject(data.blocks, data.project || null);
+      else loadProject(data, null);
+    } catch(e) { console.error('URL data load failed:', e); }
+  }
+});
+</script>
+</body>
+</html>
