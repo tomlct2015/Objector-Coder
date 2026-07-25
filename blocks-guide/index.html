@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<link rel="icon" href="https://tomlct2015.github.io/Objector-Coder/icon.svg">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Objector - 编辑器与积木用法指南</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a1a;--bg2:#111128;--surface:#1a1a3e;--surface2:#252550;
+  --text:#e8e8f0;--text2:#a0a0c0;--muted:#6a6a90;
+  --accent:#6c5ce7;--accent2:#a29bfe;--cyan:#00d2d3;--green:#00b894;
+  --pink:#fd79a8;--orange:#fdcb6e;--blue:#74b9ff;
+  --radius:12px;
+}
+html{scroll-behavior:smooth;font-size:16px}
+body{font-family:'Segoe UI','Microsoft YaHei','PingFang SC',sans-serif;background:var(--bg);color:var(--text);line-height:1.8}
+a{color:var(--accent2);text-decoration:none;transition:color .2s}
+a:hover{color:var(--cyan)}
+.container{max-width:1100px;margin:0 auto;padding:0 24px}
+
+/* Nav */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:12px 0;background:rgba(10,10,26,.92);backdrop-filter:blur(20px);border-bottom:1px solid rgba(108,92,231,.2)}
+nav .container{display:flex;align-items:center;justify-content:space-between}
+.nav-logo{font-size:20px;font-weight:800;background:linear-gradient(135deg,var(--accent2),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:flex;align-items:center;gap:8px}
+.nav-logo img{width:24px}
+.nav-links{display:flex;gap:24px;align-items:center}
+.nav-links a{font-size:13px;color:var(--text2);font-weight:500}
+.nav-links a:hover{color:var(--text)}
+
+/* Hero */
+.page-hero{padding:120px 0 60px;text-align:center;background:linear-gradient(180deg,rgba(108,92,231,.08),transparent)}
+.page-hero h1{font-size:clamp(32px,5vw,52px);font-weight:900;margin-bottom:16px}
+.page-hero h1 .gradient{background:linear-gradient(135deg,var(--accent2),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.page-hero p{font-size:18px;color:var(--text2);max-width:600px;margin:0 auto}
+
+/* TOC */
+.toc{background:var(--surface);border:1px solid rgba(108,92,231,.2);border-radius:16px;padding:32px;margin:40px 0}
+.toc h2{font-size:20px;margin-bottom:16px;color:var(--cyan)}
+.toc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.toc-grid a{display:block;padding:8px 12px;border-radius:8px;font-size:14px;color:var(--text2);transition:all .2s}
+.toc-grid a:hover{background:rgba(108,92,231,.1);color:var(--text)}
+.toc-grid a .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
+
+/* Sections */
+section{padding:60px 0}
+section:nth-child(even){background:linear-gradient(180deg,var(--bg),var(--bg2))}
+.section-title{font-size:28px;font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.section-title .cat-dot{width:16px;height:16px;border-radius:50%;display:inline-block}
+.section-desc{color:var(--text2);margin-bottom:32px;font-size:15px}
+
+/* Block tables */
+.block-table{width:100%;border-collapse:collapse;margin-bottom:16px}
+.block-table th{background:rgba(108,92,231,.1);color:var(--accent2);font-size:12px;text-transform:uppercase;letter-spacing:1px;padding:10px 16px;text-align:left;border-bottom:2px solid rgba(108,92,231,.2)}
+.block-table td{padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.04);font-size:14px;vertical-align:top}
+.block-table tr:hover{background:rgba(108,92,231,.04)}
+.block-label{font-weight:600;color:var(--text);white-space:nowrap}
+.block-shape{font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600;white-space:nowrap}
+.shape-hat{background:rgba(108,92,231,.15);color:var(--accent2)}
+.shape-stack{background:rgba(0,210,211,.12);color:var(--cyan)}
+.shape-c-block{background:rgba(253,203,110,.15);color:var(--orange)}
+.shape-reporter{background:rgba(0,184,148,.12);color:var(--green)}
+.shape-boolean{background:rgba(253,121,168,.12);color:var(--pink)}
+.shape-c-reporter{background:rgba(116,185,255,.12);color:var(--blue)}
+
+/* Editor guide */
+.editor-section{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;margin-top:24px}
+.editor-card{background:var(--surface);border:1px solid rgba(108,92,231,.15);border-radius:14px;padding:24px;transition:all .3s}
+.editor-card:hover{border-color:rgba(108,92,231,.4);transform:translateY(-2px)}
+.editor-card h3{font-size:16px;margin-bottom:8px;color:var(--text)}
+.editor-card p{font-size:13px;color:var(--text2);line-height:1.7}
+.editor-card .icon{font-size:28px;margin-bottom:12px}
+
+/* Tip boxes */
+.tip{background:rgba(0,210,211,.06);border-left:3px solid var(--cyan);padding:12px 16px;border-radius:0 8px 8px 0;margin:12px 0;font-size:13px;color:var(--text2)}
+.tip.warn{background:rgba(253,203,110,.06);border-left-color:var(--orange)}
+
+/* Footer */
+footer{padding:40px 0;border-top:1px solid rgba(255,255,255,.06);text-align:center}
+footer p{font-size:13px;color:var(--muted)}
+
+@media(max-width:768px){
+  .nav-links{display:none}
+  .editor-section{grid-template-columns:1fr}
+  .block-table{font-size:12px}
+  .block-table td,.block-table th{padding:6px 8px}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <div class="nav-logo"><img src="icon.svg" alt=""> Objector Docs</div>
+    <div class="nav-links">
+      <a href="index.html">← 返回首页</a>
+      <a href="#editor">编辑器</a>
+      <a href="#events">事件</a>
+      <a href="#motion">运动</a>
+      <a href="#control">控制</a>
+      <a href="#functions">函数</a>
+    </div>
+  </div>
+</nav>
+
+<div class="page-hero">
+  <div class="container">
+    <h1>编辑器与积木<br><span class="gradient">用法指南</span></h1>
+    <p>Objector v1.0.4 完整参考手册 — 涵盖编辑器操作、12 大积木模块、100+ 积木的详细用法说明</p>
+  </div>
+</div>
+
+<div class="container">
+<!-- TOC -->
+<div class="toc">
+  <h2>📚 目录</h2>
+  <div class="toc-grid">
+    <a href="#editor"><span class="dot" style="background:var(--cyan)"></span>编辑器入门</a>
+    <a href="#events"><span class="dot" style="background:#FFAB00"></span>事件</a>
+    <a href="#motion"><span class="dot" style="background:#4C97FF"></span>运动</a>
+    <a href="#looks"><span class="dot" style="background:#9966FF"></span>外观</a>
+    <a href="#control"><span class="dot" style="background:#FFBF00"></span>控制</a>
+    <a href="#operators"><span class="dot" style="background:#40BF4A"></span>运算</a>
+    <a href="#variables"><span class="dot" style="background:#FF8C1A"></span>变量</a>
+    <a href="#functions"><span class="dot" style="background:#FF6680"></span>函数</a>
+    <a href="#oop"><span class="dot" style="background:#CF63CF"></span>类/OOP</a>
+    <a href="#lists"><span class="dot" style="background:#FF661A"></span>列表</a>
+    <a href="#sensing"><span class="dot" style="background:#5CB1D6"></span>侦测</a>
+    <a href="#sound"><span class="dot" style="background:#CF63CF"></span>声音</a>
+    <a href="#io"><span class="dot" style="background:#59C059"></span>IO</a>
+  </div>
+</div>
+</div>
+
+<!-- ==================== EDITOR GUIDE ==================== -->
+<section id="editor">
+<div class="container">
+  <h2 class="section-title">🖥️ 编辑器入门</h2>
+  <p class="section-desc">Objector 是一款基于 Electron 的图形化积木编程桌面编辑器，支持 Windows 平台。</p>
+
+  <div class="editor-section">
+    <div class="editor-card">
+      <div class="icon">🎨</div>
+      <h3>积木面板（左侧）</h3>
+      <p>按分类浏览所有积木。点击分类名切换显示，将积木拖入画布即可使用。积木间通过端口自动吸附连接。</p>
+    </div>
+    <div class="editor-card">
+      <div class="icon">📐</div>
+      <h3>积木画布（中央）</h3>
+      <p>主要的编程区域。拖拽积木组合成程序。支持滚轮缩放、右键菜单（复制/删除/折叠/批注/Ctrl+T 跳转标签）。</p>
+    </div>
+    <div class="editor-card">
+      <div class="icon">🎭</div>
+      <h3>舞台（右侧）</h3>
+      <p>精灵活动的可视化区域。运行程序后精灵在此显示和移动。支持多精灵管理。</p>
+    </div>
+    <div class="editor-card">
+      <div class="icon">▶️</div>
+      <h3>运行控制</h3>
+      <p>工具栏提供 <b>▶ 运行</b> / <b>⏹ 停止</b> 按钮。运行后所有 🚩"当程序启动时" 积木链开始执行。</p>
+    </div>
+    <div class="editor-card">
+      <div class="icon">🐛</div>
+      <h3>开发者模式</h3>
+      <p>切换到开发者模式可启用断点设置、单步执行、变量监视面板等高级调试工具。</p>
+    </div>
+    <div class="editor-card">
+      <div class="icon">📂</div>
+      <h3>项目管理</h3>
+      <p>新建项目时选择父文件夹，自动在其下创建"我的作品"子目录。支持项目重命名（同步更新磁盘目录名）。导出为 HTML 可分享给他人运行。</p>
+    </div>
+    <div class="editor-card">
+      <div class="icon">🔌</div>
+      <h3>扩展系统</h3>
+      <p>通过 JSON/JS 扩展文件自定义新积木类型。点击工具栏 📖 文档按钮可查看扩展编写指南。</p>
+    </div>
+    <div class="editor-card">
+      <div class="icon">🏷️</div>
+      <h3>三种模式</h3>
+      <p><b>新手模式</b>：精简积木；<b>普通模式</b>：完整功能；<b>开发者模式</b>：调试工具。</p>
+    </div>
+  </div>
+
+  <div class="tip" style="margin-top:24px">
+    <b>积木形状说明：</b>
+    <span class="block-shape shape-hat">帽子型 (hat)</span> = 事件入口，程序从这里开始；
+    <span class="block-shape shape-stack">堆叠型 (stack)</span> = 普通指令；
+    <span class="block-shape shape-c-block">C型槽 (c-block)</span> = 包含子代码的容器；
+    <span class="block-shape shape-reporter">报告器 (reporter)</span> = 返回值；
+    <span class="block-shape shape-boolean">布尔型 (boolean)</span> = 返回真/假；
+    <span class="block-shape shape-c-reporter">C型报告器</span> = 代码块容器 + 返回值
+  </div>
+</div>
+</section>
+
+<!-- ==================== EVENTS ==================== -->
+<section id="events">
+<div class="container">
+  <h2 class="section-title"><span class="cat-dot" style="background:#FFAB00"></span>事件</h2>
+  <p class="section-desc">程序入口点和事件触发机制。所有程序至少需要一个事件帽子积木来启动。</p>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">🚩 当程序启动时</td><td><span class="block-shape shape-hat">hat</span></td><td>点击运行按钮后触发，是最常用的程序入口</td></tr>
+    <tr><td class="block-label">⌨ 当按下 [key] 键</td><td><span class="block-shape shape-hat">hat</span></td><td>按下指定键盘按键时触发，支持字母/数字/方向键/特殊键</td></tr>
+    <tr><td class="block-label">👆 当精灵被点击</td><td><span class="block-shape shape-hat">hat</span></td><td>鼠标点击当前精灵时触发</td></tr>
+    <tr><td class="block-label">📡 广播 [msg]</td><td><span class="block-shape shape-stack">stack</span></td><td>发送消息给所有"当接收到"积木，不等待执行完毕</td></tr>
+    <tr><td class="block-label">📡 广播 [msg] 并等待</td><td><span class="block-shape shape-stack">stack</span></td><td>发送消息并等待所有接收者执行完毕后再继续</td></tr>
+    <tr><td class="block-label">📩 当接收到 [msg]</td><td><span class="block-shape shape-hat">hat</span></td><td>接收到指定消息时触发，配合广播使用</td></tr>
+    <tr><td class="block-label">⏱ 每隔 [sec] 秒</td><td><span class="block-shape shape-hat">hat</span></td><td>定时触发，每隔指定秒数执行一次</td></tr>
+  </table>
+</div>
+</section>
+
+<!-- ==================== MOTION ==================== -->
+<section id="motion">
+<div class="container">
+  <h2 class="section-title"><span class="cat-dot" style="background:#4C97FF"></span>运动</h2>
+  <p class="section-desc">精灵移动、方向控制、物理系统（超越 Scratch 的增强运动系统）。</p>
+
+  <h3 style="color:var(--cyan);margin:24px 0 12px;font-size:16px">基础移动</h3>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">移动 [steps] 步</td><td><span class="block-shape shape-stack">stack</span></td><td>沿当前方向前进指定步数</td></tr>
+    <tr><td class="block-label">右转 [deg] 度</td><td><span class="block-shape shape-stack">stack</span></td><td>顺时针旋转指定角度</td></tr>
+    <tr><td class="block-label">左转 [deg] 度</td><td><span class="block-shape shape-stack">stack</span></td><td>逆时针旋转指定角度</td></tr>
+  </table>
+
+  <h3 style="color:var(--cyan);margin:24px 0 12px;font-size:16px">位置控制</h3>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">移到 x:[x] y:[y]</td><td><span class="block-shape shape-stack">stack</span></td><td>直接移动到指定坐标</td></tr>
+    <tr><td class="block-label">移到随机位置</td><td><span class="block-shape shape-stack">stack</span></td><td>移动到舞台内随机位置</td></tr>
+    <tr><td class="block-label">移到鼠标位置</td><td><span class="block-shape shape-stack">stack</span></td><td>移动到当前鼠标坐标</td></tr>
+    <tr><td class="block-label">移到 [sprite] 的位置</td><td><span class="block-shape shape-stack">stack</span></td><td>移动到指定精灵的位置</td></tr>
+    <tr><td class="block-label">将 x 坐标增加 [dx]</td><td><span class="block-shape shape-stack">stack</span></td><td>水平移动</td></tr>
+    <tr><td class="block-label">将 x 坐标设为 [x]</td><td><span class="block-shape shape-stack">stack</span></td><td>设置绝对 x 坐标</td></tr>
+    <tr><td class="block-label">将 y 坐标增加 [dy]</td><td><span class="block-shape shape-stack">stack</span></td><td>垂直移动</td></tr>
+    <tr><td class="block-label">将 y 坐标设为 [y]</td><td><span class="block-shape shape-stack">stack</span></td><td>设置绝对 y 坐标</td></tr>
+  </table>
+
+  <h3 style="color:var(--cyan);margin:24px 0 12px;font-size:16px">滑行</h3>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">滑行 [sec] 秒到 x:[x] y:[y]</td><td><span class="block-shape shape-stack">stack</span></td><td>平滑移动到指定坐标</td></tr>
+    <tr><td class="block-label">滑行 [sec] 秒到随机位置</td><td><span class="block-shape shape-stack">stack</span></td><td>平滑移动到随机位置</td></tr>
+    <tr><td class="block-label">滑行 [sec] 秒到鼠标位置</td><td><span class="block-shape shape-stack">stack</span></td><td>平滑移动到鼠标位置</td></tr>
+    <tr><td class="block-label">滑行 [sec] 秒到 [sprite]</td><td><span class="block-shape shape-stack">stack</span></td><td>平滑移动到指定精灵</td></tr>
+  </table>
+
+  <h3 style="color:var(--cyan);margin:24px 0 12px;font-size:16px">方向与反弹</h3>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">面向 [deg] 度</td><td><span class="block-shape shape-stack">stack</span></td><td>设置面向角度（90=右, 0=上）</td></tr>
+    <tr><td class="block-label">面向鼠标</td><td><span class="block-shape shape-stack">stack</span></td><td>面向鼠标位置</td></tr>
+    <tr><td class="block-label">面向 [sprite]</td><td><span class="block-shape shape-stack">stack</span></td><td>面向指定精灵</td></tr>
+    <tr><td class="block-label">将方向增加 [ddir] 度</td><td><span class="block-shape shape-stack">stack</span></td><td>相对旋转方向</td></tr>
+    <tr><td class="block-label">碰到边缘就反弹</td><td><span class="block-shape shape-stack">stack</span></td><td>碰到舞台边缘反弹方向</td></tr>
+    <tr><td class="block-label">设置旋转模式</td><td><span class="block-shape shape-stack">stack</span></td><td>任意旋转 / 左右翻转 / 不旋转</td></tr>
+  </table>
+
+  <h3 style="color:var(--orange);margin:24px 0 12px;font-size:16px">⚡ 物理系统（超越 Scratch）</h3>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">设置速度 vx:[vx] vy:[vy]</td><td><span class="block-shape shape-stack">stack</span></td><td>设定 x/y 方向速度分量</td></tr>
+    <tr><td class="block-label">将速度改变 vx:[vx] vy:[vy]</td><td><span class="block-shape shape-stack">stack</span></td><td>增减速度（加速度效果）</td></tr>
+    <tr><td class="block-label">以速度 [speed] 向 [deg] 度方向运动</td><td><span class="block-shape shape-stack">stack</span></td><td>按速度值和方向设定运动速度</td></tr>
+    <tr><td class="block-label">施加摩擦力 [f]</td><td><span class="block-shape shape-stack">stack</span></td><td>每帧将速度乘以摩擦系数（0~1），模拟减速</td></tr>
+    <tr><td class="block-label">施加重力 [g]</td><td><span class="block-shape shape-stack">stack</span></td><td>每帧给 vy 加上重力值，模拟自由落体</td></tr>
+    <tr><td class="block-label">按速度移动一步</td><td><span class="block-shape shape-stack">stack</span></td><td>根据当前速度更新精灵位置</td></tr>
+    <tr><td class="block-label">碰到边缘反弹速度（弹性 [e]）</td><td><span class="block-shape shape-stack">stack</span></td><td>边缘弹性碰撞，e=1 完全弹性，e&lt;1 有能量损耗</td></tr>
+  </table>
+
+  <h3 style="color:var(--orange);margin:24px 0 12px;font-size:16px">⚡ 追踪与高级运动（超越 Scratch）</h3>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">向鼠标移动 [steps] 步</td><td><span class="block-shape shape-stack">stack</span></td><td>朝鼠标方向前进</td></tr>
+    <tr><td class="block-label">向 [sprite] 移动 [steps] 步</td><td><span class="block-shape shape-stack">stack</span></td><td>朝目标精灵方向前进</td></tr>
+    <tr><td class="block-label">远离 [sprite] [steps] 步</td><td><span class="block-shape shape-stack">stack</span></td><td>远离目标精灵</td></tr>
+    <tr><td class="block-label">绕 [sprite] 旋转 [deg] 度（半径 [r]）</td><td><span class="block-shape shape-stack">stack</span></td><td>围绕目标精灵做圆周运动</td></tr>
+    <tr><td class="block-label">随机移动 [min]~[max] 步</td><td><span class="block-shape shape-stack">stack</span></td><td>随机方向随机步数移动</td></tr>
+    <tr><td class="block-label">随机转向 [min]~[max] 度</td><td><span class="block-shape shape-stack">stack</span></td><td>随机角度转向</td></tr>
+    <tr><td class="block-label">返回上一步位置</td><td><span class="block-shape shape-stack">stack</span></td><td>精灵回到上一次移动前的位置</td></tr>
+    <tr><td class="block-label">限制在舞台内</td><td><span class="block-shape shape-stack">stack</span></td><td>将精灵坐标钳制到舞台范围</td></tr>
+    <tr><td class="block-label">超出舞台从另一侧进入</td><td><span class="block-shape shape-stack">stack</span></td><td>穿屏效果（类似贪吃蛇）</td></tr>
+  </table>
+
+  <h3 style="color:var(--green);margin:24px 0 12px;font-size:16px">报告器（获取运动数据）</h3>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">x 坐标 / y 坐标</td><td><span class="block-shape shape-reporter">reporter</span></td><td>返回精灵当前位置</td></tr>
+    <tr><td class="block-label">面向方向</td><td><span class="block-shape shape-reporter">reporter</span></td><td>返回精灵当前朝向角度</td></tr>
+    <tr><td class="block-label">x 速度 / y 速度 / 当前速度</td><td><span class="block-shape shape-reporter">reporter</span></td><td>返回精灵的速度分量或合成速度</td></tr>
+    <tr><td class="block-label">到鼠标的距离 / 方向</td><td><span class="block-shape shape-reporter">reporter</span></td><td>计算到鼠标的距离和角度</td></tr>
+    <tr><td class="block-label">到 [sprite] 的距离 / 方向</td><td><span class="block-shape shape-reporter">reporter</span></td><td>计算到指定精灵的距离和角度</td></tr>
+    <tr><td class="block-label">在舞台边缘?</td><td><span class="block-shape shape-boolean">boolean</span></td><td>判断精灵是否在舞台边缘</td></tr>
+  </table>
+</div>
+</section>
+
+<!-- ==================== LOOKS ==================== -->
+<section id="looks">
+<div class="container">
+  <h2 class="section-title"><span class="cat-dot" style="background:#9966FF"></span>外观</h2>
+  <p class="section-desc">精灵的显示/隐藏、对话气泡、造型切换、大小与特效控制。</p>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">显示 / 隐藏</td><td><span class="block-shape shape-stack">stack</span></td><td>显示或隐藏精灵</td></tr>
+    <tr><td class="block-label">说 [text] [sec] 秒</td><td><span class="block-shape shape-stack">stack</span></td><td>显示对话气泡并等待指定时间后消失</td></tr>
+    <tr><td class="block-label">说 [text]</td><td><span class="block-shape shape-stack">stack</span></td><td>显示对话气泡（不等待，持续显示）</td></tr>
+    <tr><td class="block-label">思考 [text]</td><td><span class="block-shape shape-stack">stack</span></td><td>显示思考气泡</td></tr>
+    <tr><td class="block-label">下一个造型</td><td><span class="block-shape shape-stack">stack</span></td><td>切换到下一个造型（循环）</td></tr>
+    <tr><td class="block-label">将大小设为 [size]%</td><td><span class="block-shape shape-stack">stack</span></td><td>设置精灵缩放比例</td></tr>
+    <tr><td class="block-label">大小增加 [n]</td><td><span class="block-shape shape-stack">stack</span></td><td>增加/减少精灵大小</td></tr>
+    <tr><td class="block-label">将颜色特效设为 [val]</td><td><span class="block-shape shape-stack">stack</span></td><td>设置颜色偏移特效</td></tr>
+    <tr><td class="block-label">清除图形特效</td><td><span class="block-shape shape-stack">stack</span></td><td>清除所有视觉特效</td></tr>
+    <tr><td class="block-label">切换造型为 [name]</td><td><span class="block-shape shape-stack">stack</span></td><td>从造型库选择并切换造型</td></tr>
+    <tr><td class="block-label">大小</td><td><span class="block-shape shape-reporter">reporter</span></td><td>返回当前大小百分比</td></tr>
+  </table>
+</div>
+</section>
+
+<!-- ==================== CONTROL ==================== -->
+<section id="control">
+<div class="container">
+  <h2 class="section-title"><span class="cat-dot" style="background:#FFBF00"></span>控制</h2>
+  <p class="section-desc">流程控制：循环、条件、等待、克隆、标签跳转、元编程。</p>
+
+  <h3 style="color:var(--cyan);margin:16px 0 12px;font-size:16px">基础流程</h3>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">等待 [sec] 秒</td><td><span class="block-shape shape-stack">stack</span></td><td>暂停执行指定秒数</td></tr>
+    <tr><td class="block-label">重复 [times] 次</td><td><span class="block-shape shape-c-block">c-block</span></td><td>循环执行子代码指定次数</td></tr>
+    <tr><td class="block-label">重复执行</td><td><span class="block-shape shape-c-block">c-block</span></td><td>无限循环执行子代码</td></tr>
+    <tr><td class="block-label">如果 [cond] 那么</td><td><span class="block-shape shape-c-block">c-block</span></td><td>条件为真时执行子代码</td></tr>
+    <tr><td class="block-label">如果 [cond] 那么 / 否则</td><td><span class="block-shape shape-c-block">c-block</span></td><td>条件分支：真走"那么"，假走"否则"</td></tr>
+    <tr><td class="block-label">重复直到 [cond]</td><td><span class="block-shape shape-c-block">c-block</span></td><td>循环直到条件为真</td></tr>
+    <tr><td class="block-label">停止全部</td><td><span class="block-shape shape-stack">stack</span></td><td>停止所有正在运行的脚本</td></tr>
+    <tr><td class="block-label">创建自己的克隆</td><td><span class="block-shape shape-stack">stack</span></td><td>创建当前精灵的副本</td></tr>
+    <tr><td class="block-label">删除此克隆</td><td><span class="block-shape shape-stack">stack</span></td><td>删除当前克隆体</td></tr>
+  </table>
+
+  <h3 style="color:var(--orange);margin:24px 0 12px;font-size:16px">标签与 Turbo</h3>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">给以下积木贴上标签 [label] 并运行</td><td><span class="block-shape shape-c-block">c-block</span></td><td>为子代码添加标签，可被 goto 跳转</td></tr>
+    <tr><td class="block-label">⚡ 一帧内执行</td><td><span class="block-shape shape-c-block">c-block</span></td><td>跳过所有等待/延迟，以最快速度执行子代码。适合大规模计算</td></tr>
+    <tr><td class="block-label">从代码标签 [label] 开始往后运行</td><td><span class="block-shape shape-stack">stack</span></td><td>跳转到指定标签处继续执行（goto）</td></tr>
+  </table>
+
+  <h3 style="color:var(--pink);margin:24px 0 12px;font-size:16px">元编程（v1.0.4 新增）</h3>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">代码块</td><td><span class="block-shape shape-c-reporter">c-block-reporter</span></td><td>将子代码封装为可传递的"值"。左上角 flow-in 被触发执行，正左中 param-out 输出代码块引用</td></tr>
+    <tr><td class="block-label">运行 [🧩]</td><td><span class="block-shape shape-stack">stack</span></td><td>接收积木引用并执行。支持代码块闭包、函数定义</td></tr>
+    <tr><td class="block-label">运行 [🧩] 并返回</td><td><span class="block-shape shape-reporter">reporter</span></td><td>执行积木并返回其结果值</td></tr>
+  </table>
+  <div class="tip">
+    <b>元编程示例：</b><br>
+    1. 拖出一个"代码块"，内部放入子代码<br>
+    2. 从代码块左侧 param-out 拖线到"运行 [🧩]"的输入槽<br>
+    3. 运行时，代码块内的子代码会被执行<br>
+    4. 也可以传给"设置函数 [名称] 定义为 [🧩]"来动态注册函数
+  </div>
+</div>
+</section>
+
+<!-- ==================== OPERATORS ==================== -->
+<section id="operators">
+<div class="container">
+  <h2 class="section-title"><span class="cat-dot" style="background:#40BF4A"></span>运算</h2>
+  <p class="section-desc">数学运算、比较、逻辑、字符串操作和数学函数。</p>
+
+  <h3 style="color:var(--green);margin:16px 0 12px;font-size:16px">算术与随机</h3>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">[a] + [b] / - / × / ÷ / 取余</td><td><span class="block-shape shape-reporter">reporter</span></td><td>四则运算和取余</td></tr>
+    <tr><td class="block-label">[a] 的 [b] 次方</td><td><span class="block-shape shape-reporter">reporter</span></td><td>幂运算</td></tr>
+    <tr><td class="block-label">在 [a] 到 [b] 间随机</td><td><span class="block-shape shape-reporter">reporter</span></td><td>范围内随机整数</td></tr>
+    <tr><td class="block-label">随机小数 (0~1)</td><td><span class="block-shape shape-reporter">reporter</span></td><td>0 到 1 之间的随机浮点数</td></tr>
+  </table>
+
+  <h3 style="color:var(--pink);margin:24px 0 12px;font-size:16px">比较与逻辑</h3>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">[a] &lt; / &gt; / ≤ / ≥ / = / ≠ [b]</td><td><span class="block-shape shape-boolean">boolean</span></td><td>比较运算符</td></tr>
+    <tr><td class="block-label">[a] 且 [b]</td><td><span class="block-shape shape-boolean">boolean</span></td><td>逻辑与</td></tr>
+    <tr><td class="block-label">[a] 或 [b]</td><td><span class="block-shape shape-boolean">boolean</span></td><td>逻辑或</td></tr>
+    <tr><td class="block-label">非 [a]</td><td><span class="block-shape shape-boolean">boolean</span></td><td>逻辑非</td></tr>
+  </table>
+
+  <h3 style="color:var(--cyan);margin:24px 0 12px;font-size:16px">字符串操作</h3>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">连接 [a] 和 [b]</td><td><span class="block-shape shape-reporter">reporter</span></td><td>拼接两个字符串</td></tr>
+    <tr><td class="block-label">[s] 的长度</td><td><span class="block-shape shape-reporter">reporter</span></td><td>返回字符串长度</td></tr>
+    <tr><td class="block-label">[s] 从第 [start] 到第 [end] 个字符</td><td><span class="block-shape shape-reporter">reporter</span></td><td>截取子字符串</td></tr>
+    <tr><td class="block-label">[s] 中 [sub] 的位置</td><td><span class="block-shape shape-reporter">reporter</span></td><td>查找子串位置</td></tr>
+    <tr><td class="block-label">[s] 包含 [sub]?</td><td><span class="block-shape shape-boolean">boolean</span></td><td>判断是否包含</td></tr>
+    <tr><td class="block-label">[s] 转大写 / 转小写</td><td><span class="block-shape shape-reporter">reporter</span></td><td>大小写转换</td></tr>
+    <tr><td class="block-label">[s] 去除空格</td><td><span class="block-shape shape-reporter">reporter</span></td><td>去除首尾空格</td></tr>
+    <tr><td class="block-label">[s] 重复 [n] 次</td><td><span class="block-shape shape-reporter">reporter</span></td><td>重复字符串</td></tr>
+    <tr><td class="block-label">[s] 将 [from] 替换为 [to]</td><td><span class="block-shape shape-reporter">reporter</span></td><td>字符串替换</td></tr>
+    <tr><td class="block-label">[s] 的第 [n] 个字符</td><td><span class="block-shape shape-reporter">reporter</span></td><td>获取指定位置字符</td></tr>
+    <tr><td class="block-label">将 [s] 转为数字 / 将 [n] 转为文本</td><td><span class="block-shape shape-reporter">reporter</span></td><td>类型转换</td></tr>
+  </table>
+
+  <h3 style="color:var(--orange);margin:24px 0 12px;font-size:16px">数学函数</h3>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">[fn] [n]</td><td><span class="block-shape shape-reporter">reporter</span></td><td>数学函数：abs/floor/ceil/round/sqrt/sin/cos/tan/asin/acos/atan/log/log2/exp/sign</td></tr>
+    <tr><td class="block-label">[a] 和 [b] 的最小值 / 最大值</td><td><span class="block-shape shape-reporter">reporter</span></td><td>取最小/最大值</td></tr>
+    <tr><td class="block-label">将 [n] 限制在 [min] 到 [max] 之间</td><td><span class="block-shape shape-reporter">reporter</span></td><td>值钳制（clamp）</td></tr>
+    <tr><td class="block-label">从 [a] 到 [b] 插值 [t]</td><td><span class="block-shape shape-reporter">reporter</span></td><td>线性插值（t=0 返回 a，t=1 返回 b）</td></tr>
+    <tr><td class="block-label">π / e</td><td><span class="block-shape shape-reporter">reporter</span></td><td>数学常数</td></tr>
+  </table>
+</div>
+</section>
+
+<!-- ==================== VARIABLES ==================== -->
+<section id="variables">
+<div class="container">
+  <h2 class="section-title"><span class="cat-dot" style="background:#FF8C1A"></span>变量</h2>
+  <p class="section-desc">变量存储与操作。v1.0.4 起，当变量名与函数名相同时获取的是函数引用。</p>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">将 [name] 设为 [val]</td><td><span class="block-shape shape-stack">stack</span></td><td>赋值（自动创建变量）</td></tr>
+    <tr><td class="block-label">将 [name] 增加 [val]</td><td><span class="block-shape shape-stack">stack</span></td><td>数值增加</td></tr>
+    <tr><td class="block-label">[name]</td><td><span class="block-shape shape-reporter">reporter</span></td><td>读取变量值。若变量名与函数名相同，返回函数引用</td></tr>
+    <tr><td class="block-label">显示/隐藏变量 [name]</td><td><span class="block-shape shape-stack">stack</span></td><td>在舞台上显示/隐藏变量监视器</td></tr>
+    <tr><td class="block-label">局部域</td><td><span class="block-shape shape-c-block">c-block</span></td><td>创建局部作用域，内部变量不会污染外部</td></tr>
+  </table>
+  <div class="tip warn">
+    <b>v1.0.4 特性：</b>当变量名（如"求平方"）恰好是一个已定义的函数名时，读取该变量会返回函数本身的引用。你可以将其传给"运行 [🧩]"来调用，实现函数式编程风格。
+  </div>
+</div>
+</section>
+
+<!-- ==================== FUNCTIONS ==================== -->
+<section id="functions">
+<div class="container">
+  <h2 class="section-title"><span class="cat-dot" style="background:#FF6680"></span>函数</h2>
+  <p class="section-desc">函数定义、调用、返回值。支持多参数和动态函数注册。</p>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">定义函数 [name]</td><td><span class="block-shape shape-hat">hat</span></td><td>定义函数，支持通过右键添加多个参数。参数名会出现在积木标签中</td></tr>
+    <tr><td class="block-label">调用 [name]</td><td><span class="block-shape shape-stack">stack</span></td><td>调用已定义的函数，参数槽自动匹配函数定义的参数数量</td></tr>
+    <tr><td class="block-label">调用 [name] 的返回值</td><td><span class="block-shape shape-reporter">reporter</span></td><td>调用函数并获取其返回值</td></tr>
+    <tr><td class="block-label">返回 [val]</td><td><span class="block-shape shape-stack">stack</span></td><td>从函数中返回指定值，结束函数执行</td></tr>
+    <tr><td class="block-label">参数 [name]</td><td><span class="block-shape shape-reporter">reporter</span></td><td>在函数体内读取参数值</td></tr>
+    <tr><td class="block-label">设置函数 [name] 定义为 [🧩]</td><td><span class="block-shape shape-stack">stack</span></td><td><b>v1.0.4 新增</b>：运行时将代码块注册为动态函数，支持扩展参数名</td></tr>
+  </table>
+  <div class="tip">
+    <b>动态函数示例：</b><br>
+    ① 创建"代码块"，内部放入"返回 [x × x]"<br>
+    ② 使用"设置函数 [求平方] (x) 定义为 [代码块]"<br>
+    ③ 之后用"调用 [求平方] (5)"即可调用
+  </div>
+</div>
+</section>
+
+<!-- ==================== OOP ==================== -->
+<section id="oop">
+<div class="container">
+  <h2 class="section-title"><span class="cat-dot" style="background:#CF63CF"></span>类/OOP</h2>
+  <p class="section-desc">面向对象编程：类定义、初始化、方法、属性、对象创建。</p>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">定义类 [name]</td><td><span class="block-shape shape-hat">hat</span></td><td>定义一个类的入口</td></tr>
+    <tr><td class="block-label">初始化方法 ([args])</td><td><span class="block-shape shape-c-block">c-block</span></td><td>构造函数，创建对象时自动调用</td></tr>
+    <tr><td class="block-label">方法 [name]([args])</td><td><span class="block-shape shape-c-block">c-block</span></td><td>定义类方法</td></tr>
+    <tr><td class="block-label">设置属性 self.[attr] = [val]</td><td><span class="block-shape shape-stack">stack</span></td><td>在方法内设置实例属性</td></tr>
+    <tr><td class="block-label">[obj].[attr]</td><td><span class="block-shape shape-reporter">reporter</span></td><td>读取对象属性</td></tr>
+    <tr><td class="block-label">创建 [cls] 对象([args])</td><td><span class="block-shape shape-reporter">reporter</span></td><td>实例化对象，返回对象引用</td></tr>
+    <tr><td class="block-label">[obj].[method]([args])</td><td><span class="block-shape shape-stack">stack</span></td><td>调用对象方法</td></tr>
+    <tr><td class="block-label">[obj].[method]([args]) 返回值</td><td><span class="block-shape shape-reporter">reporter</span></td><td>调用方法并获取返回值</td></tr>
+    <tr><td class="block-label">self</td><td><span class="block-shape shape-reporter">reporter</span></td><td>在方法内引用当前实例</td></tr>
+  </table>
+</div>
+</section>
+
+<!-- ==================== LISTS ==================== -->
+<section id="lists">
+<div class="container">
+  <h2 class="section-title"><span class="cat-dot" style="background:#FF661A"></span>列表</h2>
+  <p class="section-desc">列表作为数组存储在变量中，通过变量名引用。</p>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">列表</td><td><span class="block-shape shape-reporter">reporter</span></td><td>创建空列表，右键可添加初始项</td></tr>
+    <tr><td class="block-label">向 [list] 添加 [val]</td><td><span class="block-shape shape-stack">stack</span></td><td>在列表末尾追加元素</td></tr>
+    <tr><td class="block-label">删除 [list] 第 [idx] 项</td><td><span class="block-shape shape-stack">stack</span></td><td>删除指定位置的元素</td></tr>
+    <tr><td class="block-label">在 [list] 第 [idx] 位插入 [val]</td><td><span class="block-shape shape-stack">stack</span></td><td>在指定位置插入元素</td></tr>
+    <tr><td class="block-label">设置 [list][[idx]] = [val]</td><td><span class="block-shape shape-stack">stack</span></td><td>修改指定位置的元素</td></tr>
+    <tr><td class="block-label">[list][[idx]]</td><td><span class="block-shape shape-reporter">reporter</span></td><td>获取指定位置的元素</td></tr>
+    <tr><td class="block-label">[list] 的长度</td><td><span class="block-shape shape-reporter">reporter</span></td><td>返回列表元素个数</td></tr>
+    <tr><td class="block-label">[list] 包含 [val]</td><td><span class="block-shape shape-boolean">boolean</span></td><td>判断列表是否包含指定值</td></tr>
+    <tr><td class="block-label">清空 [list]</td><td><span class="block-shape shape-stack">stack</span></td><td>清空所有元素</td></tr>
+    <tr><td class="block-label">遍历 [list] 中每项 [var]</td><td><span class="block-shape shape-c-block">c-block</span></td><td>遍历列表，每次将当前项赋值给变量</td></tr>
+    <tr><td class="block-label">[list] 中 [val] 的位置</td><td><span class="block-shape shape-reporter">reporter</span></td><td>查找元素首次出现的索引</td></tr>
+    <tr><td class="block-label">用 [sep] 连接 [list]</td><td><span class="block-shape shape-reporter">reporter</span></td><td>将列表用分隔符拼接成字符串</td></tr>
+    <tr><td class="block-label">排序 [list] 升序/降序</td><td><span class="block-shape shape-stack">stack</span></td><td>原地排序列表</td></tr>
+    <tr><td class="block-label">反转 [list]</td><td><span class="block-shape shape-stack">stack</span></td><td>原地反转列表</td></tr>
+  </table>
+</div>
+</section>
+
+<!-- ==================== SENSING ==================== -->
+<section id="sensing">
+<div class="container">
+  <h2 class="section-title"><span class="cat-dot" style="background:#5CB1D6"></span>侦测</h2>
+  <p class="section-desc">碰撞检测、鼠标/键盘输入、精灵属性、计时器与系统信息。</p>
+
+  <h3 style="color:var(--cyan);margin:16px 0 12px;font-size:16px">碰撞与输入</h3>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">碰到边缘?</td><td><span class="block-shape shape-boolean">boolean</span></td><td>判断是否触碰舞台边缘</td></tr>
+    <tr><td class="block-label">碰到 [sprite]?</td><td><span class="block-shape shape-boolean">boolean</span></td><td>判断是否与指定精灵碰撞</td></tr>
+    <tr><td class="block-label">鼠标的 x / 鼠标的 y</td><td><span class="block-shape shape-reporter">reporter</span></td><td>获取鼠标坐标</td></tr>
+    <tr><td class="block-label">鼠标按下?</td><td><span class="block-shape shape-boolean">boolean</span></td><td>判断鼠标是否按下</td></tr>
+    <tr><td class="block-label">按下 [key] 键?</td><td><span class="block-shape shape-boolean">boolean</span></td><td>判断指定键是否按下</td></tr>
+    <tr><td class="block-label">到 [sprite] 的距离</td><td><span class="block-shape shape-reporter">reporter</span></td><td>计算到指定精灵的距离</td></tr>
+  </table>
+
+  <h3 style="color:var(--orange);margin:24px 0 12px;font-size:16px">精灵属性与时间</h3>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">[sprite] 的 x/y 坐标</td><td><span class="block-shape shape-reporter">reporter</span></td><td>获取指定精灵位置</td></tr>
+    <tr><td class="block-label">[sprite] 的方向 / 大小</td><td><span class="block-shape shape-reporter">reporter</span></td><td>获取精灵方向和大小</td></tr>
+    <tr><td class="block-label">计时器 / 计时器归零</td><td><span class="block-shape shape-reporter">reporter</span> / <span class="block-shape shape-stack">stack</span></td><td>程序启动以来的秒数 / 重置</td></tr>
+    <tr><td class="block-label">回答</td><td><span class="block-shape shape-reporter">reporter</span></td><td>获取"询问"积木的用户回答</td></tr>
+    <tr><td class="block-label">当前 [unit]</td><td><span class="block-shape shape-reporter">reporter</span></td><td>当前时间（秒/分/时/日/月/年/星期）</td></tr>
+    <tr><td class="block-label">用户名</td><td><span class="block-shape shape-reporter">reporter</span></td><td>获取系统用户名</td></tr>
+    <tr><td class="block-label">舞台宽度 / 高度</td><td><span class="block-shape shape-reporter">reporter</span></td><td>获取舞台尺寸</td></tr>
+    <tr><td class="block-label">精灵数量</td><td><span class="block-shape shape-reporter">reporter</span></td><td>获取当前精灵总数</td></tr>
+    <tr><td class="block-label">当前时间戳 (毫秒)</td><td><span class="block-shape shape-reporter">reporter</span></td><td>获取毫秒级时间戳</td></tr>
+    <tr><td class="block-label">格式化时间 [fmt]</td><td><span class="block-shape shape-reporter">reporter</span></td><td>格式化输出时间，如 yyyy-MM-dd HH:mm:ss</td></tr>
+  </table>
+</div>
+</section>
+
+<!-- ==================== SOUND ==================== -->
+<section id="sound">
+<div class="container">
+  <h2 class="section-title"><span class="cat-dot" style="background:#CF63CF"></span>声音</h2>
+  <p class="section-desc">音频加载、播放、停止与音量控制。</p>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">播放声音 [name]</td><td><span class="block-shape shape-stack">stack</span></td><td>播放指定声音（不等待结束）</td></tr>
+    <tr><td class="block-label">播放声音 [name] 并等待</td><td><span class="block-shape shape-stack">stack</span></td><td>播放声音并等待播放完毕</td></tr>
+    <tr><td class="block-label">停止所有声音</td><td><span class="block-shape shape-stack">stack</span></td><td>停止所有正在播放的声音</td></tr>
+    <tr><td class="block-label">停止声音 [name]</td><td><span class="block-shape shape-stack">stack</span></td><td>停止指定声音</td></tr>
+    <tr><td class="block-label">将音量设为 [vol]%</td><td><span class="block-shape shape-stack">stack</span></td><td>设置全局音量（0~100）</td></tr>
+    <tr><td class="block-label">音量增加 [val]</td><td><span class="block-shape shape-stack">stack</span></td><td>增减音量</td></tr>
+    <tr><td class="block-label">音量</td><td><span class="block-shape shape-reporter">reporter</span></td><td>获取当前音量值</td></tr>
+    <tr><td class="block-label">加载声音文件 [path]</td><td><span class="block-shape shape-stack">stack</span></td><td>加载外部音频文件</td></tr>
+  </table>
+</div>
+</section>
+
+<!-- ==================== IO ==================== -->
+<section id="io">
+<div class="container">
+  <h2 class="section-title"><span class="cat-dot" style="background:#59C059"></span>IO</h2>
+  <p class="section-desc">输入输出：打印、询问、文件读写、数据持久化。</p>
+  <table class="block-table">
+    <tr><th>积木</th><th>形状</th><th>说明</th></tr>
+    <tr><td class="block-label">打印 [text]</td><td><span class="block-shape shape-stack">stack</span></td><td>在输出面板打印文本</td></tr>
+    <tr><td class="block-label">打印换行 [text]</td><td><span class="block-shape shape-stack">stack</span></td><td>打印并自动换行</td></tr>
+    <tr><td class="block-label">清空输出</td><td><span class="block-shape shape-stack">stack</span></td><td>清空输出面板</td></tr>
+    <tr><td class="block-label">询问 [q] 并等待</td><td><span class="block-shape shape-stack">stack</span></td><td>弹出输入框询问用户</td></tr>
+    <tr><td class="block-label">回答</td><td><span class="block-shape shape-reporter">reporter</span></td><td>获取用户的回答</td></tr>
+    <tr><td class="block-label">弹出提示 [msg]</td><td><span class="block-shape shape-stack">stack</span></td><td>弹出 alert 对话框</td></tr>
+    <tr><td class="block-label">确认 [msg]</td><td><span class="block-shape shape-boolean">boolean</span></td><td>弹出确认框，返回用户选择</td></tr>
+    <tr><td class="block-label">控制台日志 [text]</td><td><span class="block-shape shape-stack">stack</span></td><td>输出到开发者控制台（F12）</td></tr>
+    <tr><td class="block-label">读取文件 [path]</td><td><span class="block-shape shape-reporter">reporter</span></td><td>读取本地文件内容（桌面版）</td></tr>
+    <tr><td class="block-label">写入文件 [path] 内容 [text]</td><td><span class="block-shape shape-stack">stack</span></td><td>写入本地文件（桌面版）</td></tr>
+    <tr><td class="block-label">保存数据 [key] = [val]</td><td><span class="block-shape shape-stack">stack</span></td><td>持久化保存键值对数据</td></tr>
+    <tr><td class="block-label">加载数据 [key]</td><td><span class="block-shape shape-reporter">reporter</span></td><td>读取之前保存的数据</td></tr>
+  </table>
+</div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><a href="index.html">← 返回首页</a> · Objector v1.0.4 · 用积木搭建无限创意</p>
+  </div>
+</footer>
+
+</body>
+</html>
