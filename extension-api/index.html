@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<!-- 标准 Favicon -->
+<link rel="icon" href="https://tomlct2015.github.io/Objector-Coder/icon.svg">
+<!-- Apple 设备（iOS/macOS） -->
+<link rel="apple-touch-icon" href="https://tomlct2015.github.io/Objector-Coder/icon.svg">
+<!-- Android Chrome -->
+<link rel="manifest" href="https://tomlct2015.github.io/Objector-Coder/icon.svg">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Objector 扩展开发 API 文档</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg:#1e1e2e; --surface:#313244; --surface2:#45475a; --text:#cdd6f4;
+  --accent:#89b4fa; --green:#a6e3a1; --red:#f38ba8; --yellow:#f9e2af;
+  --peach:#fab387; --mauve:#cba6f7; --teal:#94e2d5; --muted:#6c7086;
+  --code-bg:#181825; --border:rgba(137,180,250,.15);
+}
+body { background:var(--bg); color:var(--text); font-family:'Segoe UI','Microsoft YaHei',sans-serif; line-height:1.7; }
+a { color:var(--accent); text-decoration:none; }
+a:hover { text-decoration:underline; }
+.top-bar { position:sticky; top:0; z-index:100; background:var(--surface); border-bottom:1px solid var(--border); padding:12px 32px; display:flex; align-items:center; gap:16px; }
+.top-bar .logo { font-size:18px; font-weight:700; color:var(--accent); }
+.top-bar .badge { background:var(--accent); color:var(--bg); font-size:11px; padding:2px 8px; border-radius:10px; font-weight:600; }
+.top-bar nav { margin-left:auto; display:flex; gap:16px; }
+.top-bar nav a { color:var(--muted); font-size:14px; cursor:pointer; }
+.top-bar nav a:hover { color:var(--text); }
+.layout { display:flex; max-width:1400px; margin:0 auto; min-height:calc(100vh - 50px); }
+.sidebar { width:260px; flex-shrink:0; padding:24px 16px; border-right:1px solid var(--border); position:sticky; top:50px; height:calc(100vh - 50px); overflow-y:auto; }
+.sidebar h3 { font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin:16px 0 8px; }
+.sidebar a { display:block; padding:4px 12px; font-size:13px; color:var(--text); border-radius:4px; margin-bottom:2px; cursor:pointer; }
+.sidebar a:hover { background:var(--surface); text-decoration:none; }
+.sidebar a.active { background:rgba(137,180,250,.15); color:var(--accent); }
+.content { flex:1; padding:32px 48px; max-width:900px; }
+h1 { font-size:28px; color:var(--accent); margin-bottom:8px; }
+h1 .subtitle { font-size:14px; color:var(--muted); font-weight:400; display:block; margin-top:4px; }
+h2 { font-size:22px; color:var(--mauve); margin:0 0 16px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+h3 { font-size:17px; color:var(--peach); margin:24px 0 12px; }
+h4 { font-size:14px; color:var(--teal); margin:20px 0 8px; }
+code { background:var(--code-bg); padding:2px 6px; border-radius:4px; font-family:'Cascadia Code','Fira Code',monospace; font-size:13px; color:var(--yellow); }
+pre { background:var(--code-bg); border:1px solid var(--border); border-radius:8px; padding:16px 20px; margin:12px 0 20px; overflow-x:auto; font-size:13px; line-height:1.6; }
+pre code { padding:0; background:none; color:var(--text); }
+.kw { color:var(--mauve); } .str { color:var(--green); } .num { color:var(--peach); }
+.cm { color:var(--muted); font-style:italic; } .fn { color:var(--accent); } .op { color:var(--red); }
+table { width:100%; border-collapse:collapse; margin:12px 0 24px; font-size:14px; }
+th { background:var(--surface); color:var(--accent); text-align:left; padding:8px 12px; border:1px solid var(--border); }
+td { padding:8px 12px; border:1px solid var(--border); }
+tr:nth-child(even) td { background:rgba(49,50,68,.4); }
+.tip { background:rgba(137,180,250,.08); border-left:3px solid var(--accent); padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; font-size:14px; }
+.warn { background:rgba(249,226,175,.08); border-left:3px solid var(--yellow); padding:12px 16px; border-radius:0 8px 8px 0; margin:16px 0; font-size:14px; }
+.tip::before { content:'💡 '; } .warn::before { content:'⚠️ '; }
+.tag { display:inline-block; padding:1px 8px; border-radius:4px; font-size:11px; font-weight:600; margin-right:4px; }
+.tag-stack { background:rgba(137,180,250,.2); color:var(--accent); }
+.tag-reporter { background:rgba(166,227,161,.2); color:var(--green); }
+.tag-boolean { background:rgba(243,139,168,.2); color:var(--red); }
+.tag-cblock { background:rgba(203,166,247,.2); color:var(--mauve); }
+.tag-hat { background:rgba(249,226,175,.2); color:var(--yellow); }
+.shape-demo { display:inline-flex; align-items:center; gap:8px; margin:4px 0; }
+.shape-box { padding:6px 16px; border-radius:6px; font-size:13px; font-weight:600; color:#fff; }
+.doc-section { display:none; }
+.doc-section.active { display:block; }
+@media (max-width:900px) { .sidebar { display:none; } .content { padding:24px 16px; } }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <span class="logo">Objector</span>
+  <span class="badge">Extension API</span>
+  <nav>
+    <a data-go="quickstart">快速开始</a>
+    <a data-go="block-def">积木定义</a>
+    <a data-go="executor">执行器</a>
+    <a data-go="example-json">示例</a>
+  </nav>
+</div>
+
+<div class="layout">
+<aside class="sidebar">
+  <h3>入门</h3>
+  <a data-go="quickstart">快速开始</a>
+  <a data-go="file-structure">文件结构</a>
+  <a data-go="two-formats">JSON / JS 格式</a>
+  <h3>扩展定义</h3>
+  <a data-go="extension-def">扩展对象</a>
+  <a data-go="block-def">积木定义</a>
+  <a data-go="shapes">积木形状 shape</a>
+  <a data-go="ports">连接端口 ports</a>
+  <a data-go="params">参数定义 params</a>
+  <a data-go="subblocks">子代码槽 subBlocks</a>
+  <a data-go="getlabel">动态标签 getLabel</a>
+  <a data-go="dynamic-params">可扩展输入 dynamicParams</a>
+  <h3>执行器</h3>
+  <a data-go="executor">执行器函数</a>
+  <a data-go="executor-params">params 对象</a>
+  <a data-go="executor-scope">scope 对象</a>
+  <a data-go="executor-return">返回值</a>
+  <a data-go="global-api">全局 API</a>
+  <h3>API 参考</h3>
+  <a data-go="api-register">registerExtension</a>
+  <a data-go="api-load">加载方法</a>
+  <a data-go="api-query">查询方法</a>
+  <h3>完整示例</h3>
+  <a data-go="example-json">JSON 扩展示例</a>
+  <a data-go="example-js">JS 扩展示例</a>
+  <a data-go="example-dynamic">可扩展参数示例</a>
+  <a data-go="example-async">异步扩展示例</a>
+  <h3>参考</h3>
+  <a data-go="builtin-exts">内置扩展清单</a>
+  <a data-go="tips">最佳实践</a>
+</aside>
+
+<main class="content">
+
+<div class="doc-section" id="sec-quickstart">
+<h1>扩展开发 API 文档 <span class="subtitle">为 Objector 积木编程平台开发自定义扩展</span></h1>
+<h2>快速开始</h2>
+<p>扩展是 Objector 的核心扩展机制，允许你添加自定义积木和执行逻辑。只需 3 步：</p>
+<ol style="margin:12px 0 0 20px;">
+  <li>创建 <code>.js</code> 或 <code>.json</code> 文件</li>
+  <li>定义积木（外观 + 参数）和执行器（逻辑）</li>
+  <li>放入项目的 <code>extensions/</code> 目录</li>
+</ol>
+<pre><code><span class="cm">// extensions/my-ext.js — 最简扩展示例</span>
+<span class="fn">ExtensionManager.registerExtension</span>({
+  <span class="kw">id</span>: <span class="str">'my_ext'</span>,
+  <span class="kw">name</span>: <span class="str">'我的扩展'</span>,
+  <span class="kw">color</span>: <span class="str">'#FF6B6B'</span>,
+  <span class="kw">blocks</span>: [
+    {
+      <span class="kw">type</span>: <span class="str">'ext_hello'</span>,
+      <span class="kw">label</span>: <span class="str">'打招呼 {name}'</span>,
+      <span class="kw">shape</span>: <span class="str">'stack'</span>,
+      <span class="kw">params</span>: [{ <span class="kw">name</span>: <span class="str">'name'</span>, <span class="kw">type</span>: <span class="str">'string'</span>, <span class="kw">default</span>: <span class="str">'世界'</span> }],
+    },
+  ],
+  <span class="kw">executors</span>: {
+    <span class="fn">ext_hello</span>: <span class="kw">function</span>(params) {
+      <span class="fn">alert</span>(<span class="str">'你好, '</span> + params.name + <span class="str">'!'</span>);
+    },
+  },
+});</code></pre>
+</div>
+
+<div class="doc-section" id="sec-file-structure">
+<h2>文件结构</h2>
+<pre><code>你的项目/
+├── project.json          <span class="cm">// 项目文件</span>
+├── extensions/           <span class="cm">// 扩展目录（自动加载）</span>
+│   ├── my-ext.js         <span class="cm">// JS 格式扩展</span>
+│   ├── math-utils.json   <span class="cm">// JSON 格式扩展</span>
+│   └── ...
+└── ...</code></pre>
+<div class="tip">扩展在打开项目时自动从 <code>extensions/</code> 目录加载，支持 <code>.js</code> 和 <code>.json</code> 两种格式。</div>
+</div>
+
+<div class="doc-section" id="sec-two-formats">
+<h2>JSON / JS 格式对比</h2>
+<table>
+  <tr><th></th><th>JSON 格式 (.json)</th><th>JS 格式 (.js)</th></tr>
+  <tr><td>执行器写法</td><td>函数字符串</td><td>直接写函数</td></tr>
+  <tr><td>可读性</td><td>一般</td><td>好</td></tr>
+  <tr><td>灵活性</td><td>受限（纯字符串）</td><td>完全灵活</td></tr>
+  <tr><td>推荐场景</td><td>简单积木、数据驱动</td><td>复杂逻辑、异步操作</td></tr>
+</table>
+</div>
+
+<div class="doc-section" id="sec-extension-def">
+<h2>扩展对象结构</h2>
+<table>
+  <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
+  <tr><td><code>id</code></td><td>string</td><td>✅</td><td>扩展唯一标识（同时作为分类 ID）</td></tr>
+  <tr><td><code>name</code></td><td>string</td><td></td><td>显示名称（积木面板中的分类名）</td></tr>
+  <tr><td><code>color</code></td><td>string</td><td></td><td>积木颜色（十六进制），默认 <code>#888888</code></td></tr>
+  <tr><td><code>blocks</code></td><td>Array</td><td>✅</td><td>积木定义数组</td></tr>
+  <tr><td><code>executors</code></td><td>Object</td><td></td><td>执行器映射：<code>{ 积木type: 函数 }</code></td></tr>
+</table>
+</div>
+
+<div class="doc-section" id="sec-block-def">
+<h2>积木定义</h2>
+<p>每个积木对象包含以下字段：</p>
+<table>
+  <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
+  <tr><td><code>type</code></td><td>string</td><td>✅</td><td>积木类型标识（全局唯一）</td></tr>
+  <tr><td><code>label</code></td><td>string</td><td>✅</td><td>显示文本，<code>{xxx}</code> 为参数占位符</td></tr>
+  <tr><td><code>shape</code></td><td>string</td><td>✅</td><td>积木形状（见下方）</td></tr>
+  <tr><td><code>params</code></td><td>Array</td><td></td><td>参数定义数组</td></tr>
+  <tr><td><code>ports</code></td><td>Object</td><td></td><td>连接端口（默认自动推断）</td></tr>
+  <tr><td><code>subBlocks</code></td><td>Array</td><td></td><td>C 型积木的子代码槽名</td></tr>
+  <tr><td><code>getLabel</code></td><td>function</td><td></td><td>动态标签函数</td></tr>
+  <tr><td><code>dynamicParams</code></td><td>boolean</td><td></td><td>启用可扩展输入（右键菜单添加参数）</td></tr>
+  <tr><td><code>dynamicParamsPrefix</code></td><td>string</td><td></td><td>动态参数名前缀（默认 <code>item</code>）</td></tr>
+  <tr><td><code>dynamicParamsDefault</code></td><td>any</td><td></td><td>动态参数默认值（默认 <code>''</code>）</td></tr>
+</table>
+</div>
+
+<div class="doc-section" id="sec-shapes">
+<h2>积木形状 shape</h2>
+<p>shape 决定积木的外观和连接方式：</p>
+<div class="shape-demo">
+  <span class="shape-box" style="background:#4C97FF;border-radius:6px;">移动 10 步</span>
+  <span class="tag tag-stack">stack</span> — 普通堆叠积木，可上下连接
+</div><br>
+<div class="shape-demo">
+  <span class="shape-box" style="background:#59C059;border-radius:50px;padding:6px 20px;">x 坐标</span>
+  <span class="tag tag-reporter">reporter</span> — 圆形返回值积木，可嵌入参数槽
+</div><br>
+<div class="shape-demo">
+  <span class="shape-box" style="background:#59C059;transform:skewX(-10deg);padding:6px 20px;">碰到边缘?</span>
+  <span class="tag tag-boolean">boolean</span> — 菱形条件积木，用于 if/while
+</div><br>
+<div class="shape-demo">
+  <span class="shape-box" style="background:#FFBF00;border-radius:6px;border-left:4px solid #FFBF00;">重复 10 次</span>
+  <span class="tag tag-cblock">c-block</span> — C 型积木，包含子代码
+</div><br>
+<div class="shape-demo">
+  <span class="shape-box" style="background:#FFBF00;border-radius:12px 12px 6px 6px;">当绿旗被点击</span>
+  <span class="tag tag-hat">hat</span> — 帽子积木，事件入口
+</div>
+<table style="margin-top:16px;">
+  <tr><th>shape</th><th>flowIn</th><th>flowOut</th><th>用途</th></tr>
+  <tr><td><code>stack</code></td><td>✅</td><td>✅</td><td>普通命令</td></tr>
+  <tr><td><code>reporter</code></td><td>❌</td><td>❌</td><td>返回值，嵌入参数槽</td></tr>
+  <tr><td><code>boolean</code></td><td>❌</td><td>❌</td><td>条件判断</td></tr>
+  <tr><td><code>c-block</code></td><td>✅</td><td>✅</td><td>循环/条件容器</td></tr>
+  <tr><td><code>hat</code></td><td>❌</td><td>✅</td><td>事件触发入口</td></tr>
+</table>
+</div>
+
+<div class="doc-section" id="sec-ports">
+<h2>连接端口 ports</h2>
+<p>默认根据 shape 自动推断，也可手动指定：</p>
+<pre><code>{
+  <span class="kw">ports</span>: {
+    <span class="kw">flowIn</span>: <span class="kw">true</span>,   <span class="cm">// 是否有上方流入端口</span>
+    <span class="kw">flowOut</span>: <span class="kw">true</span>,  <span class="cm">// 是否有下方流出端口</span>
+  }
+}</code></pre>
+</div>
+
+<div class="doc-section" id="sec-params">
+<h2>参数定义 params</h2>
+<p>每个参数对象：</p>
+<table>
+  <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+  <tr><td><code>name</code></td><td>string</td><td>参数标识（对应 label 中的 <code>{name}</code>）</td></tr>
+  <tr><td><code>type</code></td><td>string</td><td>参数类型（见下表）</td></tr>
+  <tr><td><code>default</code></td><td>any</td><td>默认值</td></tr>
+  <tr><td><code>options</code></td><td>Array</td><td>dropdown 类型的选项列表</td></tr>
+  <tr><td><code>getOptions</code></td><td>function</td><td>动态获取下拉选项的函数</td></tr>
+</table>
+<h3>参数类型</h3>
+<table>
+  <tr><th>type</th><th>说明</th><th>示例</th></tr>
+  <tr><td><code>string</code></td><td>文本输入</td><td><code>{ default: 'hello' }</code></td></tr>
+  <tr><td><code>number</code></td><td>数字输入</td><td><code>{ default: 10 }</code></td></tr>
+  <tr><td><code>dropdown</code></td><td>下拉选择</td><td><code>{ default: 'A', options: ['A','B','C'] }</code></td></tr>
+  <tr><td><code>block</code></td><td>代码块引用</td><td><code>{ default: null }</code></td></tr>
+</table>
+<pre><code><span class="cm">// 参数定义示例</span>
+<span class="kw">params</span>: [
+  { <span class="kw">name</span>: <span class="str">'text'</span>, <span class="kw">type</span>: <span class="str">'string'</span>, <span class="kw">default</span>: <span class="str">'你好'</span> },
+  { <span class="kw">name</span>: <span class="str">'count'</span>, <span class="kw">type</span>: <span class="str">'number'</span>, <span class="kw">default</span>: <span class="num">5</span> },
+  { <span class="kw">name</span>: <span class="str">'mode'</span>, <span class="kw">type</span>: <span class="str">'dropdown'</span>, <span class="kw">default</span>: <span class="str">'升序'</span>,
+    <span class="kw">options</span>: [<span class="str">'升序'</span>, <span class="str">'降序'</span>] },
+]</code></pre>
+</div>
+
+<div class="doc-section" id="sec-subblocks">
+<h2>子代码槽 subBlocks</h2>
+<p>用于 C 型积木（<code>c-block</code>），定义内部可嵌套的代码区域：</p>
+<pre><code>{
+  <span class="kw">type</span>: <span class="str">'ext_repeat'</span>,
+  <span class="kw">label</span>: <span class="str">'重复 {n} 次'</span>,
+  <span class="kw">shape</span>: <span class="str">'c-block'</span>,
+  <span class="kw">subBlocks</span>: [<span class="str">'body'</span>],   <span class="cm">// 定义名为 'body' 的子代码槽</span>
+  <span class="kw">params</span>: [{ <span class="kw">name</span>: <span class="str">'n'</span>, <span class="kw">type</span>: <span class="str">'number'</span>, <span class="kw">default</span>: <span class="num">10</span> }],
+}</code></pre>
+<div class="tip">子代码槽名通常为 <code>'body'</code>，一个 C 型积木可以有多个槽（如 if-else 的 <code>if</code> 和 <code>else</code>）。</div>
+</div>
+
+<div class="doc-section" id="sec-getlabel">
+<h2>动态标签 getLabel</h2>
+<p>当静态 label 不够用时（如显示动态参数），可用函数生成标签：</p>
+<pre><code>{
+  <span class="kw">label</span>: <span class="str">'调用 {name}'</span>,  <span class="cm">// 基础标签（无动态参数时使用）</span>
+  <span class="fn">getLabel</span>: <span class="kw">function</span>(block) {
+    <span class="kw">let</span> label = <span class="str">'调用 '</span> + (block.params.name || <span class="str">'函数'</span>);
+    <span class="kw">const</span> extras = block._extraParams || [];
+    <span class="kw">if</span> (extras.length > <span class="num">0</span>) {
+      label += <span class="str">'('</span>;
+      extras.<span class="fn">forEach</span>((ep, i) => {
+        label += <span class="str">'{'</span> + ep.name + <span class="str">'}'</span>;
+        <span class="kw">if</span> (i < extras.length - <span class="num">1</span>) label += <span class="str">', '</span>;
+      });
+      label += <span class="str">')'</span>;
+    }
+    <span class="kw">return</span> label;
+  },
+}</code></pre>
+</div>
+
+<div class="doc-section" id="sec-dynamic-params">
+<h2>可扩展输入 dynamicParams</h2>
+<p>在积木定义中设置 <code>dynamicParams: true</code>，用户即可通过右键菜单动态添加参数：</p>
+<pre><code>{
+  <span class="kw">type</span>: <span class="str">'ext_call'</span>,
+  <span class="kw">label</span>: <span class="str">'调用函数'</span>,
+  <span class="kw">shape</span>: <span class="str">'stack'</span>,
+  <span class="kw">dynamicParams</span>: <span class="kw">true</span>,            <span class="cm">// 启用可扩展输入</span>
+  <span class="kw">dynamicParamsPrefix</span>: <span class="str">'arg'</span>,     <span class="cm">// 参数名前缀（默认 'item'）</span>
+  <span class="kw">dynamicParamsDefault</span>: <span class="str">'0'</span>,     <span class="cm">// 参数默认值（默认 ''）</span>
+  <span class="kw">getLabel</span>: <span class="kw">function</span>(block) { <span class="cm">/* 见上方 */</span> },
+}</code></pre>
+<div class="tip">添加的参数名自动为 <code>arg1</code>、<code>arg2</code>...（取决于 prefix），在执行器中通过 <code>params.arg1</code> 访问。</div>
+</div>
+
+<div class="doc-section" id="sec-executor">
+<h2>执行器函数</h2>
+<p>执行器定义积木被运行时的逻辑：</p>
+<pre><code><span class="kw">executors</span>: {
+  <span class="fn">ext_my_block</span>: <span class="kw">async function</span>(params, scope) {
+    <span class="cm">// params: 解析后的参数对象</span>
+    <span class="cm">// scope:  当前执行作用域</span>
+    <span class="cm">// 函数可以是同步或异步（async）</span>
+  },
+}</code></pre>
+</div>
+
+<div class="doc-section" id="sec-executor-params">
+<h2>params 对象</h2>
+<p>包含积木定义的所有参数值（已自动解析 reporter 连接）：</p>
+<pre><code><span class="cm">// 假设积木定义了 params: [{name:'count', type:'number', default:10}]</span>
+params.count  <span class="cm">// → 10 或用户输入的值，或连接的 reporter 返回值</span>
+
+<span class="cm">// 动态参数也包含在内</span>
+params.arg1   <span class="cm">// → 第一个动态参数</span>
+params.arg2   <span class="cm">// → 第二个动态参数</span></code></pre>
+</div>
+
+<div class="doc-section" id="sec-executor-scope">
+<h2>scope 对象</h2>
+<p>当前执行上下文：</p>
+<table>
+  <tr><th>属性</th><th>说明</th></tr>
+  <tr><td><code>scope.self</code></td><td>当前对象实例（在类方法/初始化中）</td></tr>
+  <tr><td><code>scope[变量名]</code></td><td>局部变量</td></tr>
+  <tr><td><code>scope.__className</code></td><td>类名（当 scope 是对象实例时）</td></tr>
+</table>
+</div>
+
+<div class="doc-section" id="sec-executor-return">
+<h2>返回值</h2>
+<table>
+  <tr><th>返回值</th><th>说明</th></tr>
+  <tr><td>任意值</td><td>reporter 积木的返回值</td></tr>
+  <tr><td><code>undefined</code> / 不返回</td><td>stack 积木正常结束</td></tr>
+  <tr><td><code>'__RETURN__'</code></td><td>中断当前函数/方法执行</td></tr>
+  <tr><td><code>'__STOP__'</code></td><td>停止整个程序运行</td></tr>
+</table>
+</div>
+
+<div class="doc-section" id="sec-global-api">
+<h2>执行器中可用的全局 API</h2>
+<table>
+  <tr><th>API</th><th>说明</th></tr>
+  <tr><td><code>console.log(msg)</code></td><td>调试输出到控制台</td></tr>
+  <tr><td><code>EditorState.blocks</code></td><td>所有积木数据对象</td></tr>
+  <tr><td><code>StageManager</code></td><td>舞台管理（精灵坐标、方向、造型等）</td></tr>
+  <tr><td><code>SensingInput</code></td><td>输入检测（鼠标位置、键盘状态）</td></tr>
+  <tr><td><code>ExtensionManager</code></td><td>扩展管理器（注册/查询扩展）</td></tr>
+  <tr><td><code>BlockRegistry</code></td><td>积木注册表（查询积木定义）</td></tr>
+  <tr><td><code>Math</code> / <code>Date</code> 等</td><td>标准 JavaScript 全局对象</td></tr>
+</table>
+</div>
+
+<div class="doc-section" id="sec-api-register">
+<h2>registerExtension(extDef)</h2>
+<p>注册一个扩展。如果同一 ID 已存在则先卸载旧版。</p>
+<pre><code><span class="fn">ExtensionManager.registerExtension</span>({
+  <span class="kw">id</span>: <span class="str">'my_ext'</span>,
+  <span class="kw">name</span>: <span class="str">'我的扩展'</span>,
+  <span class="kw">color</span>: <span class="str">'#FF6B6B'</span>,
+  <span class="kw">blocks</span>: [...],
+  <span class="kw">executors</span>: {...},
+});
+<span class="cm">// 返回: true（成功）/ false（失败）</span></code></pre>
+</div>
+
+<div class="doc-section" id="sec-api-load">
+<h2>加载方法</h2>
+<table>
+  <tr><th>方法</th><th>参数</th><th>说明</th></tr>
+  <tr><td><code>loadFromJSON(jsonStr)</code></td><td>JSON 字符串</td><td>从 JSON 解析并注册</td></tr>
+  <tr><td><code>loadFromJS(jsContent)</code></td><td>JS 代码字符串</td><td>执行 JS 脚本（内部调用 registerExtension）</td></tr>
+  <tr><td><code>loadFromFile(filePath)</code></td><td>文件路径</td><td>自动检测 .js / .json 并加载</td></tr>
+  <tr><td><code>loadFromProject(projectPath)</code></td><td>项目目录路径</td><td>加载 extensions/ 下所有扩展文件</td></tr>
+</table>
+</div>
+
+<div class="doc-section" id="sec-api-query">
+<h2>查询与管理</h2>
+<table>
+  <tr><th>方法</th><th>返回值</th><th>说明</th></tr>
+  <tr><td><code>getExtensions()</code></td><td>Array</td><td>获取所有已加载的扩展定义</td></tr>
+  <tr><td><code>getExecutor(blockType)</code></td><td>function / null</td><td>获取指定积木类型的执行器</td></tr>
+  <tr><td><code>unregisterExtension(extId)</code></td><td>boolean</td><td>卸载指定扩展</td></tr>
+</table>
+</div>
+
+<div class="doc-section" id="sec-example-json">
+<h2>JSON 格式示例：数学工具</h2>
+<pre><code>{
+  <span class="str">"id"</span>: <span class="str">"ext_math"</span>,
+  <span class="str">"name"</span>: <span class="str">"数学工具"</span>,
+  <span class="str">"color"</span>: <span class="str">"#4ECDC4"</span>,
+  <span class="str">"blocks"</span>: [
+    {
+      <span class="str">"type"</span>: <span class="str">"ext_sqrt"</span>,
+      <span class="str">"label"</span>: <span class="str">"√ {num}"</span>,
+      <span class="str">"shape"</span>: <span class="str">"reporter"</span>,
+      <span class="str">"ports"</span>: { <span class="str">"flowIn"</span>: false, <span class="str">"flowOut"</span>: false },
+      <span class="str">"params"</span>: [{ <span class="str">"name"</span>: <span class="str">"num"</span>, <span class="str">"type"</span>: <span class="str">"number"</span>, <span class="str">"default"</span>: 0 }]
+    },
+    {
+      <span class="str">"type"</span>: <span class="str">"ext_random"</span>,
+      <span class="str">"label"</span>: <span class="str">"随机数 {min} 到 {max}"</span>,
+      <span class="str">"shape"</span>: <span class="str">"reporter"</span>,
+      <span class="str">"ports"</span>: { <span class="str">"flowIn"</span>: false, <span class="str">"flowOut"</span>: false },
+      <span class="str">"params"</span>: [
+        { <span class="str">"name"</span>: <span class="str">"min"</span>, <span class="str">"type"</span>: <span class="str">"number"</span>, <span class="str">"default"</span>: 1 },
+        { <span class="str">"name"</span>: <span class="str">"max"</span>, <span class="str">"type"</span>: <span class="str">"number"</span>, <span class="str">"default"</span>: 100 }
+      ]
+    },
+    {
+      <span class="str">"type"</span>: <span class="str">"ext_clamp"</span>,
+      <span class="str">"label"</span>: <span class="str">"限制 {val} 在 {min} ~ {max} 之间"</span>,
+      <span class="str">"shape"</span>: <span class="str">"reporter"</span>,
+      <span class="str">"ports"</span>: { <span class="str">"flowIn"</span>: false, <span class="str">"flowOut"</span>: false },
+      <span class="str">"params"</span>: [
+        { <span class="str">"name"</span>: <span class="str">"val"</span>, <span class="str">"type"</span>: <span class="str">"number"</span>, <span class="str">"default"</span>: 0 },
+        { <span class="str">"name"</span>: <span class="str">"min"</span>, <span class="str">"type"</span>: <span class="str">"number"</span>, <span class="str">"default"</span>: 0 },
+        { <span class="str">"name"</span>: <span class="str">"max"</span>, <span class="str">"type"</span>: <span class="str">"number"</span>, <span class="str">"default"</span>: 100 }
+      ]
+    }
+  ],
+  <span class="str">"executors"</span>: {
+    <span class="str">"ext_sqrt"</span>: <span class="str">"function(params) { return Math.sqrt(Number(params.num)); }"</span>,
+    <span class="str">"ext_random"</span>: <span class="str">"function(params) { var min=Number(params.min),max=Number(params.max); return Math.floor(Math.random()*(max-min+1))+min; }"</span>,
+    <span class="str">"ext_clamp"</span>: <span class="str">"function(params) { var v=Number(params.val),lo=Number(params.min),hi=Number(params.max); return Math.max(lo,Math.min(hi,v)); }"</span>
+  }
+}</code></pre>
+</div>
+
+<div class="doc-section" id="sec-example-js">
+<h2>JS 格式示例：网络工具</h2>
+<pre><code><span class="cm">/**
+ * extensions/network-tools.js
+ * 网络工具扩展 - 异步操作示例
+ */</span>
+
+<span class="fn">ExtensionManager.registerExtension</span>({
+  <span class="kw">id</span>: <span class="str">'ext_network'</span>,
+  <span class="kw">name</span>: <span class="str">'网络工具'</span>,
+  <span class="kw">color</span>: <span class="str">'#45B7D1'</span>,
+
+  <span class="kw">blocks</span>: [
+    {
+      <span class="kw">type</span>: <span class="str">'ext_fetch'</span>,
+      <span class="kw">label</span>: <span class="str">'获取 {url} 的内容'</span>,
+      <span class="kw">shape</span>: <span class="str">'reporter'</span>,
+      <span class="kw">ports</span>: { <span class="kw">flowIn</span>: <span class="kw">false</span>, <span class="kw">flowOut</span>: <span class="kw">false</span> },
+      <span class="kw">params</span>: [{ <span class="kw">name</span>: <span class="str">'url'</span>, <span class="kw">type</span>: <span class="str">'string'</span>, <span class="kw">default</span>: <span class="str">'https://api.example.com'</span> }],
+    },
+    {
+      <span class="kw">type</span>: <span class="str">'ext_log'</span>,
+      <span class="kw">label</span>: <span class="str">'输出日志 {msg}'</span>,
+      <span class="kw">shape</span>: <span class="str">'stack'</span>,
+      <span class="kw">ports</span>: { <span class="kw">flowIn</span>: <span class="kw">true</span>, <span class="kw">flowOut</span>: <span class="kw">true</span> },
+      <span class="kw">params</span>: [{ <span class="kw">name</span>: <span class="str">'msg'</span>, <span class="kw">type</span>: <span class="str">'string'</span>, <span class="kw">default</span>: <span class="str">''</span> }],
+    },
+    {
+      <span class="kw">type</span>: <span class="str">'ext_delay'</span>,
+      <span class="kw">label</span>: <span class="str">'等待 {ms} 毫秒'</span>,
+      <span class="kw">shape</span>: <span class="str">'stack'</span>,
+      <span class="kw">ports</span>: { <span class="kw">flowIn</span>: <span class="kw">true</span>, <span class="kw">flowOut</span>: <span class="kw">true</span> },
+      <span class="kw">params</span>: [{ <span class="kw">name</span>: <span class="str">'ms'</span>, <span class="kw">type</span>: <span class="str">'number'</span>, <span class="kw">default</span>: <span class="num">1000</span> }],
+    },
+  ],
+
+  <span class="kw">executors</span>: {
+    <span class="cm">// 异步：网络请求</span>
+    <span class="fn">ext_fetch</span>: <span class="kw">async function</span>(params) {
+      <span class="kw">try</span> {
+        <span class="kw">const</span> resp = <span class="kw">await</span> <span class="fn">fetch</span>(params.url);
+        <span class="kw">return await</span> resp.<span class="fn">text</span>();
+      } <span class="kw">catch</span> (e) {
+        <span class="kw">return</span> <span class="str">'错误: '</span> + e.message;
+      }
+    },
+    <span class="cm">// 同步：输出日志</span>
+    <span class="fn">ext_log</span>: <span class="kw">function</span>(params) {
+      <span class="fn">console.log</span>(<span class="str">'[日志]'</span>, params.msg);
+    },
+    <span class="cm">// 异步：延时</span>
+    <span class="fn">ext_delay</span>: <span class="kw">async function</span>(params) {
+      <span class="kw">await new</span> <span class="fn">Promise</span>(r => <span class="fn">setTimeout</span>(r, <span class="fn">Number</span>(params.ms)));
+    },
+  },
+});</code></pre>
+</div>
+
+<div class="doc-section" id="sec-example-dynamic">
+<h2>可扩展参数示例：自定义函数调用</h2>
+<pre><code><span class="fn">ExtensionManager.registerExtension</span>({
+  <span class="kw">id</span>: <span class="str">'ext_func'</span>,
+  <span class="kw">name</span>: <span class="str">'自定义函数'</span>,
+  <span class="kw">color</span>: <span class="str">'#E056A0'</span>,
+
+  <span class="kw">blocks</span>: [
+    {
+      <span class="kw">type</span>: <span class="str">'ext_func_call'</span>,
+      <span class="kw">label</span>: <span class="str">'调用 {name}'</span>,
+      <span class="kw">shape</span>: <span class="str">'stack'</span>,
+      <span class="kw">ports</span>: { <span class="kw">flowIn</span>: <span class="kw">true</span>, <span class="kw">flowOut</span>: <span class="kw">true</span> },
+      <span class="kw">params</span>: [{ <span class="kw">name</span>: <span class="str">'name'</span>, <span class="kw">type</span>: <span class="str">'string'</span>, <span class="kw">default</span>: <span class="str">'函数'</span> }],
+      <span class="kw">dynamicParams</span>: <span class="kw">true</span>,             <span class="cm">// ✅ 启用可扩展输入</span>
+      <span class="kw">dynamicParamsPrefix</span>: <span class="str">'arg'</span>,       <span class="cm">// 参数名: arg1, arg2, ...</span>
+      <span class="kw">dynamicParamsDefault</span>: <span class="str">''</span>,          <span class="cm">// 默认空字符串</span>
+      <span class="fn">getLabel</span>: <span class="kw">function</span>(block) {
+        <span class="kw">let</span> label = <span class="str">'调用 '</span> + (block.params.name || <span class="str">'函数'</span>);
+        <span class="kw">const</span> extras = block._extraParams || [];
+        <span class="kw">if</span> (extras.length > <span class="num">0</span>) {
+          label += <span class="str">'('</span> + extras.<span class="fn">map</span>(ep => <span class="str">'{'</span> + ep.name + <span class="str">'}'</span>).<span class="fn">join</span>(<span class="str">', '</span>) + <span class="str">')'</span>;
+        }
+        <span class="kw">return</span> label;
+      },
+    },
+  ],
+
+  <span class="kw">executors</span>: {
+    <span class="fn">ext_func_call</span>: <span class="kw">function</span>(params) {
+      <span class="kw">const</span> name = params.name;
+      <span class="cm">// 收集所有动态参数</span>
+      <span class="kw">const</span> args = [];
+      <span class="kw">let</span> i = <span class="num">1</span>;
+      <span class="kw">while</span> (params[<span class="str">'arg'</span> + i] !== <span class="kw">undefined</span>) {
+        args.<span class="fn">push</span>(params[<span class="str">'arg'</span> + i]);
+        i++;
+      }
+      <span class="fn">console.log</span>(<span class="str">'调用'</span>, name, <span class="str">'参数:'</span>, args);
+    },
+  },
+});</code></pre>
+</div>
+
+<div class="doc-section" id="sec-example-async">
+<h2>C 型积木示例：条件循环</h2>
+<pre><code><span class="cm">// 注意：C 型积木需要在执行器中手动获取并执行子代码</span>
+<span class="cm">// 此功能需要访问内部 API，当前版本有限支持</span>
+
+{
+  <span class="kw">type</span>: <span class="str">'ext_repeat'</span>,
+  <span class="kw">label</span>: <span class="str">'重复 {n} 次'</span>,
+  <span class="kw">shape</span>: <span class="str">'c-block'</span>,
+  <span class="kw">ports</span>: { <span class="kw">flowIn</span>: <span class="kw">true</span>, <span class="kw">flowOut</span>: <span class="kw">true</span> },
+  <span class="kw">subBlocks</span>: [<span class="str">'body'</span>],
+  <span class="kw">params</span>: [{ <span class="kw">name</span>: <span class="str">'n'</span>, <span class="kw">type</span>: <span class="str">'number'</span>, <span class="kw">default</span>: <span class="num">10</span> }],
+}</code></pre>
+<div class="warn">C 型积木（c-block）的子代码执行需要访问执行引擎内部函数（<code>getSubTop</code>、<code>executeChain</code>）。目前在扩展执行器中无法直接调用，建议优先使用 <code>stack</code> 和 <code>reporter</code> 形状。</div>
+</div>
+
+<div class="doc-section" id="sec-builtin-exts">
+<h2>内置扩展清单</h2>
+<p>以下扩展已预装在 Objector 中：</p>
+<table>
+  <tr><th>扩展</th><th>ID</th><th>颜色</th><th>积木数</th><th>说明</th></tr>
+  <tr><td>时间</td><td><code>ext_time</code></td><td style="color:#5D9CEC;">■</td><td>8</td><td>时间戳、日期格式化、计时器</td></tr>
+  <tr><td>绘图</td><td><code>ext_drawing</code></td><td style="color:#48CFAD;">■</td><td>9</td><td>画线/圆/矩形、写文字、画笔控制</td></tr>
+  <tr><td>字符串</td><td><code>ext_string</code></td><td style="color:#FC6E51;">■</td><td>11</td><td>长度/截取/替换/大小写/分割/包含</td></tr>
+  <tr><td>颜色</td><td><code>ext_color</code></td><td style="color:#ED5565;">■</td><td>3</td><td>RGB/十六进制/随机颜色</td></tr>
+</table>
+</div>
+
+<div class="doc-section" id="sec-tips">
+<h2>最佳实践</h2>
+<h4>1. type 命名规范</h4>
+<p>建议使用 <code>ext_扩展名_功能名</code> 格式，避免与其他扩展冲突：</p>
+<pre><code><span class="cm">// ✅ 好</span>
+type: <span class="str">'ext_math_sqrt'</span>
+type: <span class="str">'ext_game_spawn_enemy'</span>
+
+<span class="cm">// ❌ 避免</span>
+type: <span class="str">'sqrt'</span>          <span class="cm">// 太通用，容易冲突</span>
+type: <span class="str">'my_block_1'</span>   <span class="cm">// 无意义</span></code></pre>
+
+<h4>2. 参数类型转换</h4>
+<p>参数值始终是字符串，使用时需要手动转换：</p>
+<pre><code><span class="kw">const</span> num = <span class="fn">Number</span>(params.count);
+<span class="kw">const</span> str = <span class="fn">String</span>(params.text);
+<span class="kw">const</span> bool = params.flag === <span class="str">'true'</span>;</code></pre>
+
+<h4>3. 错误处理</h4>
+<pre><code><span class="fn">ext_divide</span>: <span class="kw">function</span>(params) {
+  <span class="kw">const</span> b = <span class="fn">Number</span>(params.b);
+  <span class="kw">if</span> (b === <span class="num">0</span>) <span class="kw">return</span> <span class="str">'错误: 除数不能为0'</span>;
+  <span class="kw">return</span> <span class="fn">Number</span>(params.a) / b;
+},</code></pre>
+
+<h4>4. 异步操作</h4>
+<pre><code><span class="cm">// 使用 async 函数处理异步操作</span>
+<span class="fn">ext_wait</span>: <span class="kw">async function</span>(params) {
+  <span class="kw">await new</span> <span class="fn">Promise</span>(r => <span class="fn">setTimeout</span>(r, <span class="fn">Number</span>(params.ms)));
+},</code></pre>
+
+<h4>5. 热更新</h4>
+<div class="tip">修改扩展文件后，重新打开项目即可自动加载最新版本。同一 ID 的扩展会先卸载再重新注册。</div>
+</div>
+
+</main>
+</div>
+
+<script>
+(function() {
+  var sections = document.querySelectorAll('.doc-section');
+  var links = document.querySelectorAll('[data-go]');
+
+  function goTo(id) {
+    sections.forEach(function(s) { s.classList.remove('active'); });
+    links.forEach(function(a) { a.classList.remove('active'); });
+    var target = document.getElementById('sec-' + id);
+    if (target) target.classList.add('active');
+    links.forEach(function(a) {
+      if (a.getAttribute('data-go') === id) a.classList.add('active');
+    });
+    window.scrollTo(0, 0);
+  }
+
+  links.forEach(function(a) {
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      goTo(this.getAttribute('data-go'));
+    });
+  });
+
+  goTo('quickstart');
+})();
+</script>
+
+</body>
+</html>
