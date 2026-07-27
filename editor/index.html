@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Objector Web IDE</title>
+  <link rel="icon" href="../icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="web-styles.css" />
+  <script src="core/i18n.js"></script>
+  <script src="i18n/zh-CN.js"></script>
+  <script src="i18n/en.js"></script>
+  <script src="web-api-shim.js"></script>
+</head>
+<body>
+  <!-- 顶部导航栏 -->
+  <header id="titlebar">
+    <div class="titlebar-drag">
+      <span class="app-title" style="font-size:14px;">⚡ Objector Web IDE</span>
+    </div>
+    <div style="display:flex;gap:8px;padding-right:12px;">
+      <a href="../blocks-guide/" target="_blank" class="tb-btn" style="text-decoration:none;font-size:11px;" data-i18n="editor.blocksGuide">📖 积木指南</a>
+      <button id="home-lang-switch" class="tb-btn" data-i18n="langSwitch" title="Switch Language" style="font-size:11px;">EN</button>
+    </div>
+  </header>
+
+  <!-- 主页 -->
+  <div id="home-screen">
+    <header class="home-header">
+      <h1 class="home-logo" style="font-size:20px;">⚡ Objector Web IDE</h1>
+      <div class="home-actions">
+        <button id="home-btn-new" class="tb-btn tb-run" data-i18n="home.newProject">+ 新建工程</button>
+        <button id="home-btn-open" class="tb-btn" data-i18n="home.openProject">打开项目</button>
+      </div>
+    </header>
+    <main class="home-body">
+      <h2 data-i18n="home.pinned">📌 固定项目</h2>
+      <div id="pinned-projects"></div>
+      <div id="no-pinned" class="hidden">
+        <p style="color:var(--text-muted);font-size:13px;" data-i18n="home.pinnedHint">点击项目卡片上的 📌 按钮固定项目到这里</p>
+      </div>
+      <h2 style="margin-top:24px;" data-i18n="home.recent">最近项目</h2>
+      <div id="recent-projects"></div>
+      <div id="no-projects" class="hidden">
+        <p data-i18n="home.noProjects">还没有项目，点击上方按钮开始创作</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- 模式选择弹窗 -->
+  <div id="mode-dialog" class="dialog-overlay hidden">
+    <div class="dialog-box mode-dialog-box">
+      <h2 data-i18n="mode.title">选择创作模式</h2>
+      <p data-i18n="mode.desc">选择你想要的创作方式</p>
+      <div class="mode-cards">
+        <div class="mode-card" data-mode="normal">
+          <div class="mode-icon">🎮</div>
+          <h3 data-i18n="mode.normal">普通创作</h3>
+          <p data-i18n="mode.normalDesc">使用积木搭建动画、游戏，专注于创意本身</p>
+        </div>
+        <div class="mode-card" data-mode="extension">
+          <div class="mode-icon">🧩</div>
+          <h3 data-i18n="mode.extension">扩展创作</h3>
+          <p data-i18n="mode.extensionDesc">创建自定义扩展积木，为 Objector 增加新功能</p>
+        </div>
+      </div>
+      <button id="mode-cancel" class="tb-btn" data-i18n="mode.cancel">取消</button>
+    </div>
+  </div>
+
+  <!-- 项目选择器（编辑器中调用 selectFolder 时显示） -->
+  <div id="web-project-picker" class="web-picker-overlay hidden">
+    <div class="web-picker-box">
+      <h2 id="picker-title">选择项目</h2>
+      <div class="picker-list" id="picker-project-list"></div>
+      <div class="picker-actions">
+        <button class="tb-btn" onclick="_webPickerCancel()">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  /**
+   * Web 版主页逻辑 - 基于 localStorage 的项目管理
+   */
+  (function () {
+    // 获取固定项目列表
+    function getPinnedProjects() {
+      try { return JSON.parse(localStorage.getItem('pinned-projects') || '[]'); } catch { return []; }
+    }
+    function savePinnedProjects(list) {
+      localStorage.setItem('pinned-projects', JSON.stringify(list));
+    }
+
+    // 固定/取消固定项目
+    function togglePinProject(folderPath) {
+      let pinned = getPinnedProjects();
+      const idx = pinned.findIndex(p => p.path === folderPath);
+      if (idx >= 0) {
+        pinned.splice(idx, 1);
+      } else {
+        const recent = JSON.parse(localStorage.getItem('recent-projects') || '[]');
+        const proj = recent.find(p => p.path === folderPath);
+        if (proj) pinned.unshift({ ...proj });
+      }
+      savePinnedProjects(pinned);
+      renderPinnedProjects();
+      renderRecentProjects();
+    }
+
+    // 渲染固定项目
+    function renderPinnedProjects() {
+      const container = document.getElementById('pinned-projects');
+      const noPinned = document.getElementById('no-pinned');
+      if (!container) return;
+      const pinned = getPinnedProjects();
+      container.innerHTML = '';
+      if (pinned.length === 0) { noPinned?.classList.remove('hidden'); return; }
+      noPinned?.classList.add('hidden');
+      pinned.forEach(proj => {
+        const card = document.createElement('div');
+        card.className = 'recent-card pinned-card';
+        card.innerHTML =
+          '<div class="recent-card-name">📌 ' + (proj.name || i18n.t('app.unnamed')) + '</div>' +
+          '<div class="recent-card-time">' + formatTime(proj.lastOpened) + '</div>' +
+          '<div style="display:flex;gap:8px;align-items:center;margin-top:6px;">' +
+            '<span class="recent-card-mode">' + (proj.mode === 'extension' ? i18n.t('app.extension') : i18n.t('app.normal')) + '</span>' +
+            '<button class="pin-btn pinned" title="' + i18n.t('app.unpin') + '">✖</button>' +
+          '</div>';
+        card.querySelector('.pin-btn').onclick = (e) => { e.stopPropagation(); togglePinProject(proj.path); };
+        card.onclick = () => openProject(proj.path);
+        container.appendChild(card);
+      });
+    }
+
+    // 渲染最近项目
+    function renderRecentProjects() {
+      const container = document.getElementById('recent-projects');
+      const noProjects = document.getElementById('no-projects');
+      if (!container) return;
+      let list = [];
+      try { list = JSON.parse(localStorage.getItem('recent-projects') || '[]'); } catch {}
+      container.innerHTML = '';
+      if (list.length === 0) { noProjects?.classList.remove('hidden'); return; }
+      noProjects?.classList.add('hidden');
+      const pinned = getPinnedProjects();
+      const pinnedPaths = new Set(pinned.map(p => p.path));
+      list.forEach(proj => {
+        const card = document.createElement('div');
+        card.className = 'recent-card';
+        const isPinned = pinnedPaths.has(proj.path);
+        card.innerHTML =
+          '<div class="recent-card-name">' + (proj.name || i18n.t('app.unnamed')) + '</div>' +
+          '<div class="recent-card-time">' + formatTime(proj.lastOpened) + '</div>' +
+          '<div style="display:flex;gap:8px;align-items:center;margin-top:6px;">' +
+            '<span class="recent-card-mode">' + (proj.mode === 'extension' ? i18n.t('app.extension') : i18n.t('app.normal')) + '</span>' +
+            '<button class="pin-btn' + (isPinned ? ' pinned' : '') + '" title="' + (isPinned ? i18n.t('app.unpin') : i18n.t('app.pin')) + '">' + (isPinned ? '📌' : '📍') + '</button>' +
+          '</div>';
+        card.querySelector('.pin-btn').onclick = (e) => { e.stopPropagation(); togglePinProject(proj.path); };
+        card.onclick = () => openProject(proj.path);
+        container.appendChild(card);
+      });
+    }
+
+    function formatTime(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      return d.toLocaleString(i18n.isEnglish() ? 'en-US' : 'zh-CN');
+    }
+
+    // 打开项目（Web 版：导航到 editor.html）
+    async function openProject(folder) {
+      addRecentProject(folder);
+      await window.api.openEditor(folder, 'normal');
+    }
+
+    // 添加最近项目
+    function addRecentProject(folder) {
+      let list = [];
+      try { list = JSON.parse(localStorage.getItem('recent-projects') || '[]'); } catch {}
+      const name = folder.split(/[\\/]/).pop();
+      // 读取项目配置
+      const configStr = localStorage.getItem('vfs:' + folder + '/project.json');
+      let mode = 'normal';
+      let projName = name;
+      if (configStr) {
+        try {
+          const config = JSON.parse(configStr);
+          projName = config.name || name;
+          mode = config.mode || 'normal';
+        } catch {}
+      }
+      list = list.filter(p => p.path !== folder);
+      list.unshift({ name: projName, path: folder, mode: mode, lastOpened: new Date().toISOString() });
+      if (list.length > 10) list = list.slice(0, 10);
+      localStorage.setItem('recent-projects', JSON.stringify(list));
+      renderRecentProjects();
+    }
+
+    // 显示模式弹窗
+    function showModeDialog() {
+      document.getElementById('mode-dialog').classList.remove('hidden');
+    }
+    function hideModeDialog() {
+      document.getElementById('mode-dialog').classList.add('hidden');
+    }
+
+    // 新建项目（Web 版：直接在 VFS 中创建，无需选择文件夹）
+    async function createNewProject(mode) {
+      hideModeDialog();
+      mode = mode || 'normal';
+      const projectName = i18n.t('app.myWork');
+      const folder = '/projects/' + projectName + '_' + Date.now();
+
+      await window.api.ensureDir(folder);
+      await window.api.ensureDir(folder + '/scripts');
+      await window.api.ensureDir(folder + '/assets');
+      await window.api.ensureDir(folder + '/sounds');
+      if (mode === 'extension') {
+        await window.api.ensureDir(folder + '/extensions');
+      }
+
+      const config = {
+        name: projectName,
+        version: '1.0',
+        mode: mode,
+        created: new Date().toISOString(),
+        stageWidth: 480,
+        stageHeight: 360,
+      };
+      await window.api.writeFile(folder + '/project.json', JSON.stringify(config, null, 2));
+      await window.api.writeFile(folder + '/scripts/main.json', '{}');
+
+      // 导航到编辑器
+      await window.api.openEditor(folder, mode);
+
+      // 添加到最近项目
+      addRecentProject(folder);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      i18n.applyToDOM();
+
+      // 语言切换
+      document.getElementById('home-lang-switch')?.addEventListener('click', () => {
+        i18n.setLocale(i18n.isEnglish() ? 'zh-CN' : 'en');
+      });
+
+      // 新建项目
+      document.getElementById('home-btn-new').addEventListener('click', showModeDialog);
+
+      // 打开项目（通过项目选择器）
+      document.getElementById('home-btn-open').addEventListener('click', async () => {
+        const folder = await window.api.selectFolder();
+        if (folder) {
+          await openProject(folder);
+        }
+      });
+
+      // 模式选择
+      document.querySelectorAll('.mode-card').forEach(card => {
+        card.addEventListener('click', () => createNewProject(card.dataset.mode));
+      });
+      document.getElementById('mode-cancel').addEventListener('click', hideModeDialog);
+
+      // 渲染项目列表
+      renderPinnedProjects();
+      renderRecentProjects();
+    });
+  })();
+  </script>
+</body>
+</html>
