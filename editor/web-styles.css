@@ -1,0 +1,86 @@
+/**
+ * Web 版附加样式 - 覆盖 Electron 专属样式
+ */
+
+/* 移除 Electron 标题栏拖拽区域 */
+.titlebar-drag {
+  -webkit-app-region: none;
+}
+
+/* Web 版不需要原生窗口控制按钮 */
+.titlebar-controls {
+  display: none !important;
+}
+
+/* body 基础调整 */
+body {
+  overflow: auto;
+}
+
+/* 项目选择器（Web 版主页用） */
+.web-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(4px);
+}
+
+.web-picker-overlay.hidden {
+  display: none;
+}
+
+.web-picker-box {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 400px;
+  max-width: 500px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+
+.web-picker-box h2 {
+  color: var(--accent);
+  margin-bottom: 16px;
+  font-size: 16px;
+  text-align: center;
+}
+
+.picker-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.picker-item {
+  padding: 10px 14px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary);
+  transition: all 0.15s;
+}
+
+.picker-item:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.picker-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}

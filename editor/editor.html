@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Objector Web Editor</title>
+  <link rel="icon" href="../icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="web-styles.css" />
+  <script src="core/i18n.js"></script>
+  <script src="i18n/zh-CN.js"></script>
+  <script src="i18n/en.js"></script>
+  <script src="web-api-shim.js"></script>
+</head>
+<body>
+  <!-- 编辑器界面 -->
+  <div id="editor-screen">
+    <!-- 顶部标题栏 -->
+    <header id="titlebar">
+      <div class="titlebar-drag">
+        <span class="app-title">⚡ Objector Web</span>
+        <span class="app-sep">|</span>
+        <span id="project-name" class="project-name-editable" data-i18n-title="titlebar.rename">未命名项目</span>
+        <button id="btn-rename" class="tb-btn tb-btn-small" data-i18n-title="titlebar.rename">✏️</button>
+      </div>
+      <div class="titlebar-controls">
+        <button id="win-minimize" class="win-btn" data-i18n-title="titlebar.minimize">─</button>
+        <button id="win-maximize" class="win-btn" data-i18n-title="titlebar.maximize">□</button>
+        <button id="win-close" class="win-btn win-close-btn" data-i18n-title="titlebar.close">✕</button>
+      </div>
+    </header>
+
+    <!-- 工具栏 -->
+    <div id="toolbar">
+      <div class="toolbar-left">
+        <button id="btn-home" class="tb-btn" data-i18n="editor.home" data-i18n-title="editor.homeTitle">← 主页</button>
+        <span class="tb-sep"></span>
+        <button id="btn-save" class="tb-btn" data-i18n="editor.save" data-i18n-title="editor.saveTitle">💾 保存</button>
+        <button id="btn-save-local" class="tb-btn" title="保存到本地 ZIP">📥 保存本地</button>
+        <span class="tb-sep"></span>
+        <button id="btn-run" class="tb-btn tb-run" data-i18n="editor.run" data-i18n-title="editor.runTitle">▶ 运行</button>
+        <button id="btn-stop" class="tb-btn tb-stop" data-i18n="editor.stop" data-i18n-title="editor.stopTitle" disabled>⏹ 停止</button>
+        <span class="tb-sep"></span>
+        <button id="btn-load-ext" class="tb-btn" data-i18n="editor.loadExt" data-i18n-title="editor.loadExtTitle">🧩 扩展导入</button>
+        <button id="btn-ext-docs" class="tb-btn" data-i18n="editor.extDocs" data-i18n-title="editor.extDocsTitle">📖 扩展文档</button>
+        <a href="../blocks-guide/" target="_blank" data-i18n="editor.blocksGuide">📖 积木指南</a>
+        <button id="btn-view-code" class="tb-btn" data-i18n="editor.viewCode" data-i18n-title="editor.viewCodeTitle">💻 查看代码</button>
+        <button id="btn-export-html" class="tb-btn" data-i18n="editor.exportHtml" data-i18n-title="editor.exportHtmlTitle">🌐 导出HTML</button>
+      </div>
+      <div class="toolbar-right">
+        <span id="block-count">积木: 0</span>
+      </div>
+    </div>
+
+    <!-- 主体三栏布局 -->
+    <div id="main-layout">
+      <!-- 左侧积木面板 -->
+      <aside id="palette-panel">
+        <div id="palette-categories"></div>
+        <div id="palette-blocks"></div>
+      </aside>
+
+      <!-- 中间积木编辑区 -->
+      <main id="editor-panel">
+        <canvas id="editor-canvas"></canvas>
+        <div id="canvas-zoom-controls">
+          <button id="btn-zoom-out" title="缩小">−</button>
+          <span id="zoom-level">100%</span>
+          <button id="btn-zoom-in" title="放大">+</button>
+          <button id="btn-zoom-reset" title="重置视图">⟳</button>
+        </div>
+      </main>
+
+      <!-- 右侧舞台/输出 -->
+      <aside id="stage-panel">
+        <div id="stage-tabs">
+          <button class="stage-tab active" data-tab="stage" data-i18n="tabs.stage">舞台</button>
+          <button class="stage-tab" data-tab="output" data-i18n="tabs.output">输出</button>
+          <button class="stage-tab" data-tab="sprites" data-i18n="tabs.sprites">角色</button>
+          <button class="stage-tab hidden" data-tab="files" data-i18n="tabs.files">文件</button>
+          <button class="stage-tab hidden" data-tab="debug" data-i18n="tabs.debug">调试</button>
+        </div>
+        <div id="stage-content">
+          <canvas id="stage-canvas" width="480" height="360"></canvas>
+        </div>
+        <div id="output-content" class="hidden">
+          <div id="output-log"></div>
+        </div>
+        <div id="sprites-content" class="hidden">
+          <div id="sprite-list"></div>
+          <div class="sprite-toolbar">
+            <button id="btn-add-sprite" class="tb-btn" data-i18n="sprites.add">+ 添加角色</button>
+            <button id="btn-upload-costume" class="tb-btn" data-i18n="sprites.upload">⬆ 上传图片</button>
+            <button id="btn-set-costume" class="tb-btn" data-i18n="sprites.setCostume">🖼️ 选择造型</button>
+            <button id="btn-clear-costume" class="tb-btn" data-i18n="sprites.clearCostume">✕ 清除造型</button>
+          </div>
+          <div style="margin-top:8px;padding:0 8px;">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;" data-i18n="sprites.costumeLib">🎨 造型库（点击应用，右键删除）</div>
+            <div id="costume-library" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:4px;max-height:120px;overflow:auto;"></div>
+          </div>
+        </div>
+        <div id="debug-content" class="hidden">
+          <div class="debug-toolbar">
+            <button id="btn-debug-continue" class="tb-btn tb-run" data-i18n="debug.continue" data-i18n-title="debug.continueTitle">▶ 继续</button>
+            <button id="btn-debug-step" class="tb-btn" data-i18n="debug.step" data-i18n-title="debug.stepTitle">⏭ 单步</button>
+            <button id="btn-debug-stop" class="tb-btn tb-stop" data-i18n="debug.stop" data-i18n-title="debug.stopTitle">⏹ 停止</button>
+          </div>
+          <div id="debug-panel"></div>
+        </div>
+        <div id="files-content" class="hidden">
+          <div class="file-editor-toolbar">
+            <button id="btn-new-file" class="tb-btn" data-i18n="fileEditor.newFile">+ 新建文件</button>
+            <button id="btn-save-file" class="tb-btn" data-i18n="fileEditor.save">💾 保存</button>
+            <button id="btn-load-test" class="tb-btn tb-run" data-i18n="fileEditor.loadTest">▶ 加载测试</button>
+          </div>
+          <div id="file-list"></div>
+          <textarea id="file-editor-area" data-i18n-ph="fileEditor.placeholder" placeholder="选择或新建文件开始编辑..." spellcheck="false"></textarea>
+        </div>
+      </aside>
+    </div>
+
+    <!-- 底部状态栏 -->
+    <footer id="statusbar">
+      <span id="status-text" data-i18n="status.ready">就绪</span>
+      <span id="status-pos">X: 0  Y: 0</span>
+    </footer>
+  </div>
+
+  <!-- 右键菜单 -->
+  <div id="context-menu" class="hidden">
+    <div class="ctx-item" data-action="duplicate" data-i18n="contextMenu.duplicate">复制积木</div>
+    <div class="ctx-item" data-action="delete" data-i18n="contextMenu.delete">删除积木</div>
+    <div class="ctx-item" data-action="disconnect" data-i18n="contextMenu.disconnect">断开连接</div>
+    <div class="ctx-item" data-action="toggle-collapse" data-i18n="contextMenu.collapse">📌 折叠/展开后续代码</div>
+    <div class="ctx-item" data-action="toggle-important" data-i18n="contextMenu.important">⭐ 标记/取消重要代码</div>
+    <div class="ctx-item" data-action="add-list-item" data-i18n="contextMenu.addListItem">+ 添加列表项</div>
+    <div class="ctx-item" data-action="remove-list-item" data-i18n="contextMenu.removeListItem">- 移除最后一项</div>
+    <div class="ctx-item" data-action="edit-comment" data-i18n="contextMenu.comment">💬 添加批注</div>
+    <div class="ctx-item dev-only hidden" data-action="toggle-breakpoint" data-i18n="contextMenu.breakpoint">🔴 设置/取消断点</div>
+    <div class="ctx-item dev-only hidden" data-action="run-to-here" data-i18n="contextMenu.runToHere">▶ 运行到此处</div>
+  </div>
+
+  <!-- 参数编辑输入框 -->
+  <input id="param-editor" class="param-editor hidden" type="text" autocomplete="off" />
+
+  <!-- 自定义 Prompt 对话框 -->
+  <div id="custom-prompt" class="custom-prompt-overlay hidden">
+    <div class="custom-prompt-box">
+      <div class="custom-prompt-title" id="custom-prompt-title" data-i18n="dialog.prompt">提示</div>
+      <input id="custom-prompt-input" type="text" class="custom-prompt-input" />
+      <div class="custom-prompt-actions">
+        <button id="custom-prompt-cancel" class="tb-btn" data-i18n="dialog.cancel">取消</button>
+        <button id="custom-prompt-ok" class="tb-btn tb-run" data-i18n="dialog.ok">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ctrl+T 跳转到重要代码 -->
+  <div id="goto-label-dialog" class="custom-prompt-overlay hidden">
+    <div class="custom-prompt-box" style="max-width:300px;">
+      <div class="custom-prompt-title" data-i18n="dialog.gotoLabel">⭐ 跳转到重要代码 (Ctrl+T)</div>
+      <div id="goto-label-list" style="max-height:240px;overflow-y:auto;margin:8px 0;"></div>
+      <div class="custom-prompt-actions">
+        <button id="goto-label-close" class="tb-btn" data-i18n="dialog.close">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 项目选择器（selectFolder 时显示） -->
+  <div id="web-project-picker" class="web-picker-overlay hidden">
+    <div class="web-picker-box">
+      <h2 id="picker-title">选择项目</h2>
+      <div class="picker-list" id="picker-project-list"></div>
+      <div class="picker-actions">
+        <button class="tb-btn" onclick="_webPickerCancel()">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="core/block-defs.js"></script>
+  <script src="core/block-types/events.js"></script>
+  <script src="core/block-types/motion.js"></script>
+  <script src="core/block-types/looks.js"></script>
+  <script src="core/block-types/control.js"></script>
+  <script src="core/block-types/operators.js"></script>
+  <script src="core/block-types/variables.js"></script>
+  <script src="core/block-types/functions.js"></script>
+  <script src="core/block-types/oop.js"></script>
+  <script src="core/block-types/lists.js"></script>
+  <script src="core/block-types/io.js"></script>
+  <script src="core/block-types/sound.js"></script>
+  <script src="core/block-types/sensing.js"></script>
+  <script src="core/block-renderer.js"></script>
+  <script src="core/connection-manager.js"></script>
+  <script src="core/editor-canvas.js"></script>
+  <script src="core/palette.js"></script>
+  <script src="core/serializer.js"></script>
+  <script src="core/project-manager.js"></script>
+  <script src="core/extension-manager.js"></script>
+  <script src="core/builtin-extensions.js"></script>
+  <script src="core/executor.js"></script>
+  <script src="core/sound-manager.js"></script>
+  <script src="core/sensing-input.js"></script>
+  <script src="core/file-editor.js"></script>
+  <script src="core/html-exporter.js"></script>
+  <script src="core/dev-mode.js"></script>
+  <script src="stage/sprite.js"></script>
+  <script src="stage/costume-manager.js"></script>
+  <script src="stage/stage-canvas.js"></script>
+  <script src="stage/stage-manager.js"></script>
+  <script src="editor-app.js"></script>
+</body>
+</html>
