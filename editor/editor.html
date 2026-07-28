@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -46,6 +46,7 @@
         <a href="../blocks-guide/" target="_blank" data-i18n="editor.blocksGuide">📖 积木指南</a>
         <button id="btn-view-code" class="tb-btn" data-i18n="editor.viewCode" data-i18n-title="editor.viewCodeTitle">💻 查看代码</button>
         <button id="btn-export-html" class="tb-btn" data-i18n="editor.exportHtml" data-i18n-title="editor.exportHtmlTitle">🌐 导出HTML</button>
+        <button id="btn-publish-community" class="tb-btn" title="发布到社区">🚀 发布到社区</button>
       </div>
       <div class="toolbar-right">
         <span id="block-count">积木: 0</span>
@@ -178,6 +179,8 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="../community/shared/community-api.js"></script>
   <script src="core/block-defs.js"></script>
   <script src="core/block-types/events.js"></script>
   <script src="core/block-types/motion.js"></script>

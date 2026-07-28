@@ -378,6 +378,134 @@
     }
   }
 
+  /** 发布项目到社区 */
+  async function publishToCommunity() {
+    if (!EditorState.projectPath) {
+      alert(i18n.t('status.openProjectFirst'));
+      return;
+    }
+
+    if (typeof CommunityAPI === 'undefined') {
+      alert(i18n.isEnglish()
+        ? 'Community module not loaded. Please check your network connection.'
+        : '社区模块未加载，请检查网络连接。');
+      return;
+    }
+
+    CommunityAPI.init();
+    if (!CommunityAPI.isConfigured()) {
+      alert(i18n.isEnglish()
+        ? 'Community is not configured yet. Please set up Supabase first.'
+        : '社区尚未配置，请先设置 Supabase。');
+      return;
+    }
+
+    if (!CommunityAPI.getUser()) {
+      if (confirm(i18n.isEnglish()
+        ? 'You need to login first. Go to login page?'
+        : '需要先登录才能发布。跳转到登录页？')) {
+        window.open('../community/login.html', '_blank');
+      }
+      return;
+    }
+
+    const projectName = EditorState.projectName || '未命名项目';
+    const description = prompt(i18n.isEnglish()
+      ? 'Enter a description for your project:'
+      : '为你的作品写一段描述：', '');
+    if (description === null) return; // 取消
+
+    document.getElementById('status-text').textContent = i18n.isEnglish() ? 'Publishing to community...' : '正在发布到社区...';
+
+    try {
+      // 先保存到 VFS
+      await ProjectManager.saveProject();
+
+      // 收集项目文件并生成 ZIP
+      const projectPath = EditorState.projectPath.replace(/\\/g, '/').replace(/\/+$/, '');
+      const vfsPrefix = 'vfs:';
+      const vfsbPrefix = 'vfsb:';
+      const projectPrefix = projectPath + '/';
+      const zip = new JSZip();
+      let mainJsonData = null;
+
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        let filePath = null;
+        let isBinary = false;
+
+        if (key.startsWith(vfsPrefix) && !key.endsWith('/__dir__')) {
+          filePath = key.slice(vfsPrefix.length);
+        } else if (key.startsWith(vfsbPrefix)) {
+          filePath = key.slice(vfsbPrefix.length);
+          isBinary = true;
+        }
+
+        if (!filePath || !filePath.startsWith(projectPrefix)) continue;
+
+        const relativePath = filePath.slice(projectPrefix.length);
+        const content = localStorage.getItem(key);
+        if (!content) continue;
+
+        // 记录 main.json 用于在线预览
+        if (relativePath === 'main.json' && !isBinary) {
+          mainJsonData = content;
+        }
+
+        if (isBinary) {
+          try {
+            const base64Data = content.split(',')[1];
+            if (base64Data) zip.file(relativePath, base64Data, { base64: true });
+          } catch (e) {
+            console.warn('[publish] 无法解码二进制文件:', relativePath, e);
+          }
+        } else {
+          zip.file(relativePath, content);
+        }
+      }
+
+      // 生成 ZIP Blob
+      const zipBlob = new Blob([await zip.generateAsync({ type: 'uint8array' })], { type: 'application/zip' });
+
+      // 上传到社区
+      const result = await CommunityAPI.publishProject({
+        title: projectName,
+        description: description,
+        json_data: mainJsonData,
+        is_public: true
+      }, zipBlob);
+
+      if (result.error) {
+        alert((i18n.isEnglish() ? 'Publish failed: ' : '发布失败: ') + (result.error.message || result.error));
+        document.getElementById('status-text').textContent = i18n.t('status.ready');
+        return;
+      }
+
+      document.getElementById('status-text').textContent =
+        i18n.isEnglish() ? 'Published to community!' : '已发布到社区！';
+      setTimeout(() => {
+        document.getElementById('status-text').textContent = i18n.t('status.ready');
+      }, 3000);
+
+      // 询问是否查看
+      if (confirm(i18n.isEnglish()
+        ? 'Published! View in community?'
+        : '发布成功！是否在社区中查看？')) {
+        const projectId = result.data?.id || result.data?.[0]?.id;
+        if (projectId) {
+          window.open('../community/project-detail.html?id=' + projectId, '_blank');
+        } else {
+          window.open('../community/projects.html', '_blank');
+        }
+      }
+
+    } catch (e) {
+      console.error('[publish] 发布失败:', e);
+      alert((i18n.isEnglish() ? 'Publish failed: ' : '发布失败: ') + e.message);
+      document.getElementById('status-text').textContent = i18n.t('status.ready');
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     // 全局错误捕获（帮助定位问题）
     window.addEventListener('error', (e) => {
@@ -436,6 +564,9 @@
 
     // 保存到本地（ZIP）
     document.getElementById('btn-save-local')?.addEventListener('click', saveProjectToLocal);
+
+    // 发布到社区
+    document.getElementById('btn-publish-community')?.addEventListener('click', publishToCommunity);
 
     // 项目重命名：点击项目名或重命名按钮
     document.getElementById('btn-rename')?.addEventListener('click', () => ProjectManager.renameProject());
