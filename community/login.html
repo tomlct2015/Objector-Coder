@@ -1,0 +1,148 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>登录 - Objector 社区</title>
+  <link rel="icon" href="../icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="shared/community.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="shared/community-api.js"></script>
+  <script src="shared/community-ui.js"></script>
+</head>
+<body>
+  <div id="nav"></div>
+
+  <div class="auth-container">
+    <h1>⚡ Objector 社区</h1>
+    <p>加入社区，分享你的作品</p>
+
+    <div class="auth-toggle">
+      <button class="auth-toggle-btn active" id="tab-login">登录</button>
+      <button class="auth-toggle-btn" id="tab-signup">注册</button>
+    </div>
+
+    <!-- 登录表单 -->
+    <form id="form-login">
+      <div class="form-group">
+        <label class="form-label">邮箱</label>
+        <input type="email" class="form-input" id="login-email" placeholder="your@email.com" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">密码</label>
+        <input type="password" class="form-input" id="login-password" placeholder="输入密码" required />
+      </div>
+      <div class="form-error hidden" id="login-error"></div>
+      <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:8px;">登录</button>
+    </form>
+
+    <!-- 注册表单 -->
+    <form id="form-signup" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">用户名</label>
+        <input type="text" class="form-input" id="signup-username" placeholder="取一个独特的名字" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">邮箱</label>
+        <input type="email" class="form-input" id="signup-email" placeholder="your@email.com" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">密码</label>
+        <input type="password" class="form-input" id="signup-password" placeholder="至少6位" minlength="6" required />
+      </div>
+      <div class="form-error hidden" id="signup-error"></div>
+      <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:8px;">注册</button>
+    </form>
+
+    <div style="text-align:center;margin-top:20px;font-size:13px;color:var(--muted);">
+      <a href="index.html">← 返回社区首页</a>
+    </div>
+  </div>
+
+  <script>
+    CommunityAPI.init();
+    CommunityUI.renderNav();
+
+    // If already logged in, redirect
+    CommunityAPI.getCurrentUser().then(user => {
+      if (user) window.location.href = 'index.html';
+    });
+
+    const tabLogin = document.getElementById('tab-login');
+    const tabSignup = document.getElementById('tab-signup');
+    const formLogin = document.getElementById('form-login');
+    const formSignup = document.getElementById('form-signup');
+
+    tabLogin.addEventListener('click', () => {
+      tabLogin.classList.add('active');
+      tabSignup.classList.remove('active');
+      formLogin.style.display = '';
+      formSignup.style.display = 'none';
+    });
+
+    tabSignup.addEventListener('click', () => {
+      tabSignup.classList.add('active');
+      tabLogin.classList.remove('active');
+      formSignup.style.display = '';
+      formLogin.style.display = 'none';
+    });
+
+    // Login
+    formLogin.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      const errorEl = document.getElementById('login-error');
+      errorEl.classList.add('hidden');
+
+      const btn = formLogin.querySelector('button[type=submit]');
+      btn.disabled = true;
+      btn.textContent = '登录中...';
+
+      const { error } = await CommunityAPI.signIn(email, password);
+      btn.disabled = false;
+      btn.textContent = '登录';
+
+      if (error) {
+        errorEl.textContent = error.message.includes('Invalid') ? '邮箱或密码错误' : error.message;
+        errorEl.classList.remove('hidden');
+      } else {
+        window.location.href = 'index.html';
+      }
+    });
+
+    // Signup
+    formSignup.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('signup-username').value.trim();
+      const email = document.getElementById('signup-email').value.trim();
+      const password = document.getElementById('signup-password').value;
+      const errorEl = document.getElementById('signup-error');
+      errorEl.classList.add('hidden');
+
+      if (!username || username.length < 2) {
+        errorEl.textContent = '用户名至少2个字符';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+
+      const btn = formSignup.querySelector('button[type=submit]');
+      btn.disabled = true;
+      btn.textContent = '注册中...';
+
+      const { error } = await CommunityAPI.signUp(email, password, username);
+      btn.disabled = false;
+      btn.textContent = '注册';
+
+      if (error) {
+        errorEl.textContent = error.message.includes('already') ? '该邮箱已被注册' : error.message;
+        errorEl.classList.remove('hidden');
+      } else {
+        CommunityUI.showToast('注册成功！请查看邮箱验证（如需要），然后登录', 'success');
+        tabLogin.click();
+        document.getElementById('login-email').value = email;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,152 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>帖子详情 - Objector 社区</title>
+  <link rel="icon" href="../icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="shared/community.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="shared/community-api.js"></script>
+  <script src="shared/community-ui.js"></script>
+</head>
+<body>
+  <div id="nav"></div>
+
+  <div class="page-container">
+    <div id="post-detail">
+      <div class="loading">加载中...</div>
+    </div>
+
+    <!-- 评论区 -->
+    <section class="comments-section" id="comments-section" style="display:none">
+      <h3>💬 回复</h3>
+      <div class="comment-form" id="comment-form" style="display:none">
+        <textarea id="comment-input" placeholder="写下你的回复..." rows="3"></textarea>
+        <button class="btn btn-primary btn-sm" id="btn-comment">发表回复</button>
+      </div>
+      <div id="comments-list" class="comment-list"></div>
+    </section>
+  </div>
+
+  <footer class="footer">
+    <p>Objector Community · Powered by Supabase</p>
+  </footer>
+
+  <script>
+    CommunityAPI.init();
+    CommunityUI.renderNav('nav');
+    CommunityAPI.restoreSession().then(() => CommunityUI.renderNav('nav'));
+
+    const postId = new URLSearchParams(location.search).get('id');
+    const categoryLabels = {
+      general: '综合', question: '提问', tutorial: '教程', showcase: '展示'
+    };
+
+    async function loadPost() {
+      if (!postId) {
+        document.getElementById('post-detail').innerHTML = '<div class="empty-state"><p>帖子不存在</p><a href="posts.html" class="btn">返回讨论区</a></div>';
+        return;
+      }
+
+      const res = await CommunityAPI.getPostById(postId);
+      if (res.error || !res.data) {
+        document.getElementById('post-detail').innerHTML = '<div class="empty-state"><p>帖子不存在或已被删除</p><a href="posts.html" class="btn">返回讨论区</a></div>';
+        return;
+      }
+
+      renderPost(res.data);
+      loadComments();
+    }
+
+    function renderPost(p) {
+      const user = CommunityAPI.getUser();
+      const isAuthor = user && p.author_id === user.id;
+      const authorName = p.profiles ? p.profiles.username : '匿名';
+      const authorAvatar = p.profiles ? p.profiles.avatar_url : null;
+      const catLabel = categoryLabels[p.category] || p.category;
+
+      document.getElementById('post-detail').innerHTML = `
+        <article class="post-article">
+          <div class="post-header">
+            <span class="badge badge-${p.category}">${catLabel}</span>
+            <h1>${p.title}</h1>
+            <div class="post-meta">
+              <a href="profile.html?id=${p.author_id}" class="user-link">
+                ${authorAvatar ? `<img src="${authorAvatar}" class="avatar-sm" />` : ''}
+                ${authorName}
+              </a>
+              <span>·</span>
+              <span>${new Date(p.created_at).toLocaleDateString()}</span>
+              <span>·</span>
+              <span>❤️ ${p.likes_count || 0}</span>
+              <span>·</span>
+              <span>💬 ${p.comments_count || 0}</span>
+            </div>
+          </div>
+          <div class="post-content markdown-body">${marked.parse(p.content || '')}</div>
+          <div class="post-actions">
+            ${user ? `<button class="btn btn-outline btn-sm" id="btn-like">${p.user_liked ? '❤️ 已点赞' : '🤍 点赞'}</button>` : ''}
+            ${isAuthor ? `<button class="btn btn-danger btn-sm" id="btn-delete">删除</button>` : ''}
+          </div>
+        </article>
+      `;
+
+      const btnLike = document.getElementById('btn-like');
+      if (btnLike) {
+        btnLike.addEventListener('click', async () => {
+          const liked = btnLike.textContent.includes('已点赞');
+          const result = liked
+            ? await CommunityAPI.unlikeTarget('post', postId)
+            : await CommunityAPI.likeTarget('post', postId);
+          if (!result.error) location.reload();
+        });
+      }
+
+      const btnDelete = document.getElementById('btn-delete');
+      if (btnDelete) {
+        btnDelete.addEventListener('click', async () => {
+          if (!confirm('确定要删除这个帖子吗？')) return;
+          const result = await CommunityAPI.deletePost(postId);
+          if (result.error) {
+            CommunityUI.showToast('删除失败', 'error');
+          } else {
+            CommunityUI.showToast('已删除', 'success');
+            setTimeout(() => location.href = 'posts.html', 1000);
+          }
+        });
+      }
+
+      document.getElementById('comments-section').style.display = '';
+      if (user) document.getElementById('comment-form').style.display = '';
+    }
+
+    async function loadComments() {
+      const res = await CommunityAPI.getComments('post', postId);
+      const list = document.getElementById('comments-list');
+      if (res.data && res.data.length > 0) {
+        list.innerHTML = res.data.map(c => CommunityUI.renderCommentItem(c)).join('');
+      } else {
+        list.innerHTML = '<div class="empty-state"><p>暂无回复</p></div>';
+      }
+    }
+
+    document.getElementById('btn-comment').addEventListener('click', async () => {
+      const input = document.getElementById('comment-input');
+      const content = input.value.trim();
+      if (!content) return;
+      const result = await CommunityAPI.addComment('post', postId, content);
+      if (result.error) {
+        CommunityUI.showToast('回复失败', 'error');
+      } else {
+        input.value = '';
+        CommunityUI.showToast('回复成功', 'success');
+        loadComments();
+      }
+    });
+
+    loadPost();
+  </script>
+</body>
+</html>

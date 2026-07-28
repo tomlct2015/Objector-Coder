@@ -1,0 +1,100 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>扩展市场 - Objector 社区</title>
+  <link rel="icon" href="../icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="shared/community.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="shared/community-api.js"></script>
+  <script src="shared/community-ui.js"></script>
+</head>
+<body>
+  <div id="nav"></div>
+
+  <div class="page-container">
+    <div class="page-header">
+      <h1>🧩 扩展市场</h1>
+    </div>
+
+    <!-- 搜索排序 -->
+    <div class="filter-bar">
+      <div class="filter-tabs">
+        <button class="filter-tab active" data-sort="new">最新</button>
+        <button class="filter-tab" data-sort="hot">最热</button>
+        <button class="filter-tab" data-sort="downloads">最多下载</button>
+        <button class="filter-tab" data-sort="blocks">最多积木</button>
+      </div>
+      <div class="search-box">
+        <input type="text" id="search-input" placeholder="搜索扩展..." />
+      </div>
+    </div>
+
+    <!-- 扩展网格 -->
+    <div id="extensions-grid" class="card-grid"></div>
+
+    <!-- 分页 -->
+    <div id="pagination" class="pagination"></div>
+  </div>
+
+  <footer class="footer">
+    <p>Objector Community · Powered by Supabase</p>
+  </footer>
+
+  <script>
+    CommunityAPI.init();
+    CommunityUI.renderNav('nav');
+    CommunityAPI.restoreSession().then(() => CommunityUI.renderNav('nav'));
+
+    let currentPage = 1;
+    let currentSort = 'new';
+    let searchQuery = '';
+
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentSort = tab.dataset.sort;
+        currentPage = 1;
+        loadExtensions();
+      });
+    });
+
+    let searchTimer = null;
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        searchQuery = e.target.value.trim();
+        currentPage = 1;
+        loadExtensions();
+      }, 400);
+    });
+
+    async function loadExtensions() {
+      const grid = document.getElementById('extensions-grid');
+      grid.innerHTML = '<div class="loading">加载中...</div>';
+
+      const res = await CommunityAPI.getExtensions(currentPage, currentSort, searchQuery);
+      if (res.error) {
+        grid.innerHTML = '<div class="empty-state"><p>加载失败</p></div>';
+        return;
+      }
+
+      if (!res.data || res.data.length === 0) {
+        grid.innerHTML = '<div class="empty-state"><p>暂无扩展</p></div>';
+        return;
+      }
+
+      grid.innerHTML = res.data.map(e => CommunityUI.renderExtensionCard(e)).join('');
+      CommunityUI.renderPagination('pagination', currentPage, res.total || res.data.length, (page) => {
+        currentPage = page;
+        loadExtensions();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+
+    loadExtensions();
+  </script>
+</body>
+</html>

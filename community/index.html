@@ -1,0 +1,104 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Objector 社区</title>
+  <link rel="icon" href="../icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="shared/community.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="shared/community-api.js"></script>
+  <script src="shared/community-ui.js"></script>
+</head>
+<body>
+  <div id="nav"></div>
+
+  <!-- Hero Banner -->
+  <section class="hero">
+    <div class="hero-content">
+      <h1>⚡ Objector 社区</h1>
+      <p>分享作品、交流创意、发现扩展</p>
+      <div class="hero-actions">
+        <a href="projects.html" class="btn btn-primary">浏览作品</a>
+        <a href="posts.html" class="btn btn-outline">参与讨论</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 热门作品 -->
+  <section class="section">
+    <div class="section-header">
+      <h2>🔥 热门作品</h2>
+      <a href="projects.html" class="view-all">查看全部 →</a>
+    </div>
+    <div id="hot-projects" class="card-grid"></div>
+  </section>
+
+  <!-- 最新讨论 -->
+  <section class="section">
+    <div class="section-header">
+      <h2>💬 最新讨论</h2>
+      <a href="posts.html" class="view-all">查看全部 →</a>
+    </div>
+    <div id="recent-posts" class="card-list"></div>
+  </section>
+
+  <!-- 热门扩展 -->
+  <section class="section">
+    <div class="section-header">
+      <h2>🧩 热门扩展</h2>
+      <a href="extensions.html" class="view-all">查看全部 →</a>
+    </div>
+    <div id="hot-extensions" class="card-grid"></div>
+  </section>
+
+  <footer class="footer">
+    <p>Objector Community · Powered by Supabase</p>
+  </footer>
+
+  <script>
+    CommunityAPI.init();
+    CommunityUI.renderNav('nav');
+
+    // 恢复登录状态后刷新导航
+    CommunityAPI.restoreSession().then(() => CommunityUI.renderNav('nav'));
+
+    async function loadHomepage() {
+      // 热门作品（按点赞数排序，取6个）
+      const projectsRes = await CommunityAPI.getProjects(1, 'hot');
+      const projectsGrid = document.getElementById('hot-projects');
+      if (projectsRes.data && projectsRes.data.length > 0) {
+        projectsGrid.innerHTML = projectsRes.data.slice(0, 6).map(p =>
+          CommunityUI.renderProjectCard(p)
+        ).join('');
+      } else {
+        projectsGrid.innerHTML = '<div class="empty-state"><p>还没有作品，快来发布第一个吧！</p><a href="../editor/index.html" class="btn btn-primary">去创作</a></div>';
+      }
+
+      // 最新讨论（取5个）
+      const postsRes = await CommunityAPI.getPosts(1, 'all');
+      const postsList = document.getElementById('recent-posts');
+      if (postsRes.data && postsRes.data.length > 0) {
+        postsList.innerHTML = postsRes.data.slice(0, 5).map(p =>
+          CommunityUI.renderPostCard(p)
+        ).join('');
+      } else {
+        postsList.innerHTML = '<div class="empty-state"><p>还没有讨论，发起第一个话题吧！</p><a href="post-new.html" class="btn btn-primary">发帖</a></div>';
+      }
+
+      // 热门扩展（取6个）
+      const extRes = await CommunityAPI.getExtensions(1, 'hot');
+      const extGrid = document.getElementById('hot-extensions');
+      if (extRes.data && extRes.data.length > 0) {
+        extGrid.innerHTML = extRes.data.slice(0, 6).map(e =>
+          CommunityUI.renderExtensionCard(e)
+        ).join('');
+      } else {
+        extGrid.innerHTML = '<div class="empty-state"><p>还没有扩展，开发第一个吧！</p></div>';
+      }
+    }
+
+    loadHomepage();
+  </script>
+</body>
+</html>

@@ -1,0 +1,193 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>用户主页 - Objector 社区</title>
+  <link rel="icon" href="../icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="shared/community.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="shared/community-api.js"></script>
+  <script src="shared/community-ui.js"></script>
+</head>
+<body>
+  <div id="nav"></div>
+
+  <div class="page-container">
+    <!-- 用户信息 -->
+    <div id="profile-header" class="profile-header">
+      <div class="loading">加载中...</div>
+    </div>
+
+    <!-- 标签切换 -->
+    <div class="profile-tabs" id="profile-tabs" style="display:none">
+      <button class="profile-tab active" data-tab="projects">作品</button>
+      <button class="profile-tab" data-tab="posts">帖子</button>
+      <button class="profile-tab" data-tab="extensions">扩展</button>
+      <button class="profile-tab" data-tab="favorites">收藏</button>
+    </div>
+
+    <!-- 内容区 -->
+    <div id="tab-content" class="tab-content"></div>
+  </div>
+
+  <footer class="footer">
+    <p>Objector Community · Powered by Supabase</p>
+  </footer>
+
+  <script>
+    CommunityAPI.init();
+    CommunityUI.renderNav('nav');
+    CommunityAPI.restoreSession().then(() => CommunityUI.renderNav('nav'));
+
+    const params = new URLSearchParams(location.search);
+    const profileId = params.get('id');
+    const currentUser = CommunityAPI.getUser();
+    const isOwnProfile = currentUser && (!profileId || profileId === currentUser.id);
+    const targetUserId = profileId || (currentUser ? currentUser.id : null);
+
+    let currentTab = 'projects';
+
+    if (!targetUserId) {
+      location.href = 'login.html';
+    }
+
+    async function loadProfile() {
+      const res = await CommunityAPI.getProfile(targetUserId);
+      if (res.error || !res.data) {
+        document.getElementById('profile-header').innerHTML = '<div class="empty-state"><p>用户不存在</p></div>';
+        return;
+      }
+
+      renderProfileHeader(res.data);
+      document.getElementById('profile-tabs').style.display = '';
+      loadTabContent();
+    }
+
+    function renderProfileHeader(profile) {
+      const avatar = profile.avatar_url || `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><rect fill="%23252545" width="80" height="80" rx="40"/><text fill="%2389b4fa" font-size="32" x="50%" y="55%" text-anchor="middle">${(profile.username || '?')[0].toUpperCase()}</text></svg>`;
+      const isFollowing = profile.is_following;
+
+      let actionsHtml = '';
+      if (isOwnProfile) {
+        actionsHtml = `
+          <button class="btn btn-outline btn-sm" id="btn-edit-profile">编辑资料</button>
+          <button class="btn btn-outline btn-sm" id="btn-logout">退出登录</button>
+        `;
+      } else if (currentUser) {
+        actionsHtml = `
+          <button class="btn ${isFollowing ? 'btn-outline' : 'btn-primary'} btn-sm" id="btn-follow">
+            ${isFollowing ? '已关注' : '关注'}
+          </button>
+        `;
+      }
+
+      document.getElementById('profile-header').innerHTML = `
+        <div class="profile-card">
+          <img src="${avatar}" class="profile-avatar" alt="${profile.username}" />
+          <div class="profile-info">
+            <h1>${profile.username}</h1>
+            ${profile.bio ? `<p class="profile-bio">${profile.bio}</p>` : ''}
+            <p class="profile-joined">加入于 ${new Date(profile.created_at).toLocaleDateString()}</p>
+          </div>
+          <div class="profile-actions">${actionsHtml}</div>
+        </div>
+      `;
+
+      // 绑定事件
+      const btnLogout = document.getElementById('btn-logout');
+      if (btnLogout) {
+        btnLogout.addEventListener('click', async () => {
+          await CommunityAPI.signOut();
+          location.href = 'index.html';
+        });
+      }
+
+      const btnEditProfile = document.getElementById('btn-edit-profile');
+      if (btnEditProfile) {
+        btnEditProfile.addEventListener('click', () => {
+          const newBio = prompt('修改个人简介:', profile.bio || '');
+          if (newBio !== null) {
+            CommunityAPI.updateProfile({ bio: newBio }).then(res => {
+              if (res.error) {
+                CommunityUI.showToast('更新失败', 'error');
+              } else {
+                CommunityUI.showToast('更新成功', 'success');
+                loadProfile();
+              }
+            });
+          }
+        });
+      }
+
+      const btnFollow = document.getElementById('btn-follow');
+      if (btnFollow) {
+        btnFollow.addEventListener('click', async () => {
+          if (isFollowing) {
+            await CommunityAPI.unfollowUser(targetUserId);
+          } else {
+            await CommunityAPI.followUser(targetUserId);
+          }
+          loadProfile();
+        });
+      }
+    }
+
+    // 标签切换
+    document.querySelectorAll('.profile-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentTab = tab.dataset.tab;
+        loadTabContent();
+      });
+    });
+
+    async function loadTabContent() {
+      const content = document.getElementById('tab-content');
+      content.innerHTML = '<div class="loading">加载中...</div>';
+
+      if (currentTab === 'projects') {
+        const res = await CommunityAPI.getUserProjects(targetUserId);
+        if (res.data && res.data.length > 0) {
+          content.innerHTML = '<div class="card-grid">' + res.data.map(p => CommunityUI.renderProjectCard(p)).join('') + '</div>';
+        } else {
+          content.innerHTML = '<div class="empty-state"><p>暂无作品</p></div>';
+        }
+      } else if (currentTab === 'posts') {
+        const res = await CommunityAPI.getUserPosts(targetUserId);
+        if (res.data && res.data.length > 0) {
+          content.innerHTML = '<div class="post-list">' + res.data.map(p => CommunityUI.renderPostCard(p)).join('') + '</div>';
+        } else {
+          content.innerHTML = '<div class="empty-state"><p>暂无帖子</p></div>';
+        }
+      } else if (currentTab === 'extensions') {
+        const res = await CommunityAPI.getUserExtensions(targetUserId);
+        if (res.data && res.data.length > 0) {
+          content.innerHTML = '<div class="card-grid">' + res.data.map(e => CommunityUI.renderExtensionCard(e)).join('') + '</div>';
+        } else {
+          content.innerHTML = '<div class="empty-state"><p>暂无扩展</p></div>';
+        }
+      } else if (currentTab === 'favorites') {
+        if (!isOwnProfile) {
+          content.innerHTML = '<div class="empty-state"><p>收藏仅自己可见</p></div>';
+          return;
+        }
+        const res = await CommunityAPI.getFavorites();
+        if (res.data && res.data.length > 0) {
+          content.innerHTML = '<div class="card-grid">' + res.data.map(item => {
+            if (item.target_type === 'project') return CommunityUI.renderProjectCard(item.projects || item);
+            if (item.target_type === 'post') return CommunityUI.renderPostCard(item.posts || item);
+            if (item.target_type === 'extension') return CommunityUI.renderExtensionCard(item.extensions || item);
+            return '';
+          }).join('') + '</div>';
+        } else {
+          content.innerHTML = '<div class="empty-state"><p>暂无收藏</p></div>';
+        }
+      }
+    }
+
+    loadProfile();
+  </script>
+</body>
+</html>

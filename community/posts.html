@@ -1,0 +1,92 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>讨论区 - Objector 社区</title>
+  <link rel="icon" href="../icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="shared/community.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="shared/community-api.js"></script>
+  <script src="shared/community-ui.js"></script>
+</head>
+<body>
+  <div id="nav"></div>
+
+  <div class="page-container">
+    <div class="page-header">
+      <h1>💬 讨论区</h1>
+      <a href="post-new.html" class="btn btn-primary" id="btn-new-post" style="display:none">发帖</a>
+    </div>
+
+    <!-- 分类筛选 -->
+    <div class="filter-bar">
+      <div class="filter-tabs">
+        <button class="filter-tab active" data-cat="all">全部</button>
+        <button class="filter-tab" data-cat="general">综合</button>
+        <button class="filter-tab" data-cat="question">提问</button>
+        <button class="filter-tab" data-cat="tutorial">教程</button>
+        <button class="filter-tab" data-cat="showcase">展示</button>
+      </div>
+    </div>
+
+    <!-- 帖子列表 -->
+    <div id="posts-list" class="post-list"></div>
+
+    <!-- 分页 -->
+    <div id="pagination" class="pagination"></div>
+  </div>
+
+  <footer class="footer">
+    <p>Objector Community · Powered by Supabase</p>
+  </footer>
+
+  <script>
+    CommunityAPI.init();
+    CommunityUI.renderNav('nav');
+    CommunityAPI.restoreSession().then(() => CommunityUI.renderNav('nav'));
+
+    let currentPage = 1;
+    let currentCategory = 'all';
+
+    if (CommunityAPI.getUser()) {
+      document.getElementById('btn-new-post').style.display = '';
+    }
+
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentCategory = tab.dataset.cat;
+        currentPage = 1;
+        loadPosts();
+      });
+    });
+
+    async function loadPosts() {
+      const list = document.getElementById('posts-list');
+      list.innerHTML = '<div class="loading">加载中...</div>';
+
+      const res = await CommunityAPI.getPosts(currentPage, currentCategory);
+      if (res.error) {
+        list.innerHTML = '<div class="empty-state"><p>加载失败</p></div>';
+        return;
+      }
+
+      if (!res.data || res.data.length === 0) {
+        list.innerHTML = '<div class="empty-state"><p>暂无帖子</p></div>';
+        return;
+      }
+
+      list.innerHTML = res.data.map(p => CommunityUI.renderPostCard(p)).join('');
+      CommunityUI.renderPagination('pagination', currentPage, res.total || res.data.length, (page) => {
+        currentPage = page;
+        loadPosts();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+
+    loadPosts();
+  </script>
+</body>
+</html>

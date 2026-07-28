@@ -1,0 +1,149 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>发帖 - Objector 社区</title>
+  <link rel="icon" href="../icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="shared/community.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="shared/community-api.js"></script>
+  <script src="shared/community-ui.js"></script>
+</head>
+<body>
+  <div id="nav"></div>
+
+  <div class="page-container">
+    <div class="page-header">
+      <h1>✏️ 发表新帖</h1>
+    </div>
+
+    <form id="post-form" class="form-card">
+      <div class="form-group">
+        <label>分类</label>
+        <select id="post-category" required>
+          <option value="general">综合</option>
+          <option value="question">提问</option>
+          <option value="tutorial">教程</option>
+          <option value="showcase">展示</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>标题</label>
+        <input type="text" id="post-title" placeholder="输入帖子标题" required maxlength="100" />
+      </div>
+
+      <div class="form-group">
+        <label>内容 (支持 Markdown)</label>
+        <div class="editor-toolbar">
+          <button type="button" class="md-btn" data-md="**" title="粗体"><b>B</b></button>
+          <button type="button" class="md-btn" data-md="*" title="斜体"><i>I</i></button>
+          <button type="button" class="md-btn" data-md="`" title="代码">&lt;/&gt;</button>
+          <button type="button" class="md-btn" data-md="## " title="标题">H</button>
+          <button type="button" class="md-btn" data-md="- " title="列表">☰</button>
+          <button type="button" class="md-btn" data-md="> " title="引用">❝</button>
+          <button type="button" id="btn-toggle-preview" class="md-btn" title="预览">👁</button>
+        </div>
+        <textarea id="post-content" placeholder="写下你的内容...&#10;&#10;支持 Markdown 语法：&#10;**粗体** *斜体* `代码`&#10;## 标题&#10;- 列表项&#10;> 引用" required rows="15"></textarea>
+        <div id="post-preview" class="markdown-body" style="display:none"></div>
+      </div>
+
+      <div class="form-actions">
+        <a href="posts.html" class="btn btn-outline">取消</a>
+        <button type="submit" class="btn btn-primary" id="btn-submit">发布</button>
+      </div>
+    </form>
+  </div>
+
+  <footer class="footer">
+    <p>Objector Community · Powered by Supabase</p>
+  </footer>
+
+  <script>
+    CommunityAPI.init();
+    CommunityUI.renderNav('nav');
+
+    (async () => {
+      await CommunityAPI.restoreSession();
+      CommunityUI.renderNav('nav');
+      if (!CommunityAPI.getUser()) {
+        location.href = 'login.html';
+      }
+    })();
+
+    const textarea = document.getElementById('post-content');
+    const preview = document.getElementById('post-preview');
+    const toggleBtn = document.getElementById('btn-toggle-preview');
+    let isPreview = false;
+
+    // Markdown 工具栏
+    document.querySelectorAll('.md-btn[data-md]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const md = btn.dataset.md;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selected = textarea.value.substring(start, end);
+        const isBlock = md.endsWith(' ');
+
+        if (isBlock) {
+          const before = textarea.value.substring(0, start);
+          const lineStart = before.lastIndexOf('\n') + 1;
+          textarea.value = textarea.value.substring(0, lineStart) + md + textarea.value.substring(lineStart);
+        } else if (selected) {
+          textarea.value = textarea.value.substring(0, start) + md + selected + md + textarea.value.substring(end);
+        } else {
+          textarea.value = textarea.value.substring(0, start) + md + md + textarea.value.substring(end);
+          textarea.selectionStart = textarea.selectionEnd = start + md.length;
+        }
+        textarea.focus();
+      });
+    });
+
+    // 预览切换
+    toggleBtn.addEventListener('click', () => {
+      isPreview = !isPreview;
+      if (isPreview) {
+        preview.innerHTML = marked.parse(textarea.value || '*暂无内容*');
+        preview.style.display = '';
+        textarea.style.display = 'none';
+        toggleBtn.classList.add('active');
+      } else {
+        preview.style.display = 'none';
+        textarea.style.display = '';
+        toggleBtn.classList.remove('active');
+      }
+    });
+
+    // 提交
+    document.getElementById('post-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('post-title').value.trim();
+      const content = textarea.value.trim();
+      const category = document.getElementById('post-category').value;
+
+      if (!title || !content) {
+        CommunityUI.showToast('请填写标题和内容', 'error');
+        return;
+      }
+
+      const btnSubmit = document.getElementById('btn-submit');
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = '发布中...';
+
+      const result = await CommunityAPI.createPost({ title, content, category });
+      if (result.error) {
+        CommunityUI.showToast('发布失败: ' + (result.error.message || result.error), 'error');
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = '发布';
+      } else {
+        CommunityUI.showToast('发布成功！', 'success');
+        setTimeout(() => {
+          location.href = 'post-detail.html?id=' + (result.data.id || result.data[0]?.id);
+        }, 800);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,170 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>作品详情 - Objector 社区</title>
+  <link rel="icon" href="../icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="shared/community.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="shared/community-api.js"></script>
+  <script src="shared/community-ui.js"></script>
+</head>
+<body>
+  <div id="nav"></div>
+
+  <div class="page-container">
+    <div id="project-detail" class="detail-layout">
+      <div class="loading">加载中...</div>
+    </div>
+
+    <!-- 评论区 -->
+    <section class="comments-section" id="comments-section" style="display:none">
+      <h3>💬 评论</h3>
+      <div class="comment-form" id="comment-form" style="display:none">
+        <textarea id="comment-input" placeholder="写下你的评论..." rows="3"></textarea>
+        <button class="btn btn-primary btn-sm" id="btn-comment">发表评论</button>
+      </div>
+      <div id="comments-list" class="comment-list"></div>
+    </section>
+  </div>
+
+  <footer class="footer">
+    <p>Objector Community · Powered by Supabase</p>
+  </footer>
+
+  <script>
+    CommunityAPI.init();
+    CommunityUI.renderNav('nav');
+    CommunityAPI.restoreSession().then(() => CommunityUI.renderNav('nav'));
+
+    const projectId = new URLSearchParams(location.search).get('id');
+    let projectData = null;
+
+    async function loadProject() {
+      if (!projectId) {
+        document.getElementById('project-detail').innerHTML = '<div class="empty-state"><p>作品不存在</p><a href="projects.html" class="btn">返回作品广场</a></div>';
+        return;
+      }
+
+      const res = await CommunityAPI.getProjectById(projectId);
+      if (res.error || !res.data) {
+        document.getElementById('project-detail').innerHTML = '<div class="empty-state"><p>作品不存在或已被删除</p><a href="projects.html" class="btn">返回作品广场</a></div>';
+        return;
+      }
+
+      projectData = res.data;
+      renderProject(projectData);
+      loadComments();
+    }
+
+    function renderProject(p) {
+      const user = CommunityAPI.getUser();
+      const isAuthor = user && p.author_id === user.id;
+      const authorName = p.profiles ? p.profiles.username : '匿名';
+      const authorAvatar = p.profiles ? p.profiles.avatar_url : null;
+      const thumb = p.thumbnail_url || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect fill="%23252545" width="400" height="300"/><text fill="%2389b4fa" font-size="48" x="50%" y="50%" text-anchor="middle" dy=".3em">⚡</text></svg>';
+
+      document.getElementById('project-detail').innerHTML = `
+        <div class="detail-main">
+          <div class="detail-preview">
+            <img src="${thumb}" alt="${p.title}" class="preview-img" />
+            ${p.json_data ? '<button class="btn btn-outline btn-sm" id="btn-preview">在线预览</button>' : ''}
+          </div>
+          <div class="detail-info">
+            <h1>${p.title}</h1>
+            <div class="detail-meta">
+              <a href="profile.html?id=${p.author_id}" class="user-link">
+                ${authorAvatar ? `<img src="${authorAvatar}" class="avatar-sm" />` : ''}
+                ${authorName}
+              </a>
+              <span>·</span>
+              <span>${new Date(p.created_at).toLocaleDateString()}</span>
+            </div>
+            ${p.description ? `<div class="detail-desc">${marked.parse(p.description)}</div>` : ''}
+            <div class="detail-stats">
+              <span>❤️ ${p.likes_count || 0} 点赞</span>
+              <span>⬇️ ${p.downloads_count || 0} 下载</span>
+            </div>
+            <div class="detail-actions">
+              ${user ? `<button class="btn btn-outline" id="btn-like">${p.user_liked ? '❤️ 已点赞' : '🤍 点赞'}</button>` : ''}
+              ${p.zip_url ? `<a href="${p.zip_url}" class="btn btn-primary" download>⬇️ 下载作品</a>` : ''}
+              ${isAuthor ? `<button class="btn btn-danger btn-sm" id="btn-delete">删除</button>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+
+      // 绑定事件
+      const btnLike = document.getElementById('btn-like');
+      if (btnLike) {
+        btnLike.addEventListener('click', async () => {
+          const liked = btnLike.textContent.includes('已点赞');
+          const result = liked
+            ? await CommunityAPI.unlikeTarget('project', projectId)
+            : await CommunityAPI.likeTarget('project', projectId);
+          if (!result.error) location.reload();
+        });
+      }
+
+      const btnPreview = document.getElementById('btn-preview');
+      if (btnPreview) {
+        btnPreview.addEventListener('click', () => {
+          try {
+            const jsonData = JSON.parse(p.json_data);
+            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(jsonData))));
+            window.open('../editor/editor.html?preview=' + encoded, '_blank');
+          } catch (e) {
+            CommunityUI.showToast('预览数据解析失败', 'error');
+          }
+        });
+      }
+
+      const btnDelete = document.getElementById('btn-delete');
+      if (btnDelete) {
+        btnDelete.addEventListener('click', async () => {
+          if (!confirm('确定要删除这个作品吗？')) return;
+          const result = await CommunityAPI.deleteProject(projectId);
+          if (result.error) {
+            CommunityUI.showToast('删除失败', 'error');
+          } else {
+            CommunityUI.showToast('已删除', 'success');
+            setTimeout(() => location.href = 'projects.html', 1000);
+          }
+        });
+      }
+
+      // 显示评论区
+      document.getElementById('comments-section').style.display = '';
+      if (user) document.getElementById('comment-form').style.display = '';
+    }
+
+    async function loadComments() {
+      const res = await CommunityAPI.getComments('project', projectId);
+      const list = document.getElementById('comments-list');
+      if (res.data && res.data.length > 0) {
+        list.innerHTML = res.data.map(c => CommunityUI.renderCommentItem(c)).join('');
+      } else {
+        list.innerHTML = '<div class="empty-state"><p>暂无评论</p></div>';
+      }
+    }
+
+    document.getElementById('btn-comment').addEventListener('click', async () => {
+      const input = document.getElementById('comment-input');
+      const content = input.value.trim();
+      if (!content) return;
+      const result = await CommunityAPI.addComment('project', projectId, content);
+      if (result.error) {
+        CommunityUI.showToast('评论失败', 'error');
+      } else {
+        input.value = '';
+        CommunityUI.showToast('评论成功', 'success');
+        loadComments();
+      }
+    });
+
+    loadProject();
+  </script>
+</body>
+</html>
