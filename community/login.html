@@ -63,9 +63,13 @@
     CommunityAPI.init();
     CommunityUI.renderNav();
 
+    // 读取 redirect 参数，登录后跳回原页面
+    const redirectUrl = new URLSearchParams(window.location.search).get('redirect');
+    const redirectTarget = redirectUrl ? redirectUrl : 'index.html';
+
     // If already logged in, redirect
     CommunityAPI.getCurrentUser().then(user => {
-      if (user) window.location.href = 'index.html';
+      if (user) window.location.href = redirectTarget;
     });
 
     const tabLogin = document.getElementById('tab-login');
@@ -107,7 +111,7 @@
         errorEl.textContent = error.message.includes('Invalid') ? '邮箱或密码错误' : error.message;
         errorEl.classList.remove('hidden');
       } else {
-        window.location.href = 'index.html';
+        window.location.href = redirectTarget;
       }
     });
 

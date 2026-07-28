@@ -66,84 +66,96 @@
     CommunityUI.renderNav('nav');
 
     (async () => {
+      // 先恢复登录状态
       await CommunityAPI.restoreSession();
       CommunityUI.renderNav('nav');
+
+      // 未登录则跳转
       if (!CommunityAPI.getUser()) {
-        location.href = 'login.html';
-      }
-    })();
-
-    const textarea = document.getElementById('post-content');
-    const preview = document.getElementById('post-preview');
-    const toggleBtn = document.getElementById('btn-toggle-preview');
-    let isPreview = false;
-
-    // Markdown 工具栏
-    document.querySelectorAll('.md-btn[data-md]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const md = btn.dataset.md;
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const selected = textarea.value.substring(start, end);
-        const isBlock = md.endsWith(' ');
-
-        if (isBlock) {
-          const before = textarea.value.substring(0, start);
-          const lineStart = before.lastIndexOf('\n') + 1;
-          textarea.value = textarea.value.substring(0, lineStart) + md + textarea.value.substring(lineStart);
-        } else if (selected) {
-          textarea.value = textarea.value.substring(0, start) + md + selected + md + textarea.value.substring(end);
-        } else {
-          textarea.value = textarea.value.substring(0, start) + md + md + textarea.value.substring(end);
-          textarea.selectionStart = textarea.selectionEnd = start + md.length;
-        }
-        textarea.focus();
-      });
-    });
-
-    // 预览切换
-    toggleBtn.addEventListener('click', () => {
-      isPreview = !isPreview;
-      if (isPreview) {
-        preview.innerHTML = marked.parse(textarea.value || '*暂无内容*');
-        preview.style.display = '';
-        textarea.style.display = 'none';
-        toggleBtn.classList.add('active');
-      } else {
-        preview.style.display = 'none';
-        textarea.style.display = '';
-        toggleBtn.classList.remove('active');
-      }
-    });
-
-    // 提交
-    document.getElementById('post-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const title = document.getElementById('post-title').value.trim();
-      const content = textarea.value.trim();
-      const category = document.getElementById('post-category').value;
-
-      if (!title || !content) {
-        CommunityUI.showToast('请填写标题和内容', 'error');
+        location.href = 'login.html?redirect=post-new.html';
         return;
       }
 
-      const btnSubmit = document.getElementById('btn-submit');
-      btnSubmit.disabled = true;
-      btnSubmit.textContent = '发布中...';
+      const textarea = document.getElementById('post-content');
+      const preview = document.getElementById('post-preview');
+      const toggleBtn = document.getElementById('btn-toggle-preview');
+      let isPreview = false;
 
-      const result = await CommunityAPI.createPost({ title, content, category });
-      if (result.error) {
-        CommunityUI.showToast('发布失败: ' + (result.error.message || result.error), 'error');
-        btnSubmit.disabled = false;
-        btnSubmit.textContent = '发布';
-      } else {
-        CommunityUI.showToast('发布成功！', 'success');
-        setTimeout(() => {
-          location.href = 'post-detail.html?id=' + (result.data.id || result.data[0]?.id);
-        }, 800);
-      }
-    });
+      // Markdown 工具栏
+      document.querySelectorAll('.md-btn[data-md]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const md = btn.dataset.md;
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          const selected = textarea.value.substring(start, end);
+          const isBlock = md.endsWith(' ');
+
+          if (isBlock) {
+            const before = textarea.value.substring(0, start);
+            const lineStart = before.lastIndexOf('\n') + 1;
+            textarea.value = textarea.value.substring(0, lineStart) + md + textarea.value.substring(lineStart);
+          } else if (selected) {
+            textarea.value = textarea.value.substring(0, start) + md + selected + md + textarea.value.substring(end);
+          } else {
+            textarea.value = textarea.value.substring(0, start) + md + md + textarea.value.substring(end);
+            textarea.selectionStart = textarea.selectionEnd = start + md.length;
+          }
+          textarea.focus();
+        });
+      });
+
+      // 预览切换
+      toggleBtn.addEventListener('click', () => {
+        isPreview = !isPreview;
+        if (isPreview) {
+          preview.innerHTML = marked.parse(textarea.value || '*暂无内容*');
+          preview.style.display = '';
+          textarea.style.display = 'none';
+          toggleBtn.classList.add('active');
+        } else {
+          preview.style.display = 'none';
+          textarea.style.display = '';
+          toggleBtn.classList.remove('active');
+        }
+      });
+
+      // 提交
+      document.getElementById('post-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        // 提交前再次检查登录状态
+        if (!CommunityAPI.getUser()) {
+          CommunityUI.showToast('请先登录', 'error');
+          location.href = 'login.html?redirect=post-new.html';
+          return;
+        }
+
+        const title = document.getElementById('post-title').value.trim();
+        const content = textarea.value.trim();
+        const category = document.getElementById('post-category').value;
+
+        if (!title || !content) {
+          CommunityUI.showToast('请填写标题和内容', 'error');
+          return;
+        }
+
+        const btnSubmit = document.getElementById('btn-submit');
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = '发布中...';
+
+        const result = await CommunityAPI.createPost({ title, content, category });
+        if (result.error) {
+          CommunityUI.showToast('发布失败: ' + (result.error.message || result.error), 'error');
+          btnSubmit.disabled = false;
+          btnSubmit.textContent = '发布';
+        } else {
+          CommunityUI.showToast('发布成功！', 'success');
+          setTimeout(() => {
+            location.href = 'post-detail.html?id=' + (result.data.id || result.data[0]?.id);
+          }, 800);
+        }
+      });
+    })();
   </script>
 </body>
 </html>
