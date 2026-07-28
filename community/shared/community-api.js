@@ -1,0 +1,601 @@
+/**
+ * Objector Community API - Supabase SDK Wrapper
+ * 提供认证、CRUD、上传等社区功能
+ * 
+ * 使用前需引入 Supabase CDN：
+ * <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+ */
+const CommunityAPI = (function () {
+  let _supabase = null;
+  let _user = null;
+  let _profile = null;
+
+  // ============================================================
+  // 配置 - 替换为你的 Supabase 项目 URL 和 anon key
+  // ============================================================
+  const SUPABASE_URL = 'https://hmwjmiuyctrlqeumrqpe.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhtd2ptaXV5Y3RybHFldW1ycXBlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTE0Nzk1MywiZXhwIjoyMTAwNzIzOTUzfQ.a6cTgGJL5t5BQYZ0tyvgCsO6U9R-am5npVZp_CxwXq0';
+
+  const PAGE_SIZE = 12;
+
+  /** 初始化 Supabase 客户端 */
+  function init() {
+    // 兼容 UMD 全局对象的不同暴露方式
+    var sb = window.supabase;
+    if (!sb) {
+      console.error('[CommunityAPI] Supabase SDK not loaded. window.supabase is undefined.');
+      return false;
+    }
+    // UMD 版本可能直接暴露 createClient 函数，也可能是对象
+    if (typeof sb === 'function') {
+      _supabase = sb(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } else if (typeof sb.createClient === 'function') {
+      _supabase = sb.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } else {
+      console.error('[CommunityAPI] Supabase SDK loaded but createClient not found. supabase =', sb);
+      return false;
+    }
+    console.log('[CommunityAPI] Initialized successfully');
+    return true;
+  }
+
+  /** 是否已配置 Supabase */
+  function isConfigured() {
+    return SUPABASE_URL !== 'YOUR_SUPABASE_URL' && _supabase !== null;
+  }
+
+  // ============================================================
+  // Auth 认证
+  // ============================================================
+
+  async function signUp(email, password, username) {
+    if (!_supabase) return { error: 'Not initialized' };
+    const { data, error } = await _supabase.auth.signUp({
+      email, password,
+      options: { data: { username } }
+    });
+    if (!error) _user = data.user;
+    return { data, error };
+  }
+
+  async function signIn(email, password) {
+    if (!_supabase) return { error: 'Not initialized' };
+    const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
+    if (!error) {
+      _user = data.user;
+      await loadProfile();
+    }
+    return { data, error };
+  }
+
+  async function signOut() {
+    if (!_supabase) return;
+    await _supabase.auth.signOut();
+    _user = null;
+    _profile = null;
+  }
+
+  async function getCurrentUser() {
+    if (!_supabase) return null;
+    const { data } = await _supabase.auth.getUser();
+    _user = data.user;
+    if (_user && !_profile) await loadProfile();
+    return _user;
+  }
+
+  async function loadProfile() {
+    if (!_user) return null;
+    const { data } = await _supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', _user.id)
+      .single();
+    _profile = data;
+    return _profile;
+  }
+
+  async function restoreSession() {
+    if (!_supabase) return false;
+    const { data } = await _supabase.auth.getSession();
+    if (data.session) {
+      _user = data.session.user;
+      await loadProfile();
+      return true;
+    }
+    return false;
+  }
+
+  function getProfile(userId) {
+    if (!userId && _profile) return { data: _profile };
+    return getProfileById(userId || (_user ? _user.id : null));
+  }
+  function getUser() { return _user; }
+
+  async function updateProfile(updates) {
+    if (!_user) return { error: 'Not logged in' };
+    const { data, error } = await _supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', _user.id)
+      .select()
+      .single();
+    if (!error) _profile = data;
+    return { data, error };
+  }
+
+  // ============================================================
+  // Projects 作品
+  // ============================================================
+
+  async function getProjects(page = 1, sort = 'newest', search = '') {
+    if (!_supabase) return { data: [], count: 0 };
+    let query = _supabase
+      .from('projects')
+      .select('*, profiles(username, avatar_url)', { count: 'exact' })
+      .eq('is_public', true);
+
+    if (search) query = query.ilike('title', `%${search}%`);
+    if (sort === 'newest') query = query.order('created_at', { ascending: false });
+    else if (sort === 'popular') query = query.order('likes_count', { ascending: false });
+    else if (sort === 'downloads') query = query.order('downloads_count', { ascending: false });
+
+    query = query.range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+    const { data, error, count } = await query;
+    const total = count || 0;
+    return { data: data || [], total, count: total, error };
+  }
+
+  async function getProject(id) {
+    if (!_supabase) return { data: null };
+    const { data } = await _supabase
+      .from('projects')
+      .select('*, profiles(username, avatar_url)')
+      .eq('id', id)
+      .single();
+    return { data };
+  }
+
+  async function publishProject(titleOrData, descriptionOrZip, zipBlob, thumbnailBlob) {
+    if (!_user) return { error: 'Not logged in' };
+
+    let title, description, jsonData, isPublic;
+    if (typeof titleOrData === 'object' && titleOrData !== null) {
+      title = titleOrData.title;
+      description = titleOrData.description || '';
+      jsonData = titleOrData.json_data || null;
+      isPublic = titleOrData.is_public !== undefined ? titleOrData.is_public : true;
+      zipBlob = descriptionOrZip;
+    } else {
+      title = titleOrData;
+      description = descriptionOrZip || '';
+    }
+
+    let zipUrl = null;
+    let thumbUrl = null;
+
+    if (zipBlob) {
+      const zipPath = `${_user.id}/${Date.now()}.zip`;
+      const { error: zipErr } = await _supabase.storage.from('projects').upload(zipPath, zipBlob, {
+        contentType: 'application/zip', upsert: false
+      });
+      if (!zipErr) {
+        const { data: urlData } = _supabase.storage.from('projects').getPublicUrl(zipPath);
+        zipUrl = urlData.publicUrl;
+      }
+    }
+
+    if (thumbnailBlob) {
+      const thumbPath = `${_user.id}/${Date.now()}_thumb.png`;
+      const { error: thumbErr } = await _supabase.storage.from('projects').upload(thumbPath, thumbnailBlob, {
+        contentType: 'image/png', upsert: false
+      });
+      if (!thumbErr) {
+        const { data: urlData } = _supabase.storage.from('projects').getPublicUrl(thumbPath);
+        thumbUrl = urlData.publicUrl;
+      }
+    }
+
+    if (!jsonData && typeof EditorState !== 'undefined' && EditorState.projectPath) {
+      jsonData = localStorage.getItem('vfs:' + EditorState.projectPath + '/scripts/main.json');
+    }
+
+    const { data, error } = await _supabase.from('projects').insert({
+      author_id: _user.id,
+      title, description,
+      zip_url: zipUrl,
+      thumbnail_url: thumbUrl,
+      json_data: jsonData,
+      is_public: isPublic !== undefined ? isPublic : true,
+    }).select().single();
+
+    return { data, error };
+  }
+
+  async function deleteProject(id) {
+    if (!_user) return { error: 'Not logged in' };
+    return await _supabase.from('projects').delete().eq('id', id).eq('author_id', _user.id);
+  }
+
+  async function incrementDownloads(id) {
+    if (!_supabase) return;
+    await _supabase.rpc('increment', { row_id: id, table_name: 'projects', column_name: 'downloads_count' });
+    // Fallback: manual increment if RPC not set up
+    const proj = await getProject(id);
+    if (proj) {
+      await _supabase.from('projects').update({ downloads_count: proj.downloads_count + 1 }).eq('id', id);
+    }
+  }
+
+  // ============================================================
+  // Posts 帖子
+  // ============================================================
+
+  async function getPosts(page = 1, category = '', sort = 'newest', search = '') {
+    if (!_supabase) return { data: [], count: 0 };
+    let query = _supabase
+      .from('posts')
+      .select('*, profiles(username, avatar_url)', { count: 'exact' });
+
+    if (category) query = query.eq('category', category);
+    if (search) query = query.ilike('title', `%${search}%`);
+    if (sort === 'newest') query = query.order('created_at', { ascending: false });
+    else if (sort === 'popular') query = query.order('likes_count', { ascending: false });
+    else if (sort === 'active') query = query.order('comments_count', { ascending: false });
+
+    query = query.range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+    const { data, error, count } = await query;
+    const total = count || 0;
+    return { data: data || [], total, count: total, error };
+  }
+
+  async function getPost(id) {
+    if (!_supabase) return { data: null };
+    const { data } = await _supabase
+      .from('posts')
+      .select('*, profiles(username, avatar_url)')
+      .eq('id', id)
+      .single();
+    return { data };
+  }
+
+  async function createPost(titleOrData, content, category) {
+    if (!_user) return { error: 'Not logged in' };
+    let t, c, cat;
+    if (typeof titleOrData === 'object' && titleOrData !== null) {
+      t = titleOrData.title;
+      c = titleOrData.content;
+      cat = titleOrData.category || 'general';
+    } else {
+      t = titleOrData;
+      c = content;
+      cat = category || 'general';
+    }
+    const { data, error } = await _supabase.from('posts').insert({
+      author_id: _user.id, title: t, content: c, category: cat
+    }).select().single();
+    return { data, error };
+  }
+
+  async function updatePost(id, updates) {
+    if (!_user) return { error: 'Not logged in' };
+    const { data, error } = await _supabase
+      .from('posts').update(updates).eq('id', id).eq('author_id', _user.id).select().single();
+    return { data, error };
+  }
+
+  async function deletePost(id) {
+    if (!_user) return { error: 'Not logged in' };
+    return await _supabase.from('posts').delete().eq('id', id).eq('author_id', _user.id);
+  }
+
+  // ============================================================
+  // Comments 评论
+  // ============================================================
+
+  async function getComments(targetType, targetId) {
+    if (!_supabase) return { data: [] };
+    const { data } = await _supabase
+      .from('comments')
+      .select('*, profiles(username, avatar_url)')
+      .eq('target_type', targetType)
+      .eq('target_id', targetId)
+      .order('created_at', { ascending: true });
+    return { data: data || [] };
+  }
+
+  async function addComment(targetType, targetId, content) {
+    if (!_user) return { error: 'Not logged in' };
+    const { data, error } = await _supabase.from('comments').insert({
+      author_id: _user.id, target_type: targetType, target_id: targetId, content
+    }).select('*, profiles(username, avatar_url)').single();
+    return { data, error };
+  }
+
+  async function deleteComment(id) {
+    if (!_user) return { error: 'Not logged in' };
+    return await _supabase.from('comments').delete().eq('id', id).eq('author_id', _user.id);
+  }
+
+  // ============================================================
+  // Extensions 扩展
+  // ============================================================
+
+  async function getExtensions(page = 1, search = '', sort = 'newest') {
+    if (!_supabase) return { data: [], count: 0 };
+    let query = _supabase
+      .from('extensions')
+      .select('*, profiles(username, avatar_url)', { count: 'exact' });
+
+    if (search) query = query.ilike('name', `%${search}%`);
+    if (sort === 'newest') query = query.order('created_at', { ascending: false });
+    else if (sort === 'popular') query = query.order('likes_count', { ascending: false });
+    else if (sort === 'downloads') query = query.order('downloads_count', { ascending: false });
+
+    query = query.range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+    const { data, error, count } = await query;
+    const total = count || 0;
+    return { data: data || [], total, count: total, error };
+  }
+
+  async function getExtension(id) {
+    if (!_supabase) return { data: null };
+    const { data } = await _supabase
+      .from('extensions')
+      .select('*, profiles(username, avatar_url)')
+      .eq('id', id)
+      .single();
+    return { data };
+  }
+
+  async function publishExtension(name, extId, description, version, fileBlob) {
+    if (!_user) return { error: 'Not logged in' };
+
+    let fileUrl = null;
+    if (fileBlob) {
+      const ext = fileBlob.name.endsWith('.js') ? '.js' : '.json';
+      const filePath = `${_user.id}/${extId}_${Date.now()}${ext}`;
+      const { error } = await _supabase.storage.from('extensions').upload(filePath, fileBlob, { upsert: false });
+      if (!error) {
+        const { data: urlData } = _supabase.storage.from('extensions').getPublicUrl(filePath);
+        fileUrl = urlData.publicUrl;
+      }
+    }
+
+    const { data, error } = await _supabase.from('extensions').insert({
+      author_id: _user.id, name, ext_id: extId,
+      description: description || '', version: version || '1.0.0',
+      file_url: fileUrl,
+    }).select().single();
+    return { data, error };
+  }
+
+  async function deleteExtension(id) {
+    if (!_user) return { error: 'Not logged in' };
+    return await _supabase.from('extensions').delete().eq('id', id).eq('author_id', _user.id);
+  }
+
+  // ============================================================
+  // Likes 点赞
+  // ============================================================
+
+  async function toggleLike(targetType, targetId) {
+    if (!_user) return { error: 'Not logged in' };
+    // Check if already liked
+    const { data: existing } = await _supabase
+      .from('likes')
+      .select('id')
+      .eq('user_id', _user.id)
+      .eq('target_type', targetType)
+      .eq('target_id', targetId)
+      .single();
+
+    if (existing) {
+      await _supabase.from('likes').delete().eq('id', existing.id);
+      return { liked: false };
+    } else {
+      await _supabase.from('likes').insert({
+        user_id: _user.id, target_type: targetType, target_id: targetId
+      });
+      return { liked: true };
+    }
+  }
+
+  async function isLiked(targetType, targetId) {
+    if (!_user || !_supabase) return false;
+    const { data } = await _supabase
+      .from('likes')
+      .select('id')
+      .eq('user_id', _user.id)
+      .eq('target_type', targetType)
+      .eq('target_id', targetId)
+      .single();
+    return !!data;
+  }
+
+  // ============================================================
+  // Favorites 收藏
+  // ============================================================
+
+  async function toggleFavorite(targetType, targetId) {
+    if (!_user) return { error: 'Not logged in' };
+    const { data: existing } = await _supabase
+      .from('favorites')
+      .select('target_id')
+      .eq('user_id', _user.id)
+      .eq('target_type', targetType)
+      .eq('target_id', targetId)
+      .single();
+
+    if (existing) {
+      await _supabase.from('favorites')
+        .delete()
+        .eq('user_id', _user.id)
+        .eq('target_type', targetType)
+        .eq('target_id', targetId);
+      return { favorited: false };
+    } else {
+      await _supabase.from('favorites').insert({
+        user_id: _user.id, target_type: targetType, target_id: targetId
+      });
+      return { favorited: true };
+    }
+  }
+
+  // ============================================================
+  // Follows 关注
+  // ============================================================
+
+  async function toggleFollow(userId) {
+    if (!_user) return { error: 'Not logged in' };
+    if (userId === _user.id) return { error: 'Cannot follow yourself' };
+    const { data: existing } = await _supabase
+      .from('follows')
+      .select('follower_id')
+      .eq('follower_id', _user.id)
+      .eq('following_id', userId)
+      .single();
+
+    if (existing) {
+      await _supabase.from('follows')
+        .delete()
+        .eq('follower_id', _user.id)
+        .eq('following_id', userId);
+      return { following: false };
+    } else {
+      await _supabase.from('follows').insert({
+        follower_id: _user.id, following_id: userId
+      });
+      return { following: true };
+    }
+  }
+
+  async function isFollowing(userId) {
+    if (!_user || !_supabase) return false;
+    const { data } = await _supabase
+      .from('follows')
+      .select('follower_id')
+      .eq('follower_id', _user.id)
+      .eq('following_id', userId)
+      .single();
+    return !!data;
+  }
+
+  async function getFollowers(userId) {
+    if (!_supabase) return [];
+    const { data } = await _supabase
+      .from('follows')
+      .select('profiles!follows_follower_id_fkey(id, username, avatar_url)')
+      .eq('following_id', userId);
+    return (data || []).map(d => d.profiles);
+  }
+
+  async function getFollowing(userId) {
+    if (!_supabase) return [];
+    const { data } = await _supabase
+      .from('follows')
+      .select('profiles!follows_following_id_fkey(id, username, avatar_url)')
+      .eq('follower_id', userId);
+    return (data || []).map(d => d.profiles);
+  }
+
+  // ============================================================
+  // Profile 用户主页数据
+  // ============================================================
+
+  async function getUserProjects(userId) {
+    if (!_supabase) return { data: [] };
+    const { data } = await _supabase
+      .from('projects')
+      .select('*')
+      .eq('author_id', userId)
+      .eq('is_public', true)
+      .order('created_at', { ascending: false });
+    return { data: data || [] };
+  }
+
+  async function getUserPosts(userId) {
+    if (!_supabase) return { data: [] };
+    const { data } = await _supabase
+      .from('posts')
+      .select('*')
+      .eq('author_id', userId)
+      .order('created_at', { ascending: false });
+    return { data: data || [] };
+  }
+
+  async function getUserExtensions(userId) {
+    if (!_supabase) return { data: [] };
+    const { data } = await _supabase
+      .from('extensions')
+      .select('*')
+      .eq('author_id', userId)
+      .order('created_at', { ascending: false });
+    return { data: data || [] };
+  }
+
+  async function getUserFavorites(userId, targetType) {
+    if (!_supabase) return { data: [] };
+    let query = _supabase.from('favorites').select('*, projects(*), posts(*), extensions(*)').eq('user_id', userId);
+    if (targetType) query = query.eq('target_type', targetType);
+    const { data } = await query;
+    return { data: data || [] };
+  }
+
+  async function getProfileById(userId) {
+    if (!_supabase) return { data: null };
+    const { data } = await _supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    return { data };
+  }
+
+  // ============================================================
+  // Utility
+  // ============================================================
+
+  function formatTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const now = new Date();
+    const diff = (now - d) / 1000;
+    if (diff < 60) return '刚刚';
+    if (diff < 3600) return Math.floor(diff / 60) + ' 分钟前';
+    if (diff < 86400) return Math.floor(diff / 3600) + ' 小时前';
+    if (diff < 604800) return Math.floor(diff / 86400) + ' 天前';
+    return d.toLocaleDateString('zh-CN');
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function getParams() {
+    return Object.fromEntries(new URLSearchParams(window.location.search));
+  }
+
+  // Aliases for pages
+  async function likeTarget(targetType, targetId) { return toggleLike(targetType, targetId); }
+  async function unlikeTarget(targetType, targetId) { return toggleLike(targetType, targetId); }
+  async function followUser(userId) { return toggleFollow(userId); }
+  async function unfollowUser(userId) { return toggleFollow(userId); }
+  async function getFavorites(targetType) { return getUserFavorites(_user ? _user.id : null, targetType); }
+
+  return {
+    init, isConfigured, restoreSession,
+    signUp, signIn, signOut, getCurrentUser, loadProfile, getProfile, getUser, updateProfile,
+    getProjects, getProject, getProjectById: getProject, publishProject, deleteProject, incrementDownloads,
+    getPosts, getPost, getPostById: getPost, createPost, updatePost, deletePost,
+    getComments, addComment, deleteComment,
+    getExtensions, getExtension, getExtensionById: getExtension, publishExtension, deleteExtension,
+    toggleLike, likeTarget, unlikeTarget, isLiked,
+    toggleFavorite, toggleFollow, followUser, unfollowUser, isFollowing, getFollowers, getFollowing,
+    getFavorites,
+    getUserProjects, getUserPosts, getUserExtensions, getUserFavorites, getProfileById,
+    formatTime, escapeHtml, getParams,
+    PAGE_SIZE,
+  };
+})();
