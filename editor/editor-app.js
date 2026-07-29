@@ -400,6 +400,9 @@
       return;
     }
 
+    // 恢复登录状态
+    await CommunityAPI.restoreSession();
+
     if (!CommunityAPI.getUser()) {
       if (confirm(i18n.isEnglish()
         ? 'You need to login first. Go to login page?'
