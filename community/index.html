@@ -87,7 +87,7 @@
       }
 
       // 热门扩展（取6个）
-      const extRes = await CommunityAPI.getExtensions(1, 'hot');
+      const extRes = await CommunityAPI.getExtensions(1, '', 'popular');
       const extGrid = document.getElementById('hot-extensions');
       if (extRes.data && extRes.data.length > 0) {
         extGrid.innerHTML = extRes.data.slice(0, 6).map(e =>
