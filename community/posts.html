@@ -44,14 +44,15 @@
   <script>
     CommunityAPI.init();
     CommunityUI.renderNav('nav');
-    CommunityAPI.restoreSession().then(() => CommunityUI.renderNav('nav'));
+    CommunityAPI.restoreSession().then(() => {
+      CommunityUI.renderNav('nav');
+      if (CommunityAPI.getUser()) {
+        document.getElementById('btn-new-post').style.display = '';
+      }
+    });
 
     let currentPage = 1;
     let currentCategory = 'all';
-
-    if (CommunityAPI.getUser()) {
-      document.getElementById('btn-new-post').style.display = '';
-    }
 
     document.querySelectorAll('.filter-tab').forEach(tab => {
       tab.addEventListener('click', () => {

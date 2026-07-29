@@ -16,15 +16,17 @@
   <div class="page-container">
     <div class="page-header">
       <h1>🧩 扩展市场</h1>
+      <div class="page-header-actions">
+        <button id="publish-ext-btn" class="btn btn-primary" style="display:none">📤 发布扩展</button>
+      </div>
     </div>
 
     <!-- 搜索排序 -->
     <div class="filter-bar">
       <div class="filter-tabs">
-        <button class="filter-tab active" data-sort="new">最新</button>
-        <button class="filter-tab" data-sort="hot">最热</button>
+        <button class="filter-tab active" data-sort="newest">最新</button>
+        <button class="filter-tab" data-sort="popular">最热</button>
         <button class="filter-tab" data-sort="downloads">最多下载</button>
-        <button class="filter-tab" data-sort="blocks">最多积木</button>
       </div>
       <div class="search-box">
         <input type="text" id="search-input" placeholder="搜索扩展..." />
@@ -45,10 +47,19 @@
   <script>
     CommunityAPI.init();
     CommunityUI.renderNav('nav');
-    CommunityAPI.restoreSession().then(() => CommunityUI.renderNav('nav'));
+    CommunityAPI.restoreSession().then((loggedIn) => {
+      CommunityUI.renderNav('nav');
+      if (loggedIn) {
+        document.getElementById('publish-ext-btn').style.display = '';
+      }
+    });
+
+    document.getElementById('publish-ext-btn').addEventListener('click', () => {
+      window.open('../editor/index.html?mode=extension', '_blank');
+    });
 
     let currentPage = 1;
-    let currentSort = 'new';
+    let currentSort = 'newest';
     let searchQuery = '';
 
     document.querySelectorAll('.filter-tab').forEach(tab => {
@@ -75,7 +86,7 @@
       const grid = document.getElementById('extensions-grid');
       grid.innerHTML = '<div class="loading">加载中...</div>';
 
-      const res = await CommunityAPI.getExtensions(currentPage, currentSort, searchQuery);
+      const res = await CommunityAPI.getExtensions(currentPage, searchQuery, currentSort);
       if (res.error) {
         grid.innerHTML = '<div class="empty-state"><p>加载失败</p></div>';
         return;
