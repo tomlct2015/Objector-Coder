@@ -3,6 +3,41 @@
  */
 (function () {
   /**
+   * Mobile detection and landscape orientation handling
+   */
+  function initMobileDetection() {
+    var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      || ('ontouchstart' in window && navigator.maxTouchPoints > 1);
+
+    if (!isMobile) return;
+
+    document.body.classList.add('is-mobile');
+
+    function checkOrientation() {
+      var isPortrait = window.innerHeight > window.innerWidth;
+      document.body.classList.toggle('is-mobile-portrait', isPortrait);
+    }
+
+    checkOrientation();
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', function() {
+      setTimeout(checkOrientation, 100);
+    });
+
+    // Try to lock orientation via Screen Orientation API
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('landscape').catch(function() {});
+    }
+  }
+
+  // Run mobile detection immediately
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMobileDetection);
+  } else {
+    initMobileDetection();
+  }
+
+  /**
    * 自定义 Prompt 对话框（替代 Electron 中禁用的 window.prompt）
    * @param {string} message - 提示文本
    * @param {string} defaultValue - 默认值
@@ -956,7 +991,10 @@
 
     // 精灵面板按钮
     document.getElementById('btn-add-sprite').addEventListener('click', () => {
-      StageManager.addSprite((i18n.isEnglish() ? 'Sprite' : '精灵') + (StageManager.getSprites().length + 1));
+      const s = StageManager.addSprite((i18n.isEnglish() ? 'Sprite' : '精灵') + (StageManager.getSprites().length + 1));
+      // 切换到新精灵
+      const idx = StageManager.getSprites().indexOf(s);
+      if (idx >= 0) StageManager.setActiveSprite(idx);
     });
     document.getElementById('btn-upload-costume').addEventListener('click', uploadCostumeDialog);
     document.getElementById('btn-set-costume').addEventListener('click', setCostumeDialog);
@@ -966,6 +1004,15 @@
     document.addEventListener('keydown', (e) => {
       if (e.ctrlKey && e.key === 's') { e.preventDefault(); ProjectManager.saveProject(); }
     });
+
+    // 定期更新积木计数（切换精灵时自动反映）
+    setInterval(() => {
+      const count = Object.keys(EditorState.blocks || {}).length;
+      const sprite = StageManager.getActiveSprite();
+      const spriteName = sprite ? sprite.name : '';
+      document.getElementById('block-count').textContent =
+        (i18n.isEnglish() ? spriteName + ': ' : spriteName + '：') + count + (i18n.isEnglish() ? ' blocks' : ' 个积木');
+    }, 500);
 
     // 监听主进程发来的加载新项目事件
     if (window.api && window.api.onLoadProject) {
@@ -998,15 +1045,25 @@
     await loadProjectExtensions();
 
     const scriptsStr = await window.api.readFile(folder + '/scripts/main.json');
+    let mainBlocks = {};
     if (scriptsStr) {
-      EditorState.blocks = Serializer.deserialize(scriptsStr);
-    } else {
-      EditorState.blocks = {};
+      mainBlocks = Serializer.deserialize(scriptsStr);
     }
 
-    // 恢复精灵数据（含贴图加载）
+    // 恢复精灵数据（含贴图加载和积木恢复）
     if (config.sprites && Array.isArray(config.sprites) && config.sprites.length > 0) {
       StageManager.restoreSprites(config.sprites, folder);
+      // 如果精灵没有自己的积木（旧项目），把 main.json 的积木分配给第一个精灵
+      const sprites = StageManager.getSprites();
+      const hasBlocks = sprites.some(s => s.blocks && Object.keys(s.blocks).length > 0);
+      if (!hasBlocks && Object.keys(mainBlocks).length > 0) {
+        // 旧项目：把所有积木分配给第一个精灵
+        sprites[0].blocks = mainBlocks;
+        EditorState.blocks = mainBlocks;
+      }
+    } else {
+      // 无精灵数据，直接使用 main.json
+      EditorState.blocks = mainBlocks;
     }
 
     document.getElementById('status-text').textContent = i18n.t('status.loaded', null).replace('{name}', EditorState.projectName);

@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Objector Web Editor</title>
   <link rel="icon" href="../icon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css" />
@@ -13,6 +13,13 @@
   <script src="web-api-shim.js"></script>
 </head>
 <body>
+  <!-- Mobile rotate hint overlay -->
+  <div id="mobile-rotate-overlay" class="mobile-rotate-overlay">
+    <div class="rotate-icon">📱</div>
+    <div class="rotate-text">Please rotate your device to landscape mode</div>
+    <div class="rotate-text" style="font-size:13px;opacity:0.6;">请旋转设备至横屏模式</div>
+  </div>
+
   <!-- 编辑器界面 -->
   <div id="editor-screen">
     <!-- 顶部标题栏 -->

@@ -304,3 +304,106 @@ body {
   padding: 8px 12px;
   font-family: 'Cascadia Code', 'Consolas', monospace;
 }
+
+/* ===== Mobile Detection & Landscape Layout ===== */
+
+/* Portrait overlay: tell user to rotate */
+.mobile-rotate-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-primary, #1e1e2e);
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  text-align: center;
+  padding: 32px;
+}
+.mobile-rotate-overlay .rotate-icon {
+  font-size: 64px;
+  animation: rotate-hint 2s ease-in-out infinite;
+}
+.mobile-rotate-overlay .rotate-text {
+  font-size: 16px;
+  color: var(--text-secondary, #a6adc8);
+}
+@keyframes rotate-hint {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(90deg); }
+}
+
+/* Show overlay on mobile portrait */
+body.is-mobile-portrait .mobile-rotate-overlay {
+  display: flex;
+}
+
+/* Mobile landscape optimizations */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+  body.is-mobile {
+    --toolbar-h: 36px;
+    --statusbar-h: 22px;
+    --palette-w: 140px;
+    --stage-w: 260px;
+  }
+  body.is-mobile #titlebar {
+    height: 26px;
+  }
+  body.is-mobile .app-title {
+    font-size: 11px;
+  }
+  body.is-mobile .tb-btn {
+    padding: 3px 8px;
+    font-size: 11px;
+  }
+  body.is-mobile #stage-canvas {
+    max-height: 100%;
+    width: auto;
+  }
+  body.is-mobile .stage-tab {
+    padding: 5px 0;
+    font-size: 11px;
+  }
+  body.is-mobile .sprite-thumb {
+    width: 48px;
+    height: 48px;
+    font-size: 18px;
+  }
+  body.is-mobile #palette-blocks {
+    padding: 4px;
+    gap: 4px;
+  }
+  body.is-mobile .cat-btn {
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+}
+
+/* Small phone landscape (very short) */
+@media screen and (max-height: 400px) and (orientation: landscape) {
+  body.is-mobile {
+    --palette-w: 120px;
+    --stage-w: 220px;
+    --toolbar-h: 32px;
+  }
+  body.is-mobile #titlebar {
+    display: none;
+  }
+  body.is-mobile #statusbar {
+    display: none;
+  }
+}
+
+/* Touch-friendly: bigger tap targets on mobile */
+body.is-mobile .tb-btn {
+  min-height: 32px;
+  min-width: 32px;
+}
+body.is-mobile .stage-tab {
+  min-height: 36px;
+}
+body.is-mobile .cat-btn {
+  min-height: 28px;
+  min-width: 28px;
+}
