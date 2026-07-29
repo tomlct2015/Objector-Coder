@@ -378,6 +378,182 @@
     }
   }
 
+  /** 显示发布弹窗（美观替代 prompt） */
+  function showPublishDialog(projectName, options, onConfirm, onCancel) {
+    options = options || {};
+    const overlay = document.createElement('div');
+    overlay.className = 'publish-dialog-overlay';
+    const isEN = i18n.isEnglish();
+    const isExt = options.isExtension;
+    const existingProject = options.existingProject;
+    const existingExtension = options.existingExtension;
+
+    // 已发布警告 (项目)
+    let existingProjectHtml = '';
+    if (existingProject) {
+      var warnTitle = isEN ? 'This project has been published before' : '该作品曾经发布过';
+      var warnDesc = existingProject.description ? CommunityAPI.escapeHtml(existingProject.description).slice(0, 60) : (isEN ? 'No description' : '无描述');
+      var updateLabel = isEN ? 'Update existing (overwrite)' : '更新已有作品\uff08覆盖\uff09';
+      var copyLabel = isEN ? 'Create a new copy' : '创建新副本';
+      existingProjectHtml =
+        '<div class="publish-warning">' +
+          '<span class="publish-warning-icon">⚠️</span>' +
+          '<div>' +
+            '<div class="publish-warning-title">' + warnTitle + '</div>' +
+            '<div class="publish-warning-desc">「' + CommunityAPI.escapeHtml(existingProject.title) + '」 - ' + warnDesc + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="publish-choice">' +
+          '<label class="publish-radio">' +
+            '<input type="radio" name="project-action" value="update" checked />' +
+            '<span>' + updateLabel + '</span>' +
+          '</label>' +
+          '<label class="publish-radio">' +
+            '<input type="radio" name="project-action" value="copy" />' +
+            '<span>' + copyLabel + '</span>' +
+          '</label>' +
+        '</div>';
+    }
+
+    // 已发布警告 (扩展)
+    let existingExtHtml = '';
+    if (existingExtension) {
+      var extWarnTitle = isEN ? 'This extension has been published before' : '该扩展曾经发布过';
+      var extWarnDesc = existingExtension.description ? CommunityAPI.escapeHtml(existingExtension.description).slice(0, 60) : (isEN ? 'No description' : '无描述');
+      var extUpdateLabel = isEN ? 'Update existing extension' : '更新已有扩展\uff08覆盖\uff09';
+      var extCopyLabel = isEN ? 'Create a new extension' : '创建新扩展';
+      existingExtHtml =
+        '<div class="publish-warning">' +
+          '<span class="publish-warning-icon">⚠️</span>' +
+          '<div>' +
+            '<div class="publish-warning-title">' + extWarnTitle + '</div>' +
+            '<div class="publish-warning-desc">「' + CommunityAPI.escapeHtml(existingExtension.name) + '」 v' + CommunityAPI.escapeHtml(existingExtension.version || '1.0.0') + ' - ' + extWarnDesc + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="publish-choice">' +
+          '<label class="publish-radio">' +
+            '<input type="radio" name="ext-action" value="update" checked />' +
+            '<span>' + extUpdateLabel + '</span>' +
+          '</label>' +
+          '<label class="publish-radio">' +
+            '<input type="radio" name="ext-action" value="copy" />' +
+            '<span>' + extCopyLabel + '</span>' +
+          '</label>' +
+        '</div>';
+    }
+
+    // 扩展项目发布方式选择
+    let publishModeHtml = '';
+    if (isExt) {
+      var modeExtOnly = isEN ? 'Extension only' : '仅发布扩展';
+      var modeBoth = isEN ? 'Extension + Project' : '发布扩展 + 作品';
+      publishModeHtml =
+        '<div class="publish-mode-section">' +
+          '<label class="publish-mode-label">' + (isEN ? 'Publish Mode' : '发布方式') + '</label>' +
+          '<div class="publish-choice">' +
+            '<label class="publish-radio">' +
+              '<input type="radio" name="publish-mode" value="ext_only" checked />' +
+              '<span>' + modeExtOnly + '</span>' +
+            '</label>' +
+            '<label class="publish-radio">' +
+              '<input type="radio" name="publish-mode" value="both" />' +
+              '<span>' + modeBoth + '</span>' +
+            '</label>' +
+          '</div>' +
+        '</div>';
+    }
+
+    // 版本号输入 (仅扩展项目显示)
+    let versionHtml = '';
+    if (isExt) {
+      versionHtml =
+        '<div class="publish-field publish-field-version">' +
+          '<label>' + (isEN ? 'Version' : '版本号') + '</label>' +
+          '<input type="text" id="publish-version" value="1.0.0" maxlength="20" />' +
+        '</div>';
+    }
+
+    overlay.innerHTML =
+      '<div class="publish-dialog">' +
+        '<div class="publish-dialog-header">' +
+          '<h3>\ud83d\ude80 ' + (isEN ? 'Publish to Community' : '发布到社区') + '</h3>' +
+          '<button class="publish-close" type="button">&times;</button>' +
+        '</div>' +
+        '<div class="publish-dialog-body">' +
+          publishModeHtml +
+          existingExtHtml +
+          existingProjectHtml +
+          '<div class="publish-field">' +
+            '<label>' + (isEN ? 'Title' : '作品标题') + '</label>' +
+            '<input type="text" id="publish-title" value="' + CommunityAPI.escapeHtml(projectName) + '" maxlength="100" />' +
+          '</div>' +
+          versionHtml +
+          '<div class="publish-field">' +
+            '<label>' + (isEN ? 'Description' : '作品描述') + '</label>' +
+            '<textarea id="publish-desc" rows="4" placeholder="' + (isEN ? 'Describe your project...' : '为你的作品写一段描述...') + '"></textarea>' +
+            '<div class="publish-char-count"><span id="desc-count">0</span>/500</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="publish-dialog-footer">' +
+          '<button class="publish-btn publish-btn-cancel" type="button">' + (isEN ? 'Cancel' : '取消') + '</button>' +
+          '<button class="publish-btn publish-btn-confirm" type="button">' + (isEN ? 'Publish' : '发布') + '</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    // 字符计数
+    const descEl = overlay.querySelector('#publish-desc');
+    const countEl = overlay.querySelector('#desc-count');
+    descEl.addEventListener('input', () => { countEl.textContent = descEl.value.length; });
+
+    // 关闭
+    function close() {
+      overlay.remove();
+      if (onCancel) onCancel();
+    }
+    overlay.querySelector('.publish-close').addEventListener('click', close);
+    overlay.querySelector('.publish-btn-cancel').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+    // 确认
+    overlay.querySelector('.publish-btn-confirm').addEventListener('click', () => {
+      const title = overlay.querySelector('#publish-title').value.trim();
+      const desc = descEl.value.trim();
+      if (!title) {
+        overlay.querySelector('#publish-title').style.borderColor = 'var(--red, #f38ba8)';
+        return;
+      }
+      let version = '1.0.0';
+      if (isExt) {
+        version = overlay.querySelector('#publish-version').value.trim() || '1.0.0';
+      }
+      // 发布模式
+      let publishMode = 'project';
+      if (isExt) {
+        const modeRadios = overlay.querySelectorAll('input[name="publish-mode"]');
+        modeRadios.forEach(r => { if (r.checked) publishMode = r.value; });
+      }
+      // 项目 action
+      let projectAction = 'create';
+      if (existingProject) {
+        overlay.querySelectorAll('input[name="project-action"]').forEach(r => { if (r.checked) projectAction = r.value; });
+      }
+      // 扩展 action
+      let extAction = 'create';
+      if (existingExtension) {
+        overlay.querySelectorAll('input[name="ext-action"]').forEach(r => { if (r.checked) extAction = r.value; });
+      }
+      overlay.remove();
+      onConfirm({
+        title, description: desc, version,
+        publishMode,
+        projectAction, projectExistingId: existingProject ? existingProject.id : null,
+        extAction, extExistingId: existingExtension ? existingExtension.id : null,
+        extId: options.extId || null,
+      });
+    });
+  }
+
   /** 发布项目到社区 */
   async function publishToCommunity() {
     if (!EditorState.projectPath) {
@@ -413,100 +589,219 @@
     }
 
     const projectName = EditorState.projectName || '未命名项目';
-    const description = prompt(i18n.isEnglish()
-      ? 'Enter a description for your project:'
-      : '为你的作品写一段描述：', '');
-    if (description === null) return; // 取消
+    const isExtension = EditorState.projectMode === 'extension';
 
-    document.getElementById('status-text').textContent = i18n.isEnglish() ? 'Publishing to community...' : '正在发布到社区...';
-
+    // 检测是否已发布过同名作品
+    let existingProject = null;
+    let existingExtension = null;
+    let extId = null;
     try {
-      // 先保存到 VFS
-      await ProjectManager.saveProject();
+      existingProject = await CommunityAPI.getUserProjectByTitle(CommunityAPI.getUser().id, projectName);
+    } catch (e) {
+      console.warn('[publish] 检查已有作品失败:', e);
+    }
 
-      // 收集项目文件并生成 ZIP
+    // 如果是扩展项目，收集扩展文件并检测已有扩展
+    let extensionFileContent = null;
+    if (isExtension) {
       const projectPath = EditorState.projectPath.replace(/\\/g, '/').replace(/\/+$/, '');
       const vfsPrefix = 'vfs:';
-      const vfsbPrefix = 'vfsb:';
-      const projectPrefix = projectPath + '/';
-      const zip = new JSZip();
-      let mainJsonData = null;
+      const extDir = projectPath + '/extensions/';
 
+      // 收集扩展目录下的文件
+      let extFiles = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        let filePath = null;
-        let isBinary = false;
-
-        if (key.startsWith(vfsPrefix) && !key.endsWith('/__dir__')) {
-          filePath = key.slice(vfsPrefix.length);
-        } else if (key.startsWith(vfsbPrefix)) {
-          filePath = key.slice(vfsbPrefix.length);
-          isBinary = true;
-        }
-
-        if (!filePath || !filePath.startsWith(projectPrefix)) continue;
-
-        const relativePath = filePath.slice(projectPrefix.length);
-        const content = localStorage.getItem(key);
-        if (!content) continue;
-
-        // 记录 main.json 用于在线预览
-        if (relativePath === 'main.json' && !isBinary) {
-          mainJsonData = content;
-        }
-
-        if (isBinary) {
-          try {
-            const base64Data = content.split(',')[1];
-            if (base64Data) zip.file(relativePath, base64Data, { base64: true });
-          } catch (e) {
-            console.warn('[publish] 无法解码二进制文件:', relativePath, e);
+        if (!key.startsWith(vfsPrefix)) continue;
+        const filePath = key.slice(vfsPrefix.length);
+        if (filePath.startsWith(extDir) && !filePath.endsWith('/__dir__')) {
+          const fileName = filePath.slice(extDir.length);
+          const content = localStorage.getItem(key);
+          if (content) {
+            extFiles.push({ name: fileName, content: content });
           }
-        } else {
-          zip.file(relativePath, content);
         }
       }
 
-      // 生成 ZIP Blob
-      const zipBlob = new Blob([await zip.generateAsync({ type: 'uint8array' })], { type: 'application/zip' });
-
-      // 上传到社区
-      const result = await CommunityAPI.publishProject({
-        title: projectName,
-        description: description,
-        json_data: mainJsonData,
-        is_public: true
-      }, zipBlob);
-
-      if (result.error) {
-        alert((i18n.isEnglish() ? 'Publish failed: ' : '发布失败: ') + (result.error.message || result.error));
-        document.getElementById('status-text').textContent = i18n.t('status.ready');
-        return;
+      // 取第一个扩展文件作为主要内容
+      if (extFiles.length > 0) {
+        // 尝试解析 JSON 提取 extId 和 version
+        try {
+          const parsed = JSON.parse(extFiles[0].content);
+          extId = parsed.id || parsed.ext_id || projectName.replace(/\s+/g, '_').toLowerCase();
+        } catch (e) {
+          extId = projectName.replace(/\s+/g, '_').toLowerCase();
+        }
+        extensionFileContent = extFiles[0].content;
       }
 
-      document.getElementById('status-text').textContent =
-        i18n.isEnglish() ? 'Published to community!' : '已发布到社区！';
-      setTimeout(() => {
-        document.getElementById('status-text').textContent = i18n.t('status.ready');
-      }, 3000);
-
-      // 询问是否查看
-      if (confirm(i18n.isEnglish()
-        ? 'Published! View in community?'
-        : '发布成功！是否在社区中查看？')) {
-        const projectId = result.data?.id || result.data?.[0]?.id;
-        if (projectId) {
-          window.open('../community/project-detail.html?id=' + projectId, '_blank');
-        } else {
-          window.open('../community/projects.html', '_blank');
+      // 检测已有扩展
+      if (extId) {
+        try {
+          existingExtension = await CommunityAPI.getUserExtensionByName(CommunityAPI.getUser().id, projectName);
+        } catch (e) {
+          console.warn('[publish] 检查已有扩展失败:', e);
         }
       }
-
-    } catch (e) {
-      console.error('[publish] 发布失败:', e);
-      alert((i18n.isEnglish() ? 'Publish failed: ' : '发布失败: ') + e.message);
-      document.getElementById('status-text').textContent = i18n.t('status.ready');
     }
+
+    // 显示发布弹窗
+    showPublishDialog(projectName, {
+      isExtension,
+      existingProject,
+      existingExtension,
+      extId,
+    }, async (formData) => {
+      document.getElementById('status-text').textContent = i18n.isEnglish() ? 'Publishing to community...' : '正在发布到社区...';
+
+      try {
+        // 先保存到 VFS
+        await ProjectManager.saveProject();
+
+        let projectId = null;
+        let extResultId = null;
+
+        // ===== 发布扩展 =====
+        if (isExtension && (formData.publishMode === 'ext_only' || formData.publishMode === 'both')) {
+          let extResult;
+          if (formData.extAction === 'update' && formData.extExistingId) {
+            extResult = await CommunityAPI.updateExtension(formData.extExistingId, {
+              name: formData.title,
+              description: formData.description,
+              version: formData.version,
+            }, extensionFileContent);
+            extResultId = formData.extExistingId;
+          } else {
+            extResult = await CommunityAPI.publishExtension(
+              formData.title,
+              formData.extId || projectName.replace(/\s+/g, '_').toLowerCase(),
+              formData.description,
+              formData.version,
+              extensionFileContent
+            );
+            extResultId = extResult.data?.id;
+          }
+
+          if (extResult.error) {
+            const extErrMsg = (i18n.isEnglish() ? 'Extension publish failed: ' : '扩展发布失败: ') + (extResult.error.message || extResult.error);
+            if (formData.publishMode === 'ext_only') {
+              alert(extErrMsg);
+              document.getElementById('status-text').textContent = i18n.t('status.ready');
+              return;
+            } else {
+              console.warn('[publish]', extErrMsg);
+            }
+          }
+        }
+
+        // ===== 发布作品 =====
+        if (!isExtension || formData.publishMode === 'both') {
+          // 收集项目文件并生成 ZIP
+          const projectPath = EditorState.projectPath.replace(/\\/g, '/').replace(/\/+$/, '');
+          const vfsPrefix = 'vfs:';
+          const vfsbPrefix = 'vfsb:';
+          const projectPrefix = projectPath + '/';
+          const zip = new JSZip();
+          let mainJsonData = null;
+
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            let filePath = null;
+            let isBinary = false;
+
+            if (key.startsWith(vfsPrefix) && !key.endsWith('/__dir__')) {
+              filePath = key.slice(vfsPrefix.length);
+            } else if (key.startsWith(vfsbPrefix)) {
+              filePath = key.slice(vfsbPrefix.length);
+              isBinary = true;
+            }
+
+            if (!filePath || !filePath.startsWith(projectPrefix)) continue;
+
+            const relativePath = filePath.slice(projectPrefix.length);
+            const content = localStorage.getItem(key);
+            if (!content) continue;
+
+            if (relativePath === 'main.json' && !isBinary) {
+              mainJsonData = content;
+            }
+
+            if (isBinary) {
+              try {
+                const base64Data = content.split(',')[1];
+                if (base64Data) zip.file(relativePath, base64Data, { base64: true });
+              } catch (e) {
+                console.warn('[publish] 无法解码二进制文件:', relativePath, e);
+              }
+            } else {
+              zip.file(relativePath, content);
+            }
+          }
+
+          const zipBlob = new Blob([await zip.generateAsync({ type: 'uint8array' })], { type: 'application/zip' });
+
+          if (formData.projectAction === 'update' && formData.projectExistingId) {
+            const projResult = await CommunityAPI.updateProject(formData.projectExistingId, {
+              title: formData.title,
+              description: formData.description,
+              json_data: mainJsonData,
+            }, zipBlob);
+            projectId = formData.projectExistingId;
+            if (projResult.error) {
+              alert((i18n.isEnglish() ? 'Project publish failed: ' : '作品发布失败: ') + (projResult.error.message || projResult.error));
+              document.getElementById('status-text').textContent = i18n.t('status.ready');
+              return;
+            }
+          } else {
+            const projResult = await CommunityAPI.publishProject({
+              title: formData.title,
+              description: formData.description,
+              json_data: mainJsonData,
+              is_public: true
+            }, zipBlob);
+            projectId = projResult.data?.id || projResult.data?.[0]?.id;
+            if (projResult.error) {
+              alert((i18n.isEnglish() ? 'Project publish failed: ' : '作品发布失败: ') + (projResult.error.message || projResult.error));
+              document.getElementById('status-text').textContent = i18n.t('status.ready');
+              return;
+            }
+          }
+        }
+
+        // 成功
+        const isEN = i18n.isEnglish();
+        let successMsg;
+        if (isExtension && formData.publishMode === 'ext_only') {
+          successMsg = isEN ? 'Extension published!' : '扩展已发布！';
+        } else if (isExtension && formData.publishMode === 'both') {
+          successMsg = isEN ? 'Extension & project published!' : '扩展与作品已发布！';
+        } else {
+          successMsg = isEN ? 'Published to community!' : '已发布到社区！';
+        }
+
+        document.getElementById('status-text').textContent = successMsg;
+        setTimeout(() => {
+          document.getElementById('status-text').textContent = i18n.t('status.ready');
+        }, 3000);
+
+        // 查看
+        let viewUrl = null;
+        if (projectId) {
+          viewUrl = '../community/project-detail.html?id=' + projectId;
+        } else if (extResultId) {
+          viewUrl = '../community/extension-detail.html?id=' + extResultId;
+        }
+
+        if (viewUrl && confirm((isEN ? 'Published! View in community?' : '发布成功！是否在社区中查看？'))) {
+          window.open(viewUrl, '_blank');
+        }
+
+      } catch (e) {
+        console.error('[publish] 发布失败:', e);
+        alert((i18n.isEnglish() ? 'Publish failed: ' : '发布失败: ') + e.message);
+        document.getElementById('status-text').textContent = i18n.t('status.ready');
+      }
+    });
   }
 
   document.addEventListener('DOMContentLoaded', () => {

@@ -267,6 +267,12 @@
       // 渲染项目列表
       renderPinnedProjects();
       renderRecentProjects();
+
+      // 检查 URL 参数是否指定创建模式
+      const urlMode = new URLSearchParams(window.location.search).get('mode');
+      if (urlMode === 'extension' || urlMode === 'normal') {
+        createNewProject(urlMode);
+      }
     });
   })();
   </script>
