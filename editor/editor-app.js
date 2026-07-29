@@ -866,6 +866,49 @@
     // 发布到社区
     document.getElementById('btn-publish-community')?.addEventListener('click', publishToCommunity);
 
+    // 社区登录按钮
+    const btnCommunityLogin = document.getElementById('btn-community-login');
+    const communityUserInfo = document.getElementById('community-user-info');
+
+    function refreshCommunityUI() {
+      if (typeof CommunityAPI === 'undefined') return;
+      const user = CommunityAPI.getUser();
+      const profile = CommunityAPI.getProfile();
+      if (user) {
+        btnCommunityLogin.textContent = '✅ ' + (profile?.username || user.email || '已登录');
+        btnCommunityLogin.title = '点击登出';
+        btnCommunityLogin.onclick = async () => {
+          if (confirm(i18n.isEnglish() ? 'Are you sure to logout?' : '确定要登出吗？')) {
+            await CommunityAPI.signOut();
+            refreshCommunityUI();
+          }
+        };
+        if (communityUserInfo) {
+          communityUserInfo.textContent = '👤 ' + (profile?.username || user.email);
+          communityUserInfo.classList.remove('hidden');
+        }
+      } else {
+        btnCommunityLogin.textContent = '👤 ' + (i18n.isEnglish() ? 'Login' : '登录');
+        btnCommunityLogin.title = i18n.isEnglish() ? 'Login to community' : '登录社区';
+        btnCommunityLogin.onclick = () => {
+          window.open('../community/login.html?redirect=' + encodeURIComponent(window.location.href), '_blank');
+        };
+        if (communityUserInfo) communityUserInfo.classList.add('hidden');
+      }
+    }
+
+    // 初始化社区 API 并恢复登录状态
+    if (typeof CommunityAPI !== 'undefined') {
+      CommunityAPI.init();
+      CommunityAPI.restoreSession().then(() => refreshCommunityUI());
+      btnCommunityLogin?.addEventListener('click', () => {
+        // 未登录时打开登录页
+        if (!CommunityAPI.getUser()) {
+          window.open('../community/login.html?redirect=' + encodeURIComponent(window.location.href), '_blank');
+        }
+      });
+    }
+
     // 项目重命名：点击项目名或重命名按钮
     document.getElementById('btn-rename')?.addEventListener('click', () => ProjectManager.renameProject());
     document.getElementById('project-name')?.addEventListener('click', () => ProjectManager.renameProject());

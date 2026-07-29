@@ -10,6 +10,9 @@
   <script src="core/i18n.js"></script>
   <script src="i18n/zh-CN.js"></script>
   <script src="i18n/en.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="../community/shared/community-api.js"></script>
   <script src="web-api-shim.js"></script>
 </head>
 <body>
@@ -66,6 +69,38 @@
         </div>
       </div>
       <button id="mode-cancel" class="tb-btn" data-i18n="mode.cancel">取消</button>
+    </div>
+  </div>
+
+  <!-- 打开项目来源选择弹窗 -->
+  <div id="open-source-dialog" class="dialog-overlay hidden">
+    <div class="dialog-box open-source-box">
+      <h2 id="os-title" data-i18n="home.openProject">打开项目</h2>
+      <div id="os-tabs" class="os-tabs">
+        <button class="os-tab active" data-source="cloud">☁️ 云端</button>
+        <button class="os-tab" data-source="local">📁 本地文件</button>
+        <button class="os-tab" data-source="url">🔗 网址</button>
+      </div>
+      <!-- 云端项目列表 -->
+      <div id="os-cloud-panel" class="os-panel">
+        <div id="os-cloud-status" style="color:var(--text-muted);font-size:12px;margin-bottom:8px;"></div>
+        <div id="os-cloud-list" class="os-cloud-list"></div>
+      </div>
+      <!-- 本地文件 -->
+      <div id="os-local-panel" class="os-panel" style="display:none">
+        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">选择本地 ZIP 项目文件</p>
+        <input type="file" id="os-local-file" accept=".zip" style="margin-bottom:12px;" />
+        <button id="os-local-btn" class="tb-btn tb-run">打开</button>
+      </div>
+      <!-- 网址 -->
+      <div id="os-url-panel" class="os-panel" style="display:none">
+        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">输入 ZIP 格式项目的网址</p>
+        <input type="url" id="os-url-input" placeholder="https://example.com/project.zip" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input);color:var(--text);margin-bottom:12px;" />
+        <button id="os-url-btn" class="tb-btn tb-run">下载并打开</button>
+      </div>
+      <div style="margin-top:16px;">
+        <button id="os-cancel" class="tb-btn" data-i18n="dialog.cancel">取消</button>
+      </div>
     </div>
   </div>
 
@@ -175,6 +210,163 @@
       await window.api.openEditor(folder, 'normal');
     }
 
+    // ============ 打开项目来源选择弹窗 ============
+
+    function showOpenSourceDialog() {
+      const dialog = document.getElementById('open-source-dialog');
+      dialog.classList.remove('hidden');
+
+      // 初始化云端项目列表
+      loadCloudProjects();
+    }
+
+    function hideOpenSourceDialog() {
+      document.getElementById('open-source-dialog').classList.add('hidden');
+    }
+
+    // 从社区 API 获取云端项目列表
+    async function loadCloudProjects() {
+      const statusEl = document.getElementById('os-cloud-status');
+      const listEl = document.getElementById('os-cloud-list');
+      if (!statusEl || !listEl) return;
+
+      listEl.innerHTML = '<div style="color:var(--text-muted);padding:8px;">加载中...</div>';
+
+      CommunityAPI.init();
+      const res = await CommunityAPI.getProjects(1, 'newest');
+      if (res.error || !res.data || res.data.length === 0) {
+        listEl.innerHTML = '<div style="color:var(--text-muted);padding:8px;">暂无云端项目</div>';
+        statusEl.textContent = '';
+        return;
+      }
+
+      statusEl.textContent = '共 ' + (res.total || res.data.length) + ' 个公开项目';
+      listEl.innerHTML = res.data.map(p => {
+        const author = p.profiles || {};
+        return '<div class="os-cloud-item" data-zip="' + (p.zip_url || '') + '" data-id="' + p.id + '" data-title="' + (p.title || '') + '">' +
+          '<div class="os-cloud-name">' + (p.title || 'Unnamed') + '</div>' +
+          '<div class="os-cloud-author">' + (author.username || '匿名') + ' · ❤️ ' + (p.likes_count || 0) + '</div>' +
+        '</div>';
+      }).join('');
+
+      listEl.querySelectorAll('.os-cloud-item').forEach(item => {
+        item.onclick = async () => {
+          const zipUrl = item.dataset.zip;
+          const title = item.dataset.title || '云端项目';
+          if (!zipUrl) {
+            alert('该作品没有 ZIP 文件，无法打开');
+            return;
+          }
+          hideOpenSourceDialog();
+          await importZipFromUrl(zipUrl, title);
+        };
+      });
+    }
+
+    // 从 ZIP blob 解压并导入到 VFS，返回项目路径
+    async function importZipToVFS(zipBlob, projectName) {
+      const zip = await JSZip.loadAsync(zipBlob);
+      const folder = '/projects/' + projectName.replace(/\s+/g, '_') + '_' + Date.now();
+
+      await window.api.ensureDir(folder);
+
+      // 检测是否有公共根文件夹（如 "project-name/project.json"）
+      const allPaths = Object.keys(zip.files).filter(p => !zip.files[p].dir);
+      let commonPrefix = '';
+      if (allPaths.length > 0) {
+        const firstParts = allPaths[0].split('/');
+        if (firstParts.length > 1) {
+          // 检查是否所有文件都有相同的根文件夹
+          const rootFolder = firstParts[0] + '/';
+          const allHaveRoot = allPaths.every(p => p.startsWith(rootFolder));
+          if (allHaveRoot) commonPrefix = rootFolder;
+        }
+      }
+
+      // 解压所有文件到 VFS
+      const fileEntries = Object.entries(zip.files);
+      for (const [relPath, fileEntry] of fileEntries) {
+        if (fileEntry.dir) continue;
+        // 跳过 macOS 的 __MACOSX 和 .DS_Store
+        if (relPath.startsWith('__MACOSX') || relPath.endsWith('.DS_Store')) continue;
+
+        // 去除公共根文件夹前缀
+        let cleanPath = commonPrefix && relPath.startsWith(commonPrefix)
+          ? relPath.slice(commonPrefix.length)
+          : relPath;
+        if (!cleanPath) continue;
+
+        if (/\.(png|jpg|jpeg|gif|bmp|webp|svg|mp3|wav|ogg)$/i.test(cleanPath)) {
+          // 二进制文件
+          const base64 = await fileEntry.async('base64');
+          const mimeMatch = cleanPath.match(/\.(png|jpg|jpeg|gif|bmp|webp|svg|mp3|wav|ogg)$/i);
+          const mimeMap = { png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif',
+            bmp:'image/bmp', webp:'image/webp', svg:'image/svg+xml',
+            mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg' };
+          const mime = mimeMap[mimeMatch[1].toLowerCase()] || 'application/octet-stream';
+          const content = 'data:' + mime + ';base64,' + base64;
+          localStorage.setItem('vfsb:' + folder + '/' + cleanPath, content);
+        } else {
+          const content = await fileEntry.async('string');
+          await window.api.writeFile(folder + '/' + cleanPath, content);
+        }
+      }
+
+      // 确保 project.json 存在
+      const hasConfig = await window.api.readFile(folder + '/project.json');
+      if (!hasConfig) {
+        // 从 ZIP 内容推断模式
+        let mode = 'normal';
+        const extCheck = commonPrefix ? commonPrefix + 'extensions/' : 'extensions/';
+        if (zip.files[extCheck] || Object.keys(zip.files).some(k => k.startsWith(extCheck))) mode = 'extension';
+        const config = {
+          name: projectName,
+          version: '1.0',
+          mode: mode,
+          created: new Date().toISOString(),
+          stageWidth: 480,
+          stageHeight: 360,
+        };
+        await window.api.writeFile(folder + '/project.json', JSON.stringify(config, null, 2));
+      }
+
+      // 确保 scripts/main.json 存在
+      const hasScripts = await window.api.readFile(folder + '/scripts/main.json');
+      if (!hasScripts) {
+        await window.api.ensureDir(folder + '/scripts');
+        await window.api.writeFile(folder + '/scripts/main.json', '{}');
+      }
+
+      return folder;
+    }
+
+    // 从本地 ZIP 文件导入
+    async function importZipFromLocalFile(file) {
+      if (!file) return;
+      const projectName = file.name.replace(/\.zip$/i, '');
+      try {
+        const folder = await importZipToVFS(file, projectName);
+        addRecentProject(folder);
+        await window.api.openEditor(folder, 'normal');
+      } catch (e) {
+        alert('导入失败: ' + e.message);
+      }
+    }
+
+    // 从 URL 下载 ZIP 并导入
+    async function importZipFromUrl(url, projectName) {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const blob = await response.blob();
+        const folder = await importZipToVFS(blob, projectName || 'url_project');
+        addRecentProject(folder);
+        await window.api.openEditor(folder, 'normal');
+      } catch (e) {
+        alert('下载或导入失败: ' + e.message);
+      }
+    }
+
     // 添加最近项目
     function addRecentProject(folder) {
       let list = [];
@@ -250,12 +442,41 @@
       // 新建项目
       document.getElementById('home-btn-new').addEventListener('click', showModeDialog);
 
-      // 打开项目（通过项目选择器）
-      document.getElementById('home-btn-open').addEventListener('click', async () => {
-        const folder = await window.api.selectFolder();
-        if (folder) {
-          await openProject(folder);
+      // 打开项目（通过来源选择弹窗）
+      document.getElementById('home-btn-open').addEventListener('click', showOpenSourceDialog);
+
+      // 来源弹窗标签切换
+      document.querySelectorAll('#os-tabs .os-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('#os-tabs .os-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          const src = tab.dataset.source;
+          document.getElementById('os-cloud-panel').style.display = src === 'cloud' ? '' : 'none';
+          document.getElementById('os-local-panel').style.display = src === 'local' ? '' : 'none';
+          document.getElementById('os-url-panel').style.display = src === 'url' ? '' : 'none';
+        });
+      });
+      document.getElementById('os-cancel').addEventListener('click', hideOpenSourceDialog);
+
+      // 本地 ZIP 打开
+      document.getElementById('os-local-btn').addEventListener('click', () => {
+        const fileInput = document.getElementById('os-local-file');
+        if (fileInput.files && fileInput.files[0]) {
+          hideOpenSourceDialog();
+          importZipFromLocalFile(fileInput.files[0]);
         }
+      });
+
+      // URL 打开
+      document.getElementById('os-url-btn').addEventListener('click', () => {
+        const url = document.getElementById('os-url-input').value.trim();
+        if (!url) { alert('请输入网址'); return; }
+        if (!/\.zip($|\?|#)/i.test(url)) {
+          alert('网址必须以 .zip 结尾');
+          return;
+        }
+        hideOpenSourceDialog();
+        importZipFromUrl(url, url.split('/').pop().replace(/\.zip$/i, '').split('?')[0] || 'url_project');
       });
 
       // 模式选择
