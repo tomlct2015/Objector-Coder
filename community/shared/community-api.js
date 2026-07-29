@@ -425,20 +425,30 @@ const CommunityAPI = (function () {
     let fileUrl = null;
     if (fileContent) {
       // fileContent 可以是 Blob, string 或带 name 属性的对象
-      let blob, fileExt;
+      let blob, fileExt, contentType;
       if (typeof fileContent === 'string') {
         blob = new Blob([fileContent], { type: 'application/json' });
         fileExt = '.json';
+        contentType = 'application/json';
       } else if (fileContent instanceof Blob) {
         blob = fileContent;
-        fileExt = (fileContent.name && fileContent.name.endsWith('.js')) ? '.js' : '.json';
+        const isJs = fileContent.name && fileContent.name.endsWith('.js');
+        fileExt = isJs ? '.js' : '.json';
+        contentType = isJs ? 'application/javascript' : 'application/json';
       } else {
         blob = new Blob([typeof fileContent === 'object' ? JSON.stringify(fileContent) : String(fileContent)], { type: 'application/json' });
         fileExt = '.json';
+        contentType = 'application/json';
       }
       const filePath = `${_user.id}/${extId}_${Date.now()}${fileExt}`;
-      const { error } = await _supabase.storage.from('extensions').upload(filePath, blob, { upsert: false });
-      if (!error) {
+      const { error } = await _supabase.storage.from('extensions').upload(filePath, blob, {
+        contentType,
+        upsert: false,
+        cacheControl: '0',
+      });
+      if (error) {
+        console.warn('[publishExtension] 上传失败:', error.message);
+      } else {
         const { data: urlData } = _supabase.storage.from('extensions').getPublicUrl(filePath);
         fileUrl = urlData.publicUrl;
       }
@@ -456,19 +466,27 @@ const CommunityAPI = (function () {
     if (!_user) return { error: 'Not logged in' };
 
     if (fileContent) {
-      let blob, fileExt;
+      let blob, fileExt, contentType;
       if (typeof fileContent === 'string') {
         blob = new Blob([fileContent], { type: 'application/json' });
         fileExt = '.json';
+        contentType = 'application/json';
       } else if (fileContent instanceof Blob) {
         blob = fileContent;
-        fileExt = (fileContent.name && fileContent.name.endsWith('.js')) ? '.js' : '.json';
+        const isJs = fileContent.name && fileContent.name.endsWith('.js');
+        fileExt = isJs ? '.js' : '.json';
+        contentType = isJs ? 'application/javascript' : 'application/json';
       } else {
         blob = new Blob([JSON.stringify(fileContent)], { type: 'application/json' });
         fileExt = '.json';
+        contentType = 'application/json';
       }
       const filePath = `${_user.id}/${id}_${Date.now()}${fileExt}`;
-      const { error } = await _supabase.storage.from('extensions').upload(filePath, blob, { upsert: true });
+      const { error } = await _supabase.storage.from('extensions').upload(filePath, blob, {
+        contentType,
+        upsert: true,
+        cacheControl: '0',
+      });
       if (!error) {
         const { data: urlData } = _supabase.storage.from('extensions').getPublicUrl(filePath);
         updates.file_url = urlData.publicUrl;
