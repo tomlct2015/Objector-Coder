@@ -96,12 +96,51 @@ const CommunityAPI = (function () {
 
   async function restoreSession() {
     if (!_supabase) return false;
-    const { data } = await _supabase.auth.getSession();
-    if (data.session) {
-      _user = data.session.user;
-      await loadProfile();
-      return true;
+    try {
+      // 方法1: 尝试 getSession（从内存/存储恢复）
+      const { data } = await _supabase.auth.getSession();
+      if (data.session) {
+        _user = data.session.user;
+        await loadProfile();
+        return true;
+      }
+    } catch (e) {
+      console.warn('[CommunityAPI] getSession failed:', e.message);
     }
+
+    // 方法2: 手动从 localStorage 读取 Supabase 存储的 token
+    try {
+      const key = 'sb-' + SUPABASE_URL.replace('https://', '').replace('.supabase.co', '') + '-auth-token';
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.currentSession && parsed.currentSession.user) {
+          _user = parsed.currentSession.user;
+          // 用 access_token 设置 session 给当前客户端
+          await _supabase.auth.setSession({
+            access_token: parsed.currentSession.access_token,
+            refresh_token: parsed.currentSession.refresh_token
+          });
+          await loadProfile();
+          return true;
+        }
+      }
+    } catch (e) {
+      console.warn('[CommunityAPI] localStorage session restore failed:', e.message);
+    }
+
+    // 方法3: 通过 API 调用获取当前用户
+    try {
+      const { data } = await _supabase.auth.getUser();
+      if (data.user) {
+        _user = data.user;
+        await loadProfile();
+        return true;
+      }
+    } catch (e) {
+      console.warn('[CommunityAPI] getUser failed:', e.message);
+    }
+
     return false;
   }
 
@@ -216,6 +255,37 @@ const CommunityAPI = (function () {
     return await _supabase.from('projects').delete().eq('id', id).eq('author_id', _user.id);
   }
 
+  async function updateProject(id, updates, zipBlob) {
+    if (!_user) return { error: 'Not logged in' };
+
+    // 如果有新 ZIP，先上传
+    if (zipBlob) {
+      const zipPath = `${_user.id}/${id}_${Date.now()}.zip`;
+      const { error: zipErr } = await _supabase.storage.from('projects').upload(zipPath, zipBlob, {
+        contentType: 'application/zip', upsert: true
+      });
+      if (!zipErr) {
+        const { data: urlData } = _supabase.storage.from('projects').getPublicUrl(zipPath);
+        updates.zip_url = urlData.publicUrl;
+      }
+    }
+
+    const { data, error } = await _supabase
+      .from('projects').update(updates).eq('id', id).eq('author_id', _user.id).select().single();
+    return { data, error };
+  }
+
+  async function getUserProjectByTitle(userId, title) {
+    if (!_supabase) return null;
+    const { data } = await _supabase
+      .from('projects')
+      .select('id, title, description')
+      .eq('author_id', userId)
+      .eq('title', title)
+      .limit(1);
+    return (data && data.length > 0) ? data[0] : null;
+  }
+
   async function incrementDownloads(id) {
     if (!_supabase) return;
     await _supabase.rpc('increment', { row_id: id, table_name: 'projects', column_name: 'downloads_count' });
@@ -232,6 +302,8 @@ const CommunityAPI = (function () {
 
   async function getPosts(page = 1, category = '', sort = 'newest', search = '') {
     if (!_supabase) return { data: [], count: 0 };
+    // 'all' 表示不筛选分类
+    if (category === 'all') category = '';
     let query = _supabase
       .from('posts')
       .select('*, profiles(username, avatar_url)', { count: 'exact' });
@@ -347,14 +419,25 @@ const CommunityAPI = (function () {
     return { data };
   }
 
-  async function publishExtension(name, extId, description, version, fileBlob) {
+  async function publishExtension(name, extId, description, version, fileContent) {
     if (!_user) return { error: 'Not logged in' };
 
     let fileUrl = null;
-    if (fileBlob) {
-      const ext = fileBlob.name.endsWith('.js') ? '.js' : '.json';
-      const filePath = `${_user.id}/${extId}_${Date.now()}${ext}`;
-      const { error } = await _supabase.storage.from('extensions').upload(filePath, fileBlob, { upsert: false });
+    if (fileContent) {
+      // fileContent 可以是 Blob, string 或带 name 属性的对象
+      let blob, fileExt;
+      if (typeof fileContent === 'string') {
+        blob = new Blob([fileContent], { type: 'application/json' });
+        fileExt = '.json';
+      } else if (fileContent instanceof Blob) {
+        blob = fileContent;
+        fileExt = (fileContent.name && fileContent.name.endsWith('.js')) ? '.js' : '.json';
+      } else {
+        blob = new Blob([typeof fileContent === 'object' ? JSON.stringify(fileContent) : String(fileContent)], { type: 'application/json' });
+        fileExt = '.json';
+      }
+      const filePath = `${_user.id}/${extId}_${Date.now()}${fileExt}`;
+      const { error } = await _supabase.storage.from('extensions').upload(filePath, blob, { upsert: false });
       if (!error) {
         const { data: urlData } = _supabase.storage.from('extensions').getPublicUrl(filePath);
         fileUrl = urlData.publicUrl;
@@ -367,6 +450,45 @@ const CommunityAPI = (function () {
       file_url: fileUrl,
     }).select().single();
     return { data, error };
+  }
+
+  async function updateExtension(id, updates, fileContent) {
+    if (!_user) return { error: 'Not logged in' };
+
+    if (fileContent) {
+      let blob, fileExt;
+      if (typeof fileContent === 'string') {
+        blob = new Blob([fileContent], { type: 'application/json' });
+        fileExt = '.json';
+      } else if (fileContent instanceof Blob) {
+        blob = fileContent;
+        fileExt = (fileContent.name && fileContent.name.endsWith('.js')) ? '.js' : '.json';
+      } else {
+        blob = new Blob([JSON.stringify(fileContent)], { type: 'application/json' });
+        fileExt = '.json';
+      }
+      const filePath = `${_user.id}/${id}_${Date.now()}${fileExt}`;
+      const { error } = await _supabase.storage.from('extensions').upload(filePath, blob, { upsert: true });
+      if (!error) {
+        const { data: urlData } = _supabase.storage.from('extensions').getPublicUrl(filePath);
+        updates.file_url = urlData.publicUrl;
+      }
+    }
+
+    const { data, error } = await _supabase
+      .from('extensions').update(updates).eq('id', id).eq('author_id', _user.id).select().single();
+    return { data, error };
+  }
+
+  async function getUserExtensionByName(userId, name) {
+    if (!_supabase) return null;
+    const { data } = await _supabase
+      .from('extensions')
+      .select('id, name, ext_id, description, version')
+      .eq('author_id', userId)
+      .eq('name', name)
+      .limit(1);
+    return (data && data.length > 0) ? data[0] : null;
   }
 
   async function deleteExtension(id) {
@@ -587,10 +709,10 @@ const CommunityAPI = (function () {
   return {
     init, isConfigured, restoreSession,
     signUp, signIn, signOut, getCurrentUser, loadProfile, getProfile, getUser, updateProfile,
-    getProjects, getProject, getProjectById: getProject, publishProject, deleteProject, incrementDownloads,
+    getProjects, getProject, getProjectById: getProject, publishProject, deleteProject, updateProject, getUserProjectByTitle, incrementDownloads,
     getPosts, getPost, getPostById: getPost, createPost, updatePost, deletePost,
     getComments, addComment, deleteComment,
-    getExtensions, getExtension, getExtensionById: getExtension, publishExtension, deleteExtension,
+    getExtensions, getExtension, getExtensionById: getExtension, publishExtension, deleteExtension, updateExtension, getUserExtensionByName,
     toggleLike, likeTarget, unlikeTarget, isLiked,
     toggleFavorite, toggleFollow, followUser, unfollowUser, isFollowing, getFollowers, getFollowing,
     getFavorites,

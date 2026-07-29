@@ -184,19 +184,54 @@ const CommunityUI = (function () {
   // Pagination 分页
   // ============================================================
 
-  function renderPagination(currentPage, totalCount, pageSize) {
+  function renderPagination(containerOrCurrentPage, currentPageOrTotal, pageSizeOrCallback, callback) {
+    // 支持两种调用方式:
+    // 旧: renderPagination(currentPage, totalCount, pageSize) => 返回 HTML 字符串
+    // 新: renderPagination('container-id', currentPage, total, callback)
+    let container, currentPage, totalCount, onPageChange;
+
+    if (typeof containerOrCurrentPage === 'string' && document.getElementById(containerOrCurrentPage)) {
+      // 新方式: renderPagination('container-id', currentPage, total, callback)
+      container = document.getElementById(containerOrCurrentPage);
+      currentPage = currentPageOrTotal;
+      totalCount = pageSizeOrCallback;
+      onPageChange = callback;
+    } else {
+      // 旧方式: renderPagination(currentPage, totalCount, pageSize) => 返回 HTML
+      return _renderPaginationHtml(containerOrCurrentPage, currentPageOrTotal, pageSizeOrCallback);
+    }
+
+    if (!container) return;
+    const pageSize = CommunityAPI.PAGE_SIZE || 12;
+    const html = _renderPaginationHtml(currentPage, totalCount, pageSize);
+    container.innerHTML = html;
+
+    if (onPageChange) {
+      container.querySelectorAll('.page-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const page = parseInt(btn.dataset.page);
+          if (page && page !== currentPage) {
+            onPageChange(page);
+          }
+        });
+      });
+    }
+  }
+
+  function _renderPaginationHtml(currentPage, totalCount, pageSize) {
     const totalPages = Math.ceil(totalCount / pageSize);
     if (totalPages <= 1) return '';
 
     let html = '<div class="pagination">';
     if (currentPage > 1) {
-      html += `<a href="?page=${currentPage - 1}${extraParams()}" class="page-btn">&laquo; 上一页</a>`;
+      html += `<a href="#" class="page-btn" data-page="${currentPage - 1}">&laquo; 上一页</a>`;
     }
     for (let i = 1; i <= totalPages && i <= 10; i++) {
-      html += `<a href="?page=${i}${extraParams()}" class="page-btn ${i === currentPage ? 'active' : ''}">${i}</a>`;
+      html += `<a href="#" class="page-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</a>`;
     }
     if (currentPage < totalPages) {
-      html += `<a href="?page=${currentPage + 1}${extraParams()}" class="page-btn">下一页 &raquo;</a>`;
+      html += `<a href="#" class="page-btn" data-page="${currentPage + 1}">下一页 &raquo;</a>`;
     }
     html += '</div>';
     return html;

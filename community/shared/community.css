@@ -145,6 +145,11 @@ a:hover { color: var(--accent2); }
   gap: 16px;
   flex-wrap: wrap;
 }
+.page-header-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
 
 /* ============================================================
    Cards
@@ -682,6 +687,46 @@ a:hover { color: var(--accent2); }
   width: auto;
   padding: 6px 12px;
   font-size: 13px;
+}
+
+/* Filter Tabs */
+.filter-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.filter-tab {
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-tab:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.filter-tab.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+/* Post List */
+.post-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.post-list .card {
+  display: block;
+}
+.post-list .card-body {
+  padding: 16px 20px;
 }
 
 /* ============================================================
