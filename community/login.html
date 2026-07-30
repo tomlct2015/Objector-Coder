@@ -24,16 +24,35 @@
 
     <!-- 登录表单 -->
     <form id="form-login">
-      <div class="form-group">
-        <label class="form-label">邮箱</label>
-        <input type="email" class="form-input" id="login-email" placeholder="your@email.com" required />
+      <!-- 登录方式切换 -->
+      <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid var(--border,#45475a);">
+        <button type="button" id="login-subtab-password" class="auth-toggle-btn active" style="flex:1;padding:6px;font-size:13px;border-bottom:2px solid var(--accent,#89b4fa);">密码登录</button>
+        <button type="button" id="login-subtab-otp" class="auth-toggle-btn" style="flex:1;padding:6px;font-size:13px;border-bottom:2px solid transparent;color:var(--muted,#6c7086);">验证码登录</button>
       </div>
-      <div class="form-group">
-        <label class="form-label">密码</label>
-        <input type="password" class="form-input" id="login-password" placeholder="输入密码" required />
+      <!-- 密码登录区 -->
+      <div id="login-section-password">
+        <div class="form-group">
+          <label class="form-label">邮箱</label>
+          <input type="email" class="form-input" id="login-email" placeholder="your@email.com" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">密码</label>
+          <input type="password" class="form-input" id="login-password" placeholder="输入密码" required />
+        </div>
+      </div>
+      <!-- OTP 验证码登录区 -->
+      <div id="login-section-otp" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">邮箱</label>
+          <input type="email" class="form-input" id="login-otp-email" placeholder="your@email.com" />
+        </div>
+        <div style="display:flex;gap:8px;">
+          <input type="text" class="form-input" id="login-otp-code" placeholder="输入6位验证码" maxlength="6" style="flex:1;" autocomplete="one-time-code" />
+          <button type="button" id="login-otp-send" class="btn" style="white-space:nowrap;min-width:100px;">发送验证码</button>
+        </div>
       </div>
       <div class="form-error hidden" id="login-error"></div>
-      <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:8px;">登录</button>
+      <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:8px;" id="login-submit-btn">登录</button>
     </form>
 
     <!-- 注册表单 -->
@@ -93,27 +112,118 @@
       formLogin.style.display = 'none';
     });
 
-    // Login
-    formLogin.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const email = document.getElementById('login-email').value.trim();
-      const password = document.getElementById('login-password').value;
+    // Login - sub-tab switching (password / OTP)
+    let loginMode = 'password';
+    const subtabPassword = document.getElementById('login-subtab-password');
+    const subtabOtp = document.getElementById('login-subtab-otp');
+    const loginSectionPassword = document.getElementById('login-section-password');
+    const loginSectionOtp = document.getElementById('login-section-otp');
+    const loginSubmitBtn = document.getElementById('login-submit-btn');
+    const otpSendBtn = document.getElementById('login-otp-send');
+    const otpEmailInput = document.getElementById('login-otp-email');
+    const otpCodeInput = document.getElementById('login-otp-code');
+
+    function switchLoginSubtab(mode) {
+      loginMode = mode;
+      document.getElementById('login-error').classList.add('hidden');
+      if (mode === 'password') {
+        loginSectionPassword.style.display = '';
+        loginSectionOtp.style.display = 'none';
+        subtabPassword.style.borderBottomColor = 'var(--accent,#89b4fa)';
+        subtabPassword.style.color = '';
+        subtabOtp.style.borderBottomColor = 'transparent';
+        subtabOtp.style.color = 'var(--muted,#6c7086)';
+        loginSubmitBtn.textContent = '登录';
+      } else {
+        loginSectionPassword.style.display = 'none';
+        loginSectionOtp.style.display = '';
+        subtabOtp.style.borderBottomColor = 'var(--accent,#89b4fa)';
+        subtabOtp.style.color = '';
+        subtabPassword.style.borderBottomColor = 'transparent';
+        subtabPassword.style.color = 'var(--muted,#6c7086)';
+        loginSubmitBtn.textContent = '验证并登录';
+      }
+    }
+    subtabPassword.addEventListener('click', () => switchLoginSubtab('password'));
+    subtabOtp.addEventListener('click', () => switchLoginSubtab('otp'));
+
+    // OTP send
+    let otpCooldown = 0;
+    otpSendBtn.addEventListener('click', async () => {
+      const email = otpEmailInput.value.trim();
       const errorEl = document.getElementById('login-error');
       errorEl.classList.add('hidden');
-
-      const btn = formLogin.querySelector('button[type=submit]');
-      btn.disabled = true;
-      btn.textContent = '登录中...';
-
-      const { error } = await CommunityAPI.signIn(email, password);
-      btn.disabled = false;
-      btn.textContent = '登录';
-
-      if (error) {
-        errorEl.textContent = error.message.includes('Invalid') ? '邮箱或密码错误' : error.message;
+      if (!email) { errorEl.textContent = '请输入邮箱'; errorEl.classList.remove('hidden'); return; }
+      if (otpCooldown > 0) { errorEl.textContent = '请等待 ' + otpCooldown + '秒'; errorEl.classList.remove('hidden'); return; }
+      otpSendBtn.disabled = true;
+      otpSendBtn.textContent = '发送中...';
+      const res = await CommunityAPI.sendLoginOtp(email);
+      if (res.error) {
+        errorEl.textContent = res.error.message || res.error;
         errorEl.classList.remove('hidden');
+        otpSendBtn.disabled = false;
+        otpSendBtn.textContent = '发送验证码';
+        return;
+      }
+      errorEl.style.color = 'var(--green,#a6e3a1)';
+      errorEl.textContent = '验证码已发送！请查看邮箱。';
+      errorEl.classList.remove('hidden');
+      otpSendBtn.disabled = false;
+      otpSendBtn.textContent = '重新发送';
+      otpCooldown = 60;
+      otpSendBtn.disabled = true;
+      const cdTimer = setInterval(() => {
+        otpCooldown--;
+        otpSendBtn.textContent = '重新发送(' + otpCooldown + 's)';
+        if (otpCooldown <= 0) {
+          clearInterval(cdTimer);
+          otpSendBtn.disabled = false;
+          otpSendBtn.textContent = '发送验证码';
+        }
+      }, 1000);
+    });
+
+    formLogin.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorEl = document.getElementById('login-error');
+      errorEl.classList.add('hidden');
+      errorEl.style.color = '';
+
+      if (loginMode === 'password') {
+        const email = document.getElementById('login-email').value.trim();
+        const password = document.getElementById('login-password').value;
+        const btn = loginSubmitBtn;
+        btn.disabled = true;
+        btn.textContent = '登录中...';
+        const { error } = await CommunityAPI.signIn(email, password);
+        btn.disabled = false;
+        btn.textContent = '登录';
+        if (error) {
+          errorEl.textContent = error.message.includes('Invalid') ? '邮箱或密码错误' : error.message;
+          errorEl.classList.remove('hidden');
+        } else {
+          window.location.href = redirectTarget;
+        }
       } else {
-        window.location.href = redirectTarget;
+        // OTP login
+        const email = otpEmailInput.value.trim();
+        const code = otpCodeInput.value.trim();
+        if (!email || !code) {
+          errorEl.textContent = '请输入邮箱和验证码';
+          errorEl.classList.remove('hidden');
+          return;
+        }
+        loginSubmitBtn.disabled = true;
+        loginSubmitBtn.textContent = '验证中...';
+        const res = await CommunityAPI.verifyLoginOtp(email, code);
+        loginSubmitBtn.disabled = false;
+        loginSubmitBtn.textContent = '验证并登录';
+        if (res.error) {
+          errorEl.textContent = res.error.message || res.error;
+          errorEl.classList.remove('hidden');
+        } else {
+          window.location.href = redirectTarget;
+        }
       }
     });
 
