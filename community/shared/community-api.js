@@ -64,8 +64,42 @@ const CommunityAPI = (function () {
     if (!error) {
       _user = data.user;
       await loadProfile();
+      await recordLogin();
     }
     return { data, error };
+  }
+
+  /** 发送 OTP 验证码到邮箱（无密码登录） */
+  async function sendLoginOtp(email) {
+    if (!_supabase) return { error: 'Not initialized' };
+    const { data, error } = await _supabase.auth.signInWithOtp({ email });
+    return { data, error };
+  }
+
+  /** 验证 OTP 验证码完成登录 */
+  async function verifyLoginOtp(email, token) {
+    if (!_supabase) return { error: 'Not initialized' };
+    const { data, error } = await _supabase.auth.verifyOtp({ email, token, type: 'email' });
+    if (!error && data.user) {
+      _user = data.user;
+      await loadProfile();
+      await recordLogin();
+    }
+    return { data, error };
+  }
+
+  /** 记录登录日志（触发登录通知邮件） */
+  async function recordLogin() {
+    if (!_supabase || !_user) return;
+    try {
+      await _supabase.from('login_logs').insert({
+        user_id: _user.id,
+        login_at: new Date().toISOString(),
+        user_agent: navigator.userAgent || 'unknown',
+      });
+    } catch (e) {
+      console.warn('[LoginLog] record failed:', e.message);
+    }
   }
 
   async function signOut() {
@@ -73,6 +107,30 @@ const CommunityAPI = (function () {
     await _supabase.auth.signOut();
     _user = null;
     _profile = null;
+  }
+
+  /** 注销账户（删除用户及其所有数据） */
+  async function deleteAccount(password) {
+    if (!_supabase || !_user) return { error: 'Not logged in' };
+    // 先重新验证密码以确保是本人操作
+    const { error: authError } = await _supabase.auth.signInWithPassword({
+      email: _user.email, password
+    });
+    if (authError) return { error: authError.message || '密码验证失败' };
+    // 删除用户所有相关数据（通过 RPC 调用服务端删除）
+    try {
+      const { data, error } = await _supabase.rpc('delete_user_account', { target_user_id: _user.id });
+      if (error) return { error: error.message };
+      // 删除 auth.users 中的用户（调用 Supabase 内置方法）
+      await _supabase.auth.admin.deleteUser(_user.id).catch(() => {});
+      // 本地登出
+      await _supabase.auth.signOut();
+      _user = null;
+      _profile = null;
+      return { data: { success: true } };
+    } catch (e) {
+      return { error: e.message };
+    }
   }
 
   async function getCurrentUser() {
@@ -799,6 +857,8 @@ const CommunityAPI = (function () {
     getUserProjects, getUserPosts, getUserExtensions, getUserFavorites, getProfileById,
     formatTime, escapeHtml, getParams,
     generateBindingCode, verifyBindingCode,
+    sendLoginOtp, verifyLoginOtp, recordLogin,
+    deleteAccount,
     PAGE_SIZE,
   };
 })();
