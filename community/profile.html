@@ -38,19 +38,27 @@
   <script>
     CommunityAPI.init();
     CommunityUI.renderNav('nav');
-    CommunityAPI.restoreSession().then(() => CommunityUI.renderNav('nav'));
 
     const params = new URLSearchParams(location.search);
     const profileId = params.get('id');
-    const currentUser = CommunityAPI.getUser();
-    const isOwnProfile = currentUser && (!profileId || profileId === currentUser.id);
-    const targetUserId = profileId || (currentUser ? currentUser.id : null);
-
     let currentTab = 'projects';
+    let currentUser = null;
+    let isOwnProfile = false;
+    let targetUserId = null;
 
-    if (!targetUserId) {
-      location.href = 'login.html';
-    }
+    // 必须等 session 恢复后才能判断是否为本人
+    CommunityAPI.restoreSession().then(() => {
+      CommunityUI.renderNav('nav');
+      currentUser = CommunityAPI.getUser();
+      isOwnProfile = currentUser && (!profileId || profileId === currentUser.id);
+      targetUserId = profileId || (currentUser ? currentUser.id : null);
+
+      if (!targetUserId) {
+        location.href = 'login.html';
+        return;
+      }
+      loadProfile();
+    });
 
     async function loadProfile() {
       const res = await CommunityAPI.getProfile(targetUserId);
@@ -187,7 +195,7 @@
       }
     }
 
-    loadProfile();
+    // loadProfile() 已在 restoreSession().then() 中调用
   </script>
 </body>
 </html>
