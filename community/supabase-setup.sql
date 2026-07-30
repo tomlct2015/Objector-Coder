@@ -96,6 +96,16 @@ create table favorites (
   primary key(user_id, target_type, target_id)
 );
 
+-- 软件绑定码（用于桌面软件绑定社区账号）
+create table binding_codes (
+  id bigint generated always as identity primary key,
+  user_id uuid references profiles(id) on delete cascade not null,
+  code text not null,
+  username text default '',
+  expires_at timestamptz not null,
+  created_at timestamptz default now()
+);
+
 -- ============================================================
 -- 2. Indexes
 -- ============================================================
@@ -114,6 +124,8 @@ create index idx_likes_user on likes(user_id);
 create index idx_follows_follower on follows(follower_id);
 create index idx_follows_following on follows(following_id);
 create index idx_favorites_user on favorites(user_id);
+create index idx_binding_codes_code on binding_codes(code);
+create index idx_binding_codes_user on binding_codes(user_id);
 
 -- ============================================================
 -- 3. Row Level Security (RLS)
@@ -127,6 +139,7 @@ alter table extensions enable row level security;
 alter table likes enable row level security;
 alter table follows enable row level security;
 alter table favorites enable row level security;
+alter table binding_codes enable row level security;
 
 -- Profiles: anyone can read, only owner can update
 create policy "Profiles are viewable by everyone" on profiles for select using (true);
@@ -171,6 +184,11 @@ create policy "Users can delete own follows" on follows for delete using (auth.u
 create policy "Favorites are viewable by everyone" on favorites for select using (true);
 create policy "Users can create favorites" on favorites for insert with check (auth.uid() = user_id);
 create policy "Users can delete own favorites" on favorites for delete using (auth.uid() = user_id);
+
+-- Binding Codes: anyone can read (for verification), owner can CRUD
+create policy "Binding codes are readable by anyone" on binding_codes for select using (true);
+create policy "Users can create own binding codes" on binding_codes for insert with check (auth.uid() = user_id);
+create policy "Users can delete own binding codes" on binding_codes for delete using (auth.uid() = user_id);
 
 -- ============================================================
 -- 4. Triggers: auto-create profile on signup, update counts

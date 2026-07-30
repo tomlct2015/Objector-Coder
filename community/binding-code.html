@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Software Account Binding - Objector Community</title>
+  <link rel="icon" href="../icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="shared/community.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="shared/community-api.js"></script>
+  <script src="shared/community-ui.js"></script>
+  <style>
+    .binding-container {
+      max-width: 480px;
+      margin: 80px auto;
+      padding: 40px;
+      background: var(--surface, #1e1e2e);
+      border: 1px solid var(--border, #313244);
+      border-radius: 16px;
+      text-align: center;
+    }
+    .binding-container h1 {
+      font-size: 22px;
+      margin-bottom: 8px;
+      color: var(--accent, #89b4fa);
+    }
+    .binding-container .subtitle {
+      font-size: 14px;
+      color: var(--muted, #6c7086);
+      margin-bottom: 32px;
+    }
+    .code-display {
+      background: var(--bg, #11111b);
+      border: 2px solid var(--accent, #89b4fa);
+      border-radius: 12px;
+      padding: 24px;
+      margin: 24px 0;
+      position: relative;
+    }
+    .code-value {
+      font-size: 48px;
+      font-weight: 700;
+      letter-spacing: 12px;
+      color: var(--accent, #89b4fa);
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      user-select: all;
+    }
+    .code-username {
+      font-size: 13px;
+      color: var(--muted, #6c7086);
+      margin-top: 12px;
+    }
+    .code-expiry {
+      font-size: 12px;
+      color: var(--yellow, #f9e2af);
+      margin-top: 8px;
+    }
+    .code-expiry.expired {
+      color: var(--red, #f38ba8);
+    }
+    .binding-steps {
+      text-align: left;
+      margin: 24px 0;
+      padding: 16px 20px;
+      background: rgba(137, 180, 250, 0.05);
+      border: 1px solid rgba(137, 180, 250, 0.15);
+      border-radius: 8px;
+    }
+    .binding-steps h3 {
+      font-size: 14px;
+      color: var(--text, #cdd6f4);
+      margin-bottom: 12px;
+    }
+    .binding-steps ol {
+      padding-left: 20px;
+      font-size: 13px;
+      color: var(--muted, #a6adc8);
+      line-height: 1.8;
+    }
+    .btn-refresh {
+      background: transparent;
+      border: 1px solid var(--border, #45475a);
+      color: var(--text, #cdd6f4);
+      padding: 8px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.15s;
+      margin-top: 16px;
+    }
+    .btn-refresh:hover {
+      border-color: var(--accent, #89b4fa);
+      color: var(--accent, #89b4fa);
+    }
+    .binding-success {
+      display: none;
+      padding: 16px;
+      background: rgba(166, 227, 161, 0.1);
+      border: 1px solid rgba(166, 227, 161, 0.3);
+      border-radius: 8px;
+      color: var(--green, #a6e3a1);
+      font-size: 14px;
+      margin-top: 16px;
+    }
+    .login-required {
+      padding: 32px;
+      text-align: center;
+    }
+    .login-required p {
+      color: var(--muted, #a6adc8);
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div id="nav"></div>
+
+  <div class="binding-container">
+    <!-- Login Required -->
+    <div id="login-required" class="login-required" style="display:none;">
+      <h1>🔗 Software Account Binding</h1>
+      <p>Please login first to generate a binding code.</p>
+      <a href="login.html?redirect=binding-code.html" class="btn btn-primary">Login</a>
+      <div style="margin-top:16px;font-size:13px;color:var(--muted, #6c7086);">
+        <a href="index.html">← Back to community</a>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content" style="display:none;">
+      <h1>🔗 Software Account Binding</h1>
+      <p class="subtitle">Bind your community account to the desktop software</p>
+
+      <div class="code-display">
+        <div id="code-value" class="code-value">------</div>
+        <div id="code-username" class="code-username"></div>
+        <div id="code-expiry" class="code-expiry"></div>
+      </div>
+
+      <button id="btn-refresh" class="btn-refresh">🔄 Generate New Code</button>
+
+      <div id="binding-success" class="binding-success"></div>
+
+      <div class="binding-steps">
+        <h3>Binding Steps:</h3>
+        <ol>
+          <li>Open Objector desktop software</li>
+          <li>Click "🔗 Bind Account" button in the toolbar</li>
+          <li>Enter the 6-digit code shown above</li>
+          <li>Confirm binding in the software</li>
+        </ol>
+      </div>
+
+      <div style="text-align:center;margin-top:20px;font-size:13px;color:var(--muted, #6c7086);">
+        <a href="index.html">← Back to community</a>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" style="padding:40px;">
+      <p style="color:var(--muted, #6c7086);">Loading...</p>
+    </div>
+  </div>
+
+  <script>
+    CommunityAPI.init();
+    CommunityUI.renderNav();
+
+    var _timerInterval = null;
+    var _expiresAt = null;
+
+    async function init() {
+      await CommunityAPI.restoreSession();
+      var user = CommunityAPI.getUser();
+
+      document.getElementById('loading').style.display = 'none';
+
+      if (!user) {
+        document.getElementById('login-required').style.display = '';
+        return;
+      }
+
+      document.getElementById('main-content').style.display = '';
+      await generateCode();
+    }
+
+    async function generateCode() {
+      var codeEl = document.getElementById('code-value');
+      var usernameEl = document.getElementById('code-username');
+      var expiryEl = document.getElementById('code-expiry');
+      var successEl = document.getElementById('binding-success');
+
+      codeEl.textContent = '...';
+      usernameEl.textContent = '';
+      expiryEl.textContent = '';
+      successEl.style.display = 'none';
+
+      if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
+
+      var result = await CommunityAPI.generateBindingCode();
+
+      if (result.error) {
+        codeEl.textContent = 'ERROR';
+        expiryEl.textContent = result.error.message || result.error;
+        expiryEl.classList.add('expired');
+        return;
+      }
+
+      var code = result.data.code;
+      var profile = CommunityAPI.getProfile();
+      var username = profile ? profile.username : (result.data.username || '');
+
+      codeEl.textContent = code;
+      usernameEl.textContent = 'Account: ' + username;
+
+      _expiresAt = new Date(result.data.expires_at);
+      expiryEl.classList.remove('expired');
+      updateExpiry();
+
+      _timerInterval = setInterval(updateExpiry, 1000);
+    }
+
+    function updateExpiry() {
+      var expiryEl = document.getElementById('code-expiry');
+      if (!_expiresAt) return;
+
+      var remaining = Math.floor((_expiresAt - new Date()) / 1000);
+      if (remaining <= 0) {
+        expiryEl.textContent = 'Code expired. Please generate a new one.';
+        expiryEl.classList.add('expired');
+        clearInterval(_timerInterval);
+        _timerInterval = null;
+        return;
+      }
+
+      var min = Math.floor(remaining / 60);
+      var sec = remaining % 60;
+      expiryEl.textContent = 'Expires in: ' + min + ':' + String(sec).padStart(2, '0');
+      if (remaining <= 60) expiryEl.classList.add('expired');
+    }
+
+    document.getElementById('btn-refresh').addEventListener('click', generateCode);
+
+    init();
+  </script>
+</body>
+</html>
