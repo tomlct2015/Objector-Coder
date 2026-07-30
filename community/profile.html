@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -60,6 +60,50 @@
       loadProfile();
     });
 
+    // 内联编辑简介
+    function openBioEditor(currentBio) {
+      const bioDisplay = document.getElementById('bio-display');
+      if (!bioDisplay) return;
+      bioDisplay.outerHTML = `
+        <div id="bio-editor" style="margin:8px 0;">
+          <textarea id="bio-textarea" maxlength="200" rows="2"
+            style="width:100%;box-sizing:border-box;background:var(--bg-secondary,#181825);color:var(--text,#cdd6f4);border:1px solid var(--accent,#89b4fa);border-radius:6px;padding:8px 10px;font-size:13px;resize:vertical;outline:none;font-family:inherit;">${currentBio}</textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+            <span id="bio-char-count" style="font-size:11px;color:var(--muted,#6c7086);">${currentBio.length}/200</span>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-outline btn-sm" id="bio-cancel">取消</button>
+              <button class="btn btn-primary btn-sm" id="bio-save">保存</button>
+            </div>
+          </div>
+        </div>`;
+      const textarea = document.getElementById('bio-textarea');
+      const charCount = document.getElementById('bio-char-count');
+      textarea.focus();
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+      textarea.addEventListener('input', () => {
+        charCount.textContent = textarea.value.length + '/200';
+      });
+      textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); loadProfile(); }
+        if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); document.getElementById('bio-save').click(); }
+      });
+      document.getElementById('bio-cancel').addEventListener('click', () => loadProfile());
+      document.getElementById('bio-save').addEventListener('click', async () => {
+        const btn = document.getElementById('bio-save');
+        btn.disabled = true;
+        btn.textContent = '...';
+        const res = await CommunityAPI.updateProfile({ bio: textarea.value.trim() });
+        if (res.error) {
+          CommunityUI.showToast('更新失败', 'error');
+          btn.disabled = false;
+          btn.textContent = '保存';
+        } else {
+          CommunityUI.showToast('更新成功', 'success');
+          loadProfile();
+        }
+      });
+    }
+
     async function loadProfile() {
       const res = await CommunityAPI.getProfile(targetUserId);
       if (res.error || !res.data) {
@@ -79,7 +123,7 @@
       let actionsHtml = '';
       if (isOwnProfile) {
         actionsHtml = `
-          <button class="btn btn-outline btn-sm" id="btn-edit-profile">编辑资料</button>
+          <button class="btn btn-outline btn-sm" id="btn-edit-profile">✏️ 编辑简介</button>
           <button class="btn btn-outline btn-sm" id="btn-logout">退出登录</button>
         `;
       } else if (currentUser) {
@@ -90,12 +134,21 @@
         `;
       }
 
+      let bioHtml = '';
+      if (isOwnProfile) {
+        bioHtml = `<div id="bio-display" style="cursor:pointer;" title="点击编辑">
+          ${profile.bio ? `<p class="profile-bio">${profile.bio}</p>` : `<p class="profile-bio" style="color:var(--muted,#6c7086);font-style:italic;">点击添加个人简介...</p>`}
+        </div>`;
+      } else {
+        bioHtml = profile.bio ? `<p class="profile-bio">${profile.bio}</p>` : '';
+      }
+
       document.getElementById('profile-header').innerHTML = `
         <div class="profile-card">
           <img src="${avatar}" class="profile-avatar" alt="${profile.username}" />
           <div class="profile-info">
             <h1>${profile.username}</h1>
-            ${profile.bio ? `<p class="profile-bio">${profile.bio}</p>` : ''}
+            ${bioHtml}
             <p class="profile-joined">加入于 ${new Date(profile.created_at).toLocaleDateString()}</p>
           </div>
           <div class="profile-actions">${actionsHtml}</div>
@@ -113,19 +166,13 @@
 
       const btnEditProfile = document.getElementById('btn-edit-profile');
       if (btnEditProfile) {
-        btnEditProfile.addEventListener('click', () => {
-          const newBio = prompt('修改个人简介:', profile.bio || '');
-          if (newBio !== null) {
-            CommunityAPI.updateProfile({ bio: newBio }).then(res => {
-              if (res.error) {
-                CommunityUI.showToast('更新失败', 'error');
-              } else {
-                CommunityUI.showToast('更新成功', 'success');
-                loadProfile();
-              }
-            });
-          }
-        });
+        btnEditProfile.addEventListener('click', () => openBioEditor(profile.bio || ''));
+      }
+
+      // 点击简介文字也可以编辑
+      const bioDisplay = document.getElementById('bio-display');
+      if (bioDisplay) {
+        bioDisplay.addEventListener('click', () => openBioEditor(profile.bio || ''));
       }
 
       const btnFollow = document.getElementById('btn-follow');
