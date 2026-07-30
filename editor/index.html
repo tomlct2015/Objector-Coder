@@ -88,9 +88,19 @@
       </div>
       <!-- 本地文件 -->
       <div id="os-local-panel" class="os-panel" style="display:none">
-        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">选择本地 ZIP 项目文件</p>
-        <input type="file" id="os-local-file" accept=".zip" style="margin-bottom:12px;" />
-        <button id="os-local-btn" class="tb-btn tb-run">打开</button>
+        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">选择本地项目（ZIP 文件或文件夹）</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:180px;">
+            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">📦 ZIP 文件</label>
+            <input type="file" id="os-local-file" accept=".zip" style="margin-bottom:8px;" />
+            <button id="os-local-btn" class="tb-btn tb-run" style="width:100%;">打开 ZIP</button>
+          </div>
+          <div style="flex:1;min-width:180px;">
+            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">📁 文件夹</label>
+            <input type="file" id="os-local-folder" webkitdirectory multiple style="margin-bottom:8px;" />
+            <button id="os-local-folder-btn" class="tb-btn tb-run" style="width:100%;">打开文件夹</button>
+          </div>
+        </div>
       </div>
       <!-- 网址 -->
       <div id="os-url-panel" class="os-panel" style="display:none">
@@ -353,6 +363,79 @@
       }
     }
 
+    // 从本地文件夹导入（使用 webkitdirectory 选择的 FileList）
+    async function importFolderToVFS(fileList) {
+      if (!fileList || fileList.length === 0) return;
+
+      // 检测公共根文件夹
+      const allPaths = [];
+      for (const f of fileList) {
+        allPaths.push(f.webkitRelativePath || f.name);
+      }
+      let commonPrefix = '';
+      if (allPaths.length > 0) {
+        const firstParts = allPaths[0].split('/');
+        if (firstParts.length > 1) {
+          const rootFolder = firstParts[0] + '/';
+          if (allPaths.every(p => p.startsWith(rootFolder))) commonPrefix = rootFolder;
+        }
+      }
+
+      const projectName = commonPrefix ? commonPrefix.replace(/\/$/, '') : (fileList[0].webkitRelativePath || fileList[0].name).split('/')[0];
+      const folder = '/projects/' + projectName.replace(/\s+/g, '_') + '_' + Date.now();
+      await window.api.ensureDir(folder);
+
+      for (const f of fileList) {
+        const relPath = f.webkitRelativePath || f.name;
+        // 跳过 macOS 元数据
+        if (relPath.includes('__MACOSX') || relPath.endsWith('.DS_Store')) continue;
+        // 去除公共根前缀
+        let cleanPath = commonPrefix && relPath.startsWith(commonPrefix)
+          ? relPath.slice(commonPrefix.length)
+          : relPath;
+        if (!cleanPath) continue;
+
+        if (/\.(png|jpg|jpeg|gif|bmp|webp|svg|mp3|wav|ogg)$/i.test(cleanPath)) {
+          const dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(f);
+          });
+          localStorage.setItem('vfsb:' + folder + '/' + cleanPath, dataUrl);
+        } else {
+          const text = await f.text();
+          await window.api.writeFile(folder + '/' + cleanPath, text);
+        }
+      }
+
+      // 确保 project.json 存在
+      const hasConfig = await window.api.readFile(folder + '/project.json');
+      if (!hasConfig) {
+        let mode = 'normal';
+        const allClean = allPaths.map(p => commonPrefix && p.startsWith(commonPrefix) ? p.slice(commonPrefix.length) : p);
+        if (allClean.some(p => p.startsWith('extensions/'))) mode = 'extension';
+        const config = {
+          name: projectName,
+          version: '1.0',
+          mode: mode,
+          created: new Date().toISOString(),
+          stageWidth: 480,
+          stageHeight: 360,
+        };
+        await window.api.writeFile(folder + '/project.json', JSON.stringify(config, null, 2));
+      }
+
+      // 确保 scripts/main.json 存在
+      const hasScripts = await window.api.readFile(folder + '/scripts/main.json');
+      if (!hasScripts) {
+        await window.api.ensureDir(folder + '/scripts');
+        await window.api.writeFile(folder + '/scripts/main.json', '{}');
+      }
+
+      return folder;
+    }
+
     // 从 URL 下载 ZIP 并导入
     async function importZipFromUrl(url, projectName) {
       try {
@@ -464,6 +547,23 @@
         if (fileInput.files && fileInput.files[0]) {
           hideOpenSourceDialog();
           importZipFromLocalFile(fileInput.files[0]);
+        }
+      });
+
+      // 本地文件夹打开
+      document.getElementById('os-local-folder-btn').addEventListener('click', async () => {
+        const folderInput = document.getElementById('os-local-folder');
+        if (!folderInput.files || folderInput.files.length === 0) {
+          alert('请先选择一个文件夹');
+          return;
+        }
+        hideOpenSourceDialog();
+        try {
+          const folder = await importFolderToVFS(folderInput.files);
+          addRecentProject(folder);
+          await window.api.openEditor(folder, 'normal');
+        } catch (e) {
+          alert('导入文件夹失败: ' + e.message);
         }
       });
 
