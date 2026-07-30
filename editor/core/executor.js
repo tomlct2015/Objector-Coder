@@ -15,6 +15,7 @@ const Executor = (function () {
   let _broadcastListeners = [];
   let _turboMode = 0;  // turbo 嵌套计数器，>0 表示处于 turbo 模式
   let _spriteClickHandler = null;  // 精灵点击事件处理器
+  let _savedBlocks = null;  // 保存编辑器状态的积木（运行时用全部精灵积木替换）
 
   function getOutput() { return _output; }
   function clearOutput() { _output = []; }
@@ -44,6 +45,12 @@ const Executor = (function () {
     switchTab('output');
 
     try {
+      // 运行时使用所有精灵的积木（而非仅当前精灵）
+      _savedBlocks = EditorState.blocks;
+      if (typeof StageManager !== 'undefined' && StageManager.getAllBlocks) {
+        EditorState.blocks = StageManager.getAllBlocks();
+      }
+
       // 先收集类定义
       for (const b of Object.values(EditorState.blocks)) {
         if (b.type === 'class_define') {
@@ -163,6 +170,11 @@ const Executor = (function () {
 
     _running = false;
     EditorState.running = false;
+    // 恢复编辑器状态的积木（当前精灵的）
+    if (_savedBlocks) {
+      EditorState.blocks = _savedBlocks;
+      _savedBlocks = null;
+    }
     if (typeof DevMode !== 'undefined') DevMode.setExecutingBlock(null);
     document.getElementById('btn-run').disabled = false;
     document.getElementById('btn-stop').disabled = true;

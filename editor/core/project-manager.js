@@ -87,8 +87,18 @@ const ProjectManager = (function () {
       alert(i18n.t('status.openProjectFirst'));
       return;
     }
-    // 保存积木数据
-    const json = Serializer.serialize(EditorState.blocks);
+    // 同步当前精灵的积木
+    if (typeof StageManager !== 'undefined') {
+      StageManager.getSpriteData(); // 触发同步
+    }
+    // 保存所有精灵的合并积木到 scripts/main.json（兼容旧版）
+    let allBlocks = {};
+    if (typeof StageManager !== 'undefined' && StageManager.getAllBlocks) {
+      allBlocks = StageManager.getAllBlocks();
+    } else {
+      allBlocks = EditorState.blocks || {};
+    }
+    const json = Serializer.serialize(allBlocks);
     await window.api.writeFile(EditorState.projectPath + '/scripts/main.json', json);
 
     // 保存精灵数据到 project.json（贴图路径转为相对路径）

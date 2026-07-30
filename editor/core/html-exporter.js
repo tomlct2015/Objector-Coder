@@ -506,7 +506,9 @@ function stopRun() {
     }
 
     const projectName = EditorState.projectName || 'Objector';
-    const blocksData = EditorState.blocks || {};
+    // 使用所有精灵的合并积木
+    const blocksData = (typeof StageManager !== 'undefined' && StageManager.getAllBlocks)
+      ? StageManager.getAllBlocks() : (EditorState.blocks || {});
 
     // 获取精灵数据（包含贴图 base64）
     const spritesData = [];

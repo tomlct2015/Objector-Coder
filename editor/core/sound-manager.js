@@ -161,10 +161,15 @@ const SoundManager = (function () {
     return Object.keys(_sounds);
   }
 
+  /** 检查声音是否正在播放 */
+  function isPlaying(name) {
+    return !!_playing[name];
+  }
+
   return {
     loadSound, loadFromProject,
     play, playAndWait, stop, stopAll,
     setVolume, changeVolume, getVolume,
-    getSoundNames,
+    getSoundNames, isPlaying,
   };
 })();
