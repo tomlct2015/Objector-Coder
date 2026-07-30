@@ -30,6 +30,8 @@
         <div id="user-menu" class="user-menu hidden">
           <a id="menu-open-community" class="user-menu-item" href="../community/index.html">🏨️ 打开社区</a>
           <button id="menu-logout" class="user-menu-item">🚪 退出登录</button>
+          <div style="border-top:1px solid var(--border);margin:4px 0;"></div>
+          <button id="menu-delete-account" class="user-menu-item" style="color:var(--red,#f38ba8);">🗑️ 注销账户</button>
         </div>
       </div>
     </div>
@@ -136,13 +138,32 @@
   <div id="community-login-dialog" class="custom-prompt-overlay hidden">
     <div class="custom-prompt-box" style="max-width:380px;">
       <div class="custom-prompt-title">👤 社区登录</div>
-      <div style="margin-bottom:12px;">
-        <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">邮箱</label>
-        <input id="login-email" type="email" class="custom-prompt-input" placeholder="email@example.com" autocomplete="email" />
+      <!-- 登录方式切换 tab -->
+      <div style="display:flex;gap:0;margin-bottom:12px;border-bottom:1px solid var(--border);">
+        <button id="login-tab-password" class="login-tab active" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid var(--accent);color:var(--text-primary);cursor:pointer;font-size:13px;">密码登录</button>
+        <button id="login-tab-otp" class="login-tab" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-muted);cursor:pointer;font-size:13px;">验证码登录</button>
       </div>
-      <div style="margin-bottom:12px;">
-        <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">密码</label>
-        <input id="login-password" type="password" class="custom-prompt-input" placeholder="********" autocomplete="current-password" />
+      <!-- 密码登录区 -->
+      <div id="login-section-password">
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">邮箱</label>
+          <input id="login-email" type="email" class="custom-prompt-input" placeholder="email@example.com" autocomplete="email" />
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">密码</label>
+          <input id="login-password" type="password" class="custom-prompt-input" placeholder="********" autocomplete="current-password" />
+        </div>
+      </div>
+      <!-- OTP 验证码登录区 -->
+      <div id="login-section-otp" style="display:none;">
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">邮箱</label>
+          <input id="login-otp-email" type="email" class="custom-prompt-input" placeholder="email@example.com" autocomplete="email" />
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <input id="login-otp-code" type="text" class="custom-prompt-input" placeholder="输入6位验证码" maxlength="6" style="flex:1;" autocomplete="one-time-code" />
+          <button id="login-otp-send" class="tb-btn" style="white-space:nowrap;min-width:90px;">发送验证码</button>
+        </div>
       </div>
       <div id="login-result" style="font-size:12px;min-height:20px;margin-bottom:8px;"></div>
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;text-align:center;">
@@ -630,6 +651,7 @@
       const userMenu = document.getElementById('user-menu');
       const menuOpenCommunity = document.getElementById('menu-open-community');
       const menuLogout = document.getElementById('menu-logout');
+      const menuDeleteAccount = document.getElementById('menu-delete-account');
       const loginRegisterLink = document.getElementById('login-register-link');
 
       btnLogin.addEventListener('click', (e) => {
@@ -653,6 +675,24 @@
         userMenu.classList.add('hidden');
         if (confirm('确定要登出吗？')) {
           await CommunityAPI.signOut();
+          refreshCommunityUI();
+        }
+      });
+
+      // 注销账户
+      menuDeleteAccount.addEventListener('click', async () => {
+        userMenu.classList.add('hidden');
+        if (typeof CommunityAPI === 'undefined' || !CommunityAPI.getUser()) return;
+        const user = CommunityAPI.getUser();
+        const password = prompt(
+          `确定要注销账户 "${user.email}" 吗？\n\n此操作不可撤销！你的所有数据（作品、帖子等）将被永久删除。\n\n请输入密码确认：`
+        );
+        if (!password) return;
+        const res = await CommunityAPI.deleteAccount(password);
+        if (res.error) {
+          alert('注销失败: ' + res.error);
+        } else {
+          alert('账户已注销。');
           refreshCommunityUI();
         }
       });
@@ -686,24 +726,69 @@
         const submitBtn = document.getElementById('login-submit');
         const cancelBtn = document.getElementById('login-cancel');
 
+        // OTP elements
+        const tabPassword = document.getElementById('login-tab-password');
+        const tabOtp = document.getElementById('login-tab-otp');
+        const sectionPassword = document.getElementById('login-section-password');
+        const sectionOtp = document.getElementById('login-section-otp');
+        const otpEmailInput = document.getElementById('login-otp-email');
+        const otpCodeInput = document.getElementById('login-otp-code');
+        const otpSendBtn = document.getElementById('login-otp-send');
+
+        let currentTab = 'password';
+
         emailInput.value = '';
         passInput.value = '';
+        otpEmailInput.value = '';
+        otpCodeInput.value = '';
         resultEl.textContent = '';
         submitBtn.disabled = false;
         submitBtn.textContent = '登录';
+        switchTab('password');
 
         overlay.classList.remove('hidden');
         setTimeout(function() { emailInput.focus(); }, 50);
+
+        function switchTab(tab) {
+          currentTab = tab;
+          resultEl.textContent = '';
+          if (tab === 'password') {
+            sectionPassword.style.display = '';
+            sectionOtp.style.display = 'none';
+            tabPassword.style.borderBottomColor = 'var(--accent)';
+            tabPassword.style.color = 'var(--text-primary)';
+            tabOtp.style.borderBottomColor = 'transparent';
+            tabOtp.style.color = 'var(--text-muted)';
+            submitBtn.textContent = '登录';
+            submitBtn.disabled = false;
+          } else {
+            sectionPassword.style.display = 'none';
+            sectionOtp.style.display = '';
+            tabOtp.style.borderBottomColor = 'var(--accent)';
+            tabOtp.style.color = 'var(--text-primary)';
+            tabPassword.style.borderBottomColor = 'transparent';
+            tabPassword.style.color = 'var(--text-muted)';
+            submitBtn.textContent = '验证并登录';
+            submitBtn.disabled = false;
+          }
+        }
+
+        tabPassword.onclick = () => switchTab('password');
+        tabOtp.onclick = () => switchTab('otp');
 
         function close() {
           overlay.classList.add('hidden');
           submitBtn.onclick = null;
           cancelBtn.onclick = null;
+          otpSendBtn.onclick = null;
+          tabPassword.onclick = null;
+          tabOtp.onclick = null;
         }
 
         cancelBtn.onclick = close;
         overlay.onclick = function(e) { if (e.target === overlay) close(); };
 
+        // ---- 密码登录 ----
         async function doLogin() {
           var email = emailInput.value.trim();
           var password = passInput.value;
@@ -733,13 +818,99 @@
           cancelBtn.textContent = '关闭';
         }
 
-        submitBtn.onclick = doLogin;
+        // ---- OTP 验证码登录 ----
+        let otpCooldown = 0;
+        async function doSendOtp() {
+          var email = otpEmailInput.value.trim();
+          if (!email) {
+            resultEl.style.color = 'var(--red)';
+            resultEl.textContent = '请输入邮箱';
+            return;
+          }
+          if (otpCooldown > 0) {
+            resultEl.style.color = 'var(--text-muted)';
+            resultEl.textContent = '请等待 ' + otpCooldown + '秒';
+            return;
+          }
+          otpSendBtn.disabled = true;
+          otpSendBtn.textContent = '...';
+          resultEl.style.color = 'var(--text-secondary)';
+          resultEl.textContent = '发送中...';
+
+          var res = await CommunityAPI.sendLoginOtp(email);
+          if (res.error) {
+            resultEl.style.color = 'var(--red)';
+            resultEl.textContent = res.error.message || res.error;
+            otpSendBtn.disabled = false;
+            otpSendBtn.textContent = '发送验证码';
+            return;
+          }
+          resultEl.style.color = 'var(--green)';
+          resultEl.textContent = '验证码已发送！请查看邮箱。';
+          otpSendBtn.disabled = false;
+          otpSendBtn.textContent = '重新发送';
+
+          otpCooldown = 60;
+          otpSendBtn.disabled = true;
+          const cdTimer = setInterval(() => {
+            otpCooldown--;
+            otpSendBtn.textContent = '重新发送(' + otpCooldown + 's)';
+            if (otpCooldown <= 0) {
+              clearInterval(cdTimer);
+              otpSendBtn.disabled = false;
+              otpSendBtn.textContent = '重新发送';
+            }
+          }, 1000);
+        }
+
+        async function doOtpLogin() {
+          var email = otpEmailInput.value.trim();
+          var code = otpCodeInput.value.trim();
+          if (!email || !code) {
+            resultEl.style.color = 'var(--red)';
+            resultEl.textContent = '请输入邮箱和验证码';
+            return;
+          }
+          submitBtn.disabled = true;
+          submitBtn.textContent = '...';
+          resultEl.style.color = 'var(--text-secondary)';
+          resultEl.textContent = '验证中...';
+
+          var res = await CommunityAPI.verifyLoginOtp(email, code);
+          submitBtn.disabled = false;
+          submitBtn.textContent = '验证并登录';
+
+          if (res.error) {
+            resultEl.style.color = 'var(--red)';
+            resultEl.textContent = res.error.message || res.error;
+            return;
+          }
+          resultEl.style.color = 'var(--green)';
+          resultEl.textContent = '登录成功！';
+          submitBtn.textContent = '完成';
+          submitBtn.onclick = function() { close(); refreshCommunityUI(); };
+          cancelBtn.textContent = '关闭';
+        }
+
+        otpSendBtn.onclick = doSendOtp;
+        submitBtn.onclick = function() {
+          if (currentTab === 'password') doLogin();
+          else doOtpLogin();
+        };
         passInput.onkeydown = function(e) {
           if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
           else if (e.key === 'Escape') { e.preventDefault(); close(); }
         };
         emailInput.onkeydown = function(e) {
           if (e.key === 'Enter') { e.preventDefault(); passInput.focus(); }
+          else if (e.key === 'Escape') { e.preventDefault(); close(); }
+        };
+        otpCodeInput.onkeydown = function(e) {
+          if (e.key === 'Enter') { e.preventDefault(); doOtpLogin(); }
+          else if (e.key === 'Escape') { e.preventDefault(); close(); }
+        };
+        otpEmailInput.onkeydown = function(e) {
+          if (e.key === 'Enter') { e.preventDefault(); otpCodeInput.focus(); }
           else if (e.key === 'Escape') { e.preventDefault(); close(); }
         };
       }
