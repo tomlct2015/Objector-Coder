@@ -25,6 +25,13 @@
       <a href="../community/index.html" class="tb-btn" style="text-decoration:none;font-size:11px;">🏘️ 社区</a>
       <a href="../blocks-guide/" target="_blank" class="tb-btn" style="text-decoration:none;font-size:11px;" data-i18n="editor.blocksGuide">📖 积木指南</a>
       <button id="home-lang-switch" class="tb-btn" data-i18n="langSwitch" title="Switch Language" style="font-size:11px;">EN</button>
+      <div style="position:relative;display:inline-block;">
+        <button id="home-btn-login" class="tb-btn" title="登录社区" style="font-size:11px;">👤 登录</button>
+        <div id="user-menu" class="user-menu hidden">
+          <a id="menu-open-community" class="user-menu-item" href="../community/index.html">🏨️ 打开社区</a>
+          <button id="menu-logout" class="user-menu-item">🚪 退出登录</button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -121,6 +128,29 @@
       <div class="picker-list" id="picker-project-list"></div>
       <div class="picker-actions">
         <button class="tb-btn" onclick="_webPickerCancel()">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 社区登录对话框 -->
+  <div id="community-login-dialog" class="custom-prompt-overlay hidden">
+    <div class="custom-prompt-box" style="max-width:380px;">
+      <div class="custom-prompt-title">👤 社区登录</div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">邮箱</label>
+        <input id="login-email" type="email" class="custom-prompt-input" placeholder="email@example.com" autocomplete="email" />
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">密码</label>
+        <input id="login-password" type="password" class="custom-prompt-input" placeholder="********" autocomplete="current-password" />
+      </div>
+      <div id="login-result" style="font-size:12px;min-height:20px;margin-bottom:8px;"></div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;text-align:center;">
+        还没有账号？<a id="login-register-link" href="../community/login.html" style="color:var(--accent);text-decoration:none;">点击这里创建账号</a>
+      </div>
+      <div class="custom-prompt-actions">
+        <button id="login-cancel" class="tb-btn">取消</button>
+        <button id="login-submit" class="tb-btn tb-run">登录</button>
       </div>
     </div>
   </div>
@@ -593,6 +623,130 @@
       const urlMode = new URLSearchParams(window.location.search).get('mode');
       if (urlMode === 'extension' || urlMode === 'normal') {
         createNewProject(urlMode);
+      }
+
+      // ============ 社区登录 ============
+      const btnLogin = document.getElementById('home-btn-login');
+      const userMenu = document.getElementById('user-menu');
+      const menuOpenCommunity = document.getElementById('menu-open-community');
+      const menuLogout = document.getElementById('menu-logout');
+      const loginRegisterLink = document.getElementById('login-register-link');
+
+      btnLogin.addEventListener('click', (e) => {
+        if (typeof CommunityAPI === 'undefined') {
+          alert('社区模块未加载');
+          return;
+        }
+        const user = CommunityAPI.getUser();
+        if (user) {
+          e.stopPropagation();
+          userMenu.classList.toggle('hidden');
+        } else {
+          showLoginDialog();
+        }
+      });
+
+      document.addEventListener('click', () => { userMenu.classList.add('hidden'); });
+      userMenu.addEventListener('click', (e) => e.stopPropagation());
+
+      menuLogout.addEventListener('click', async () => {
+        userMenu.classList.add('hidden');
+        if (confirm('确定要登出吗？')) {
+          await CommunityAPI.signOut();
+          refreshCommunityUI();
+        }
+      });
+
+      function refreshCommunityUI() {
+        if (typeof CommunityAPI === 'undefined') return;
+        const user = CommunityAPI.getUser();
+        const profile = CommunityAPI.getProfile();
+        if (user) {
+          btnLogin.textContent = '✅ ' + (profile?.username || user.email || '已登录');
+          btnLogin.title = '点击打开菜单';
+        } else {
+          btnLogin.textContent = '👤 登录';
+          btnLogin.title = '登录社区';
+        }
+      }
+
+      function showLoginDialog() {
+        if (typeof CommunityAPI === 'undefined') {
+          alert('社区模块未加载');
+          return;
+        }
+        if (!CommunityAPI.isConfigured()) {
+          CommunityAPI.init();
+        }
+
+        const overlay = document.getElementById('community-login-dialog');
+        const emailInput = document.getElementById('login-email');
+        const passInput = document.getElementById('login-password');
+        const resultEl = document.getElementById('login-result');
+        const submitBtn = document.getElementById('login-submit');
+        const cancelBtn = document.getElementById('login-cancel');
+
+        emailInput.value = '';
+        passInput.value = '';
+        resultEl.textContent = '';
+        submitBtn.disabled = false;
+        submitBtn.textContent = '登录';
+
+        overlay.classList.remove('hidden');
+        setTimeout(function() { emailInput.focus(); }, 50);
+
+        function close() {
+          overlay.classList.add('hidden');
+          submitBtn.onclick = null;
+          cancelBtn.onclick = null;
+        }
+
+        cancelBtn.onclick = close;
+        overlay.onclick = function(e) { if (e.target === overlay) close(); };
+
+        async function doLogin() {
+          var email = emailInput.value.trim();
+          var password = passInput.value;
+          if (!email || !password) {
+            resultEl.style.color = 'var(--red)';
+            resultEl.textContent = '请输入邮箱和密码';
+            return;
+          }
+          submitBtn.disabled = true;
+          submitBtn.textContent = '...';
+          resultEl.style.color = 'var(--text-secondary)';
+          resultEl.textContent = '登录中...';
+
+          var res = await CommunityAPI.signIn(email, password);
+          submitBtn.disabled = false;
+          submitBtn.textContent = '登录';
+
+          if (res.error) {
+            resultEl.style.color = 'var(--red)';
+            resultEl.textContent = res.error.message || res.error;
+            return;
+          }
+          resultEl.style.color = 'var(--green)';
+          resultEl.textContent = '登录成功！';
+          submitBtn.textContent = '完成';
+          submitBtn.onclick = function() { close(); refreshCommunityUI(); };
+          cancelBtn.textContent = '关闭';
+        }
+
+        submitBtn.onclick = doLogin;
+        passInput.onkeydown = function(e) {
+          if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
+          else if (e.key === 'Escape') { e.preventDefault(); close(); }
+        };
+        emailInput.onkeydown = function(e) {
+          if (e.key === 'Enter') { e.preventDefault(); passInput.focus(); }
+          else if (e.key === 'Escape') { e.preventDefault(); close(); }
+        };
+      }
+
+      if (typeof CommunityAPI !== 'undefined') {
+        CommunityAPI.init();
+        CommunityAPI.restoreSession().then(() => refreshCommunityUI());
       }
     });
   })();

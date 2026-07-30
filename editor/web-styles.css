@@ -407,3 +407,35 @@ body.is-mobile .cat-btn {
   min-height: 28px;
   min-width: 28px;
 }
+
+/* User Dropdown Menu */
+.user-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 160px;
+  background: var(--bg-surface, #1e1e2e);
+  border: 1px solid var(--border, #45475a);
+  border-radius: 8px;
+  padding: 4px 0;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  z-index: 1000;
+}
+.user-menu.hidden { display: none; }
+.user-menu-item {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  text-align: left;
+  font-size: 13px;
+  background: none;
+  border: none;
+  color: var(--text-primary, #cdd6f4);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.user-menu-item:hover {
+  background: var(--bg-hover, rgba(255,255,255,0.08));
+}

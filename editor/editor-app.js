@@ -615,11 +615,9 @@
     await CommunityAPI.restoreSession();
 
     if (!CommunityAPI.getUser()) {
-      if (confirm(i18n.isEnglish()
-        ? 'You need to login first. Go to login page?'
-        : '需要先登录才能发布。跳转到登录页？')) {
-        window.open('../community/login.html', '_blank');
-      }
+      alert(i18n.isEnglish()
+        ? 'Please login from the home page before publishing.'
+        : '请先回到主页登录，然后再发布。');
       return;
     }
 
@@ -901,34 +899,18 @@
     // 发布到社区
     document.getElementById('btn-publish-community')?.addEventListener('click', publishToCommunity);
 
-    // 社区登录按钮
-    const btnCommunityLogin = document.getElementById('btn-community-login');
+    // 社区用户信息显示
     const communityUserInfo = document.getElementById('community-user-info');
 
     function refreshCommunityUI() {
       if (typeof CommunityAPI === 'undefined') return;
       const user = CommunityAPI.getUser();
       const profile = CommunityAPI.getProfile();
-      if (user) {
-        btnCommunityLogin.textContent = '✅ ' + (profile?.username || user.email || '已登录');
-        btnCommunityLogin.title = '点击登出';
-        btnCommunityLogin.onclick = async () => {
-          if (confirm(i18n.isEnglish() ? 'Are you sure to logout?' : '确定要登出吗？')) {
-            await CommunityAPI.signOut();
-            refreshCommunityUI();
-          }
-        };
-        if (communityUserInfo) {
-          communityUserInfo.textContent = '👤 ' + (profile?.username || user.email);
-          communityUserInfo.classList.remove('hidden');
-        }
-      } else {
-        btnCommunityLogin.textContent = '👤 ' + (i18n.isEnglish() ? 'Login' : '登录');
-        btnCommunityLogin.title = i18n.isEnglish() ? 'Login to community' : '登录社区';
-        btnCommunityLogin.onclick = () => {
-          window.open('../community/login.html?redirect=' + encodeURIComponent(window.location.href), '_blank');
-        };
-        if (communityUserInfo) communityUserInfo.classList.add('hidden');
+      if (user && communityUserInfo) {
+        communityUserInfo.textContent = '👤 ' + (profile?.username || user.email);
+        communityUserInfo.classList.remove('hidden');
+      } else if (communityUserInfo) {
+        communityUserInfo.classList.add('hidden');
       }
     }
 
@@ -936,12 +918,6 @@
     if (typeof CommunityAPI !== 'undefined') {
       CommunityAPI.init();
       CommunityAPI.restoreSession().then(() => refreshCommunityUI());
-      btnCommunityLogin?.addEventListener('click', () => {
-        // 未登录时打开登录页
-        if (!CommunityAPI.getUser()) {
-          window.open('../community/login.html?redirect=' + encodeURIComponent(window.location.href), '_blank');
-        }
-      });
     }
 
     // 项目重命名：点击项目名或重命名按钮
