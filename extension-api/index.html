@@ -28,6 +28,7 @@ a:hover { text-decoration:underline; }
 .top-bar nav { margin-left:auto; display:flex; gap:16px; }
 .top-bar nav a { color:var(--muted); font-size:14px; cursor:pointer; }
 .top-bar nav a:hover { color:var(--text); }
+.top-bar .online-link { margin-left:16px; padding:4px 12px; background:var(--accent); color:var(--bg); border-radius:6px; font-size:13px; font-weight:600; }
 .layout { display:flex; max-width:1400px; margin:0 auto; min-height:calc(100vh - 50px); }
 .sidebar { width:260px; flex-shrink:0; padding:24px 16px; border-right:1px solid var(--border); position:sticky; top:50px; height:calc(100vh - 50px); overflow-y:auto; }
 .sidebar h3 { font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin:16px 0 8px; }
@@ -74,8 +75,10 @@ tr:nth-child(even) td { background:rgba(49,50,68,.4); }
     <a data-go="quickstart">快速开始</a>
     <a data-go="block-def">积木定义</a>
     <a data-go="executor">执行器</a>
-    <a data-go="example-json">示例</a>
+    <a data-go="api-stage">精灵 API</a>
+    <a data-go="example-sprite">示例</a>
   </nav>
+  <a class="online-link" href="https://tomlct2015.github.io/Objector-Coder/extension-api" target="_blank">🌐 在线版</a>
 </div>
 
 <div class="layout">
@@ -103,12 +106,17 @@ tr:nth-child(even) td { background:rgba(49,50,68,.4); }
   <a data-go="api-register">registerExtension</a>
   <a data-go="api-load">加载方法</a>
   <a data-go="api-query">查询方法</a>
+  <a data-go="api-stage">StageManager API</a>
+  <a data-go="api-sound">SoundManager API</a>
+  <a data-go="api-sensing">SensingInput API</a>
   <h3>完整示例</h3>
   <a data-go="example-json">JSON 扩展示例</a>
   <a data-go="example-js">JS 扩展示例</a>
   <a data-go="example-dynamic">可扩展参数示例</a>
   <a data-go="example-async">异步扩展示例</a>
+  <a data-go="example-sprite">精灵控制示例</a>
   <h3>参考</h3>
+  <a data-go="sprite-scripts">多精灵脚本</a>
   <a data-go="builtin-exts">内置扩展清单</a>
   <a data-go="tips">最佳实践</a>
 </aside>
@@ -369,13 +377,15 @@ params.arg2   <span class="cm">// → 第二个动态参数</span></code></pre>
 <table>
   <tr><th>API</th><th>说明</th></tr>
   <tr><td><code>console.log(msg)</code></td><td>调试输出到控制台</td></tr>
-  <tr><td><code>EditorState.blocks</code></td><td>所有积木数据对象</td></tr>
-  <tr><td><code>StageManager</code></td><td>舞台管理（精灵坐标、方向、造型等）</td></tr>
-  <tr><td><code>SensingInput</code></td><td>输入检测（鼠标位置、键盘状态）</td></tr>
+  <tr><td><code>EditorState.blocks</code></td><td>当前精灵的积木数据对象</td></tr>
+  <tr><td><code>StageManager</code></td><td>舞台管理（精灵控制、运动、克隆等）<a data-go="api-stage" style="color:var(--accent);margin-left:4px;">→ 详情</a></td></tr>
+  <tr><td><code>SoundManager</code></td><td>声音管理（播放/停止/音量）<a data-go="api-sound" style="color:var(--accent);margin-left:4px;">→ 详情</a></td></tr>
+  <tr><td><code>SensingInput</code></td><td>输入检测（鼠标位置、键盘状态）<a data-go="api-sensing" style="color:var(--accent);margin-left:4px;">→ 详情</a></td></tr>
   <tr><td><code>ExtensionManager</code></td><td>扩展管理器（注册/查询扩展）</td></tr>
   <tr><td><code>BlockRegistry</code></td><td>积木注册表（查询积木定义）</td></tr>
   <tr><td><code>Math</code> / <code>Date</code> 等</td><td>标准 JavaScript 全局对象</td></tr>
 </table>
+<div class="tip">运行程序时，执行引擎自动收集所有精灵的积木，所有精灵的事件和脚本会同时生效。</div>
 </div>
 
 <div class="doc-section" id="sec-api-register">
@@ -410,6 +420,120 @@ params.arg2   <span class="cm">// → 第二个动态参数</span></code></pre>
   <tr><td><code>getExecutor(blockType)</code></td><td>function / null</td><td>获取指定积木类型的执行器</td></tr>
   <tr><td><code>unregisterExtension(extId)</code></td><td>boolean</td><td>卸载指定扩展</td></tr>
 </table>
+</div>
+
+<div class="doc-section" id="sec-api-stage">
+<h2>StageManager API</h2>
+<p>控制舞台上的精灵。所有方法通过 <code>StageManager.方法名()</code> 调用。</p>
+<h3>查询精灵</h3>
+<table>
+  <tr><th>方法</th><th>返回值</th><th>说明</th></tr>
+  <tr><td><code>getSprites()</code></td><td>Array&lt;Sprite&gt;</td><td>获取所有精灵对象</td></tr>
+  <tr><td><code>getSprite(idx)</code></td><td>Sprite</td><td>获取指定索引的精灵</td></tr>
+  <tr><td><code>getActiveSprite()</code></td><td>Sprite</td><td>获取当前激活的精灵</td></tr>
+  <tr><td><code>getActiveSpriteIdx()</code></td><td>number</td><td>获取当前激活精灵的索引</td></tr>
+  <tr><td><code>getSpriteByName(name)</code></td><td>Sprite / null</td><td>通过名称查找精灵</td></tr>
+  <tr><td><code>getSpriteIndexByName(name)</code></td><td>number</td><td>通过名称获取索引（-1=未找到）</td></tr>
+  <tr><td><code>getSpriteCount()</code></td><td>number</td><td>获取精灵总数</td></tr>
+  <tr><td><code>STAGE_W / STAGE_H</code></td><td>number</td><td>舞台宽度/高度（480/360）</td></tr>
+</table>
+<h3>控制精灵</h3>
+<table>
+  <tr><th>方法</th><th>说明</th></tr>
+  <tr><td><code>setActiveSprite(idx)</code></td><td>设置激活精灵（同步切换代码区）</td></tr>
+  <tr><td><code>addSprite(name)</code></td><td>添加新精灵，返回 Sprite 对象</td></tr>
+  <tr><td><code>removeSprite(idx)</code></td><td>删除精灵（至少保留一个）</td></tr>
+  <tr><td><code>cloneSprite(idx)</code></td><td>克隆精灵（复制所有属性），返回新索引</td></tr>
+</table>
+<h3>运动控制</h3>
+<table>
+  <tr><th>方法</th><th>说明</th></tr>
+  <tr><td><code>moveSprite(idx, steps)</code></td><td>沿方向前进指定步数</td></tr>
+  <tr><td><code>rotateSprite(idx, deg)</code></td><td>旋转指定度数</td></tr>
+  <tr><td><code>setSpritePos(idx, x, y)</code></td><td>设置坐标</td></tr>
+  <tr><td><code>setSpriteDir(idx, deg)</code></td><td>设置朝向</td></tr>
+  <tr><td><code>setSpriteVisible(idx, v)</code></td><td>设置可见性</td></tr>
+  <tr><td><code>setSpriteSize(idx, size)</code></td><td>设置大小（百分比）</td></tr>
+  <tr><td><code>setSpriteSay(idx, text)</code></td><td>显示说话气泡</td></tr>
+  <tr><td><code>bounceSprite(idx)</code></td><td>碰到边缘反弹</td></tr>
+</table>
+<h3>速度系统</h3>
+<table>
+  <tr><th>方法</th><th>说明</th></tr>
+  <tr><td><code>setVelocity(idx, vx, vy)</code></td><td>设置速度向量</td></tr>
+  <tr><td><code>updateVelocity(idx)</code></td><td>根据速度更新位置</td></tr>
+  <tr><td><code>applyFriction(idx, factor)</code></td><td>应用摩擦力（0~1）</td></tr>
+  <tr><td><code>applyGravity(idx, g)</code></td><td>应用重力</td></tr>
+  <tr><td><code>bounceEdgeVelocity(idx, e)</code></td><td>弹性碰撞边缘</td></tr>
+</table>
+<h3>追踪与旋转</h3>
+<table>
+  <tr><th>方法</th><th>说明</th></tr>
+  <tr><td><code>moveTowards(idx, tx, ty, steps)</code></td><td>向目标移动</td></tr>
+  <tr><td><code>moveAwayFrom(idx, tx, ty, steps)</code></td><td>远离目标移动</td></tr>
+  <tr><td><code>pointTowards(idx, tx, ty)</code></td><td>朝向目标</td></tr>
+  <tr><td><code>orbitAround(idx, tx, ty, deg, r)</code></td><td>绕目标旋转</td></tr>
+</table>
+<h3>碰撞检测</h3>
+<table>
+  <tr><th>方法</th><th>返回值</th><th>说明</th></tr>
+  <tr><td><code>isTouchingEdge(idx)</code></td><td>boolean</td><td>是否碰到边缘</td></tr>
+  <tr><td><code>isTouchingSprite(idx1, idx2)</code></td><td>boolean</td><td>两个精灵是否碰撞</td></tr>
+  <tr><td><code>getDistanceToPoint(idx, x, y)</code></td><td>number</td><td>到目标点的距离</td></tr>
+  <tr><td><code>getDirectionToPoint(idx, x, y)</code></td><td>number</td><td>到目标点的方向</td></tr>
+</table>
+<h3>造型控制</h3>
+<table>
+  <tr><th>方法</th><th>说明</th></tr>
+  <tr><td><code>setSpriteCostume(idx, path)</code></td><td>设置精灵造型</td></tr>
+  <tr><td><code>setSpriteCostumeByName(idx, name)</code></td><td>通过造型库名称设置</td></tr>
+  <tr><td><code>clearSpriteCostume(idx)</code></td><td>清除造型</td></tr>
+</table>
+<div class="tip">精灵对象属性可以直接读取：<code>sprite.x</code>、<code>sprite.y</code>、<code>sprite.direction</code>、<code>sprite.size</code>、<code>sprite.visible</code>、<code>sprite.name</code>、<code>sprite.color</code></div>
+</div>
+
+<div class="doc-section" id="sec-api-sound">
+<h2>SoundManager API</h2>
+<p>控制声音播放。所有方法通过 <code>SoundManager.方法名()</code> 调用。</p>
+<table>
+  <tr><th>方法</th><th>返回值</th><th>说明</th></tr>
+  <tr><td><code>play(name)</code></td><td>boolean</td><td>播放声音（不等待）</td></tr>
+  <tr><td><code>playAndWait(name)</code></td><td>Promise&lt;boolean&gt;</td><td>播放声音并等待完成</td></tr>
+  <tr><td><code>stop(name)</code></td><td>boolean</td><td>停止指定声音</td></tr>
+  <tr><td><code>stopAll()</code></td><td>-</td><td>停止所有声音</td></tr>
+  <tr><td><code>setVolume(vol)</code></td><td>-</td><td>设置音量（0~100）</td></tr>
+  <tr><td><code>changeVolume(delta)</code></td><td>-</td><td>改变音量（+/-）</td></tr>
+  <tr><td><code>getVolume()</code></td><td>number</td><td>获取当前音量</td></tr>
+  <tr><td><code>getSoundNames()</code></td><td>Array</td><td>获取已加载的声音列表</td></tr>
+  <tr><td><code>isPlaying(name)</code></td><td>boolean</td><td>检查声音是否正在播放</td></tr>
+</table>
+<div class="tip">声音文件放在项目的 <code>sounds/</code> 目录下（支持 mp3、wav、ogg），加载后通过文件名（无扩展名）引用。</div>
+<pre><code><span class="cm">// 在扩展执行器中使用声音</span>
+<span class="fn">ext_play_bgm</span>: <span class="kw">async function</span>(params) {
+  <span class="kw">const</span> name = params.soundName;
+  <span class="kw">if</span> (<span class="fn">SoundManager</span>.<span class="fn">isPlaying</span>(name)) {
+    <span class="fn">SoundManager</span>.<span class="fn">stop</span>(name);
+  } <span class="kw">else</span> {
+    <span class="kw">await</span> <span class="fn">SoundManager</span>.<span class="fn">playAndWait</span>(name);
+  }
+},</code></pre>
+</div>
+
+<div class="doc-section" id="sec-api-sensing">
+<h2>SensingInput API</h2>
+<p>检测键盘和鼠标输入状态。所有方法通过 <code>SensingInput.方法名()</code> 调用。</p>
+<table>
+  <tr><th>方法/属性</th><th>返回值</th><th>说明</th></tr>
+  <tr><td><code>mouseX</code></td><td>number</td><td>鼠标在舞台上的 X 坐标</td></tr>
+  <tr><td><code>mouseY</code></td><td>number</td><td>鼠标在舞台上的 Y 坐标</td></tr>
+  <tr><td><code>mouseDown</code></td><td>boolean</td><td>鼠标是否按下</td></tr>
+  <tr><td><code>keyPressed(key)</code></td><td>boolean</td><td>检测按键是否按下</td></tr>
+</table>
+<pre><code><span class="cm">// 跟随鼠标的精灵</span>
+<span class="fn">ext_follow_mouse</span>: <span class="kw">function</span>(params) {
+  <span class="kw">const</span> idx = <span class="fn">StageManager</span>.<span class="fn">getActiveSpriteIdx</span>();
+  <span class="fn">StageManager</span>.<span class="fn">setSpritePos</span>(idx, <span class="fn">SensingInput</span>.mouseX, <span class="fn">SensingInput</span>.mouseY);
+},</code></pre>
 </div>
 
 <div class="doc-section" id="sec-example-json">
@@ -572,6 +696,101 @@ params.arg2   <span class="cm">// → 第二个动态参数</span></code></pre>
   <span class="kw">params</span>: [{ <span class="kw">name</span>: <span class="str">'n'</span>, <span class="kw">type</span>: <span class="str">'number'</span>, <span class="kw">default</span>: <span class="num">10</span> }],
 }</code></pre>
 <div class="warn">C 型积木（c-block）的子代码执行需要访问执行引擎内部函数（<code>getSubTop</code>、<code>executeChain</code>）。目前在扩展执行器中无法直接调用，建议优先使用 <code>stack</code> 和 <code>reporter</code> 形状。</div>
+</div>
+
+<div class="doc-section" id="sec-example-sprite">
+<h2>精灵控制示例</h2>
+<p>在扩展中控制精灵运动、碰撞检测和克隆：</p>
+<pre><code><span class="fn">ExtensionManager.registerExtension</span>({
+  <span class="kw">id</span>: <span class="str">'ext_sprite_ai'</span>,
+  <span class="kw">name</span>: <span class="str">'精灵 AI'</span>,
+  <span class="kw">color</span>: <span class="str">'#FF9F43'</span>,
+  <span class="kw">blocks</span>: [
+    {
+      <span class="kw">type</span>: <span class="str">'ext_chase_target'</span>,
+      <span class="kw">label</span>: <span class="str">'精灵 {name} 追踪 {target}'</span>,
+      <span class="kw">shape</span>: <span class="str">'stack'</span>,
+      <span class="kw">params</span>: [
+        { <span class="kw">name</span>: <span class="str">'name'</span>, <span class="kw">type</span>: <span class="str">'string'</span>, <span class="kw">default</span>: <span class="str">'精灵1'</span> },
+        { <span class="kw">name</span>: <span class="str">'target'</span>, <span class="kw">type</span>: <span class="str">'string'</span>, <span class="kw">default</span>: <span class="str">'精灵2'</span> },
+      ],
+    },
+    {
+      <span class="kw">type</span>: <span class="str">'ext_spawn_clone'</span>,
+      <span class="kw">label</span>: <span class="str">'克隆精灵 {name} 并偏移 {dx} {dy}'</span>,
+      <span class="kw">shape</span>: <span class="str">'stack'</span>,
+      <span class="kw">params</span>: [
+        { <span class="kw">name</span>: <span class="str">'name'</span>, <span class="kw">type</span>: <span class="str">'string'</span>, <span class="kw">default</span>: <span class="str">'精灵1'</span> },
+        { <span class="kw">name</span>: <span class="str">'dx'</span>, <span class="kw">type</span>: <span class="str">'number'</span>, <span class="kw">default</span>: <span class="num">50</span> },
+        { <span class="kw">name</span>: <span class="str">'dy'</span>, <span class="kw">type</span>: <span class="str">'number'</span>, <span class="kw">default</span>: <span class="num">0</span> },
+      ],
+    },
+    {
+      <span class="kw">type</span>: <span class="str">'ext_is_near'</span>,
+      <span class="kw">label</span>: <span class="str">'{a} 接近 {b} 距离 {dist}'</span>,
+      <span class="kw">shape</span>: <span class="str">'boolean'</span>,
+      <span class="kw">ports</span>: { <span class="kw">flowIn</span>: <span class="kw">false</span>, <span class="kw">flowOut</span>: <span class="kw">false</span> },
+      <span class="kw">params</span>: [
+        { <span class="kw">name</span>: <span class="str">'a'</span>, <span class="kw">type</span>: <span class="str">'string'</span>, <span class="kw">default</span>: <span class="str">'精灵1'</span> },
+        { <span class="kw">name</span>: <span class="str">'b'</span>, <span class="kw">type</span>: <span class="str">'string'</span>, <span class="kw">default</span>: <span class="str">'精灵2'</span> },
+        { <span class="kw">name</span>: <span class="str">'dist'</span>, <span class="kw">type</span>: <span class="str">'number'</span>, <span class="kw">default</span>: <span class="num">50</span> },
+      ],
+    },
+  ],
+  <span class="kw">executors</span>: {
+    <span class="fn">ext_chase_target</span>: <span class="kw">function</span>(params) {
+      <span class="kw">const</span> idx = <span class="fn">StageManager</span>.<span class="fn">getSpriteIndexByName</span>(params.name);
+      <span class="kw">const</span> tidx = <span class="fn">StageManager</span>.<span class="fn">getSpriteIndexByName</span>(params.target);
+      <span class="kw">if</span> (idx < <span class="num">0</span> || tidx < <span class="num">0</span>) <span class="kw">return</span>;
+      <span class="kw">const</span> t = <span class="fn">StageManager</span>.<span class="fn">getSprite</span>(tidx);
+      <span class="fn">StageManager</span>.<span class="fn">moveTowards</span>(idx, t.x, t.y, <span class="num">3</span>);
+      <span class="fn">StageManager</span>.<span class="fn">pointTowards</span>(idx, t.x, t.y);
+    },
+    <span class="fn">ext_spawn_clone</span>: <span class="kw">function</span>(params) {
+      <span class="kw">const</span> idx = <span class="fn">StageManager</span>.<span class="fn">getSpriteIndexByName</span>(params.name);
+      <span class="kw">if</span> (idx < <span class="num">0</span>) <span class="kw">return</span>;
+      <span class="kw">const</span> newIdx = <span class="fn">StageManager</span>.<span class="fn">cloneSprite</span>(idx);
+      <span class="kw">if</span> (newIdx !== <span class="kw">null</span>) {
+        <span class="kw">const</span> s = <span class="fn">StageManager</span>.<span class="fn">getSprite</span>(newIdx);
+        s.x += <span class="fn">Number</span>(params.dx);
+        s.y += <span class="fn">Number</span>(params.dy);
+      }
+    },
+    <span class="fn">ext_is_near</span>: <span class="kw">function</span>(params) {
+      <span class="kw">const</span> a = <span class="fn">StageManager</span>.<span class="fn">getSpriteByName</span>(params.a);
+      <span class="kw">const</span> b = <span class="fn">StageManager</span>.<span class="fn">getSpriteByName</span>(params.b);
+      <span class="kw">if</span> (!a || !b) <span class="kw">return false</span>;
+      <span class="kw">const</span> dx = a.x - b.x, dy = a.y - b.y;
+      <span class="kw">return</span> <span class="fn">Math</span>.<span class="fn">sqrt</span>(dx*dx + dy*dy) <= <span class="fn">Number</span>(params.dist);
+    },
+  },
+});</code></pre>
+</div>
+
+<div class="doc-section" id="sec-sprite-scripts">
+<h2>多精灵脚本系统</h2>
+<p>Objector 支持为每个精灵编写独立的脚本。切换精灵时，代码区自动显示该精灵的积木：</p>
+<h3>工作原理</h3>
+<ul style="margin:12px 0 0 20px;">
+  <li>每个精灵拥有独立的积木脚本存储</li>
+  <li>点击精灵切换时，代码区自动更新为该精灵的代码</li>
+  <li>运行程序时，所有精灵的脚本同时生效（事件触发、定时器等）</li>
+  <li>保存项目时，每个精灵的脚本随精灵数据一起存储</li>
+</ul>
+<h3>扩展中使用</h3>
+<pre><code><span class="cm">// 获取特定精灵的积木数据</span>
+<span class="kw">const</span> sprite = <span class="fn">StageManager</span>.<span class="fn">getSpriteByName</span>(<span class="str">'敌人'</span>);
+<span class="kw">if</span> (sprite) {
+  <span class="kw">const</span> blockCount = <span class="fn">Object</span>.<span class="fn">keys</span>(sprite.blocks || {}).<span class="kw">length</span>;
+  <span class="fn">console</span>.<span class="fn">log</span>(<span class="str">'敌人有'</span>, blockCount, <span class="str">'个积木'</span>);
+}
+
+<span class="cm">// 获取所有精灵的合并积木</span>
+<span class="kw">const</span> allBlocks = <span class="fn">StageManager</span>.<span class="fn">getAllBlocks</span>();
+<span class="kw">const</span> startBlocks = <span class="fn">Object</span>.<span class="fn">values</span>(allBlocks).<span class="fn">filter</span>(
+  b => b.type === <span class="str">'event_start'</span>
+);</code></pre>
+<div class="tip">旧项目（单个脚本文件）会自动将所有积木分配给第一个精灵，保持完全兼容。</div>
 </div>
 
 <div class="doc-section" id="sec-builtin-exts">
