@@ -692,6 +692,68 @@ const CommunityAPI = (function () {
   }
 
   // ============================================================
+  // Binding Codes - Software Account Binding
+  // ============================================================
+
+  /** Generate a random 6-digit binding code for the current user */
+  async function generateBindingCode() {
+    if (!_user) return { error: 'Not logged in' };
+    if (!_supabase) return { error: 'Not initialized' };
+
+    // Delete old codes from this user
+    await _supabase.from('binding_codes').delete().eq('user_id', _user.id);
+
+    // Generate 6-digit code
+    var code = String(Math.floor(100000 + Math.random() * 900000));
+
+    // Expires in 5 minutes
+    var expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+    var profile = _profile || await loadProfile();
+    var username = profile ? profile.username : (_user.email || 'Unknown');
+
+    const { data, error } = await _supabase.from('binding_codes').insert({
+      user_id: _user.id,
+      code: code,
+      expires_at: expiresAt,
+      username: username,
+    }).select().single();
+
+    if (error) return { error };
+    return { data: { code: code, expires_at: expiresAt, username: username } };
+  }
+
+  /** Verify a binding code and return user info if valid */
+  async function verifyBindingCode(code) {
+    if (!_supabase) return { error: 'Not initialized' };
+    if (!code || code.length !== 6) return { error: 'Invalid code format' };
+
+    const { data, error } = await _supabase
+      .from('binding_codes')
+      .select('*, profiles(username, avatar_url)')
+      .eq('code', code)
+      .single();
+
+    if (error || !data) return { error: 'Code not found or invalid' };
+
+    // Check expiry
+    if (new Date(data.expires_at) < new Date()) {
+      return { error: 'Code expired' };
+    }
+
+    // Delete the used code
+    await _supabase.from('binding_codes').delete().eq('id', data.id);
+
+    return {
+      data: {
+        user_id: data.user_id,
+        username: data.profiles ? data.profiles.username : (data.username || 'Unknown'),
+        email: data.user_id,
+      }
+    };
+  }
+
+  // ============================================================
   // Utility
   // ============================================================
 
@@ -736,6 +798,7 @@ const CommunityAPI = (function () {
     getFavorites,
     getUserProjects, getUserPosts, getUserExtensions, getUserFavorites, getProfileById,
     formatTime, escapeHtml, getParams,
+    generateBindingCode, verifyBindingCode,
     PAGE_SIZE,
   };
 })();
