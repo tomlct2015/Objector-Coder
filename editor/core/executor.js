@@ -16,6 +16,7 @@ const Executor = (function () {
   let _turboMode = 0;  // turbo 嵌套计数器，>0 表示处于 turbo 模式
   let _spriteClickHandler = null;  // 精灵点击事件处理器
   let _savedBlocks = null;  // 保存编辑器状态的积木（运行时用全部精灵积木替换）
+  let _blockSpriteIdx = {};  // blockId → spriteIdx 映射（并发执行时恢复精灵上下文）
 
   function getOutput() { return _output; }
   function clearOutput() { _output = []; }
@@ -47,8 +48,18 @@ const Executor = (function () {
     try {
       // 运行时使用所有精灵的积木（而非仅当前精灵）
       _savedBlocks = EditorState.blocks;
+      _blockSpriteIdx = {};  // blockId → spriteIdx 映射
       if (typeof StageManager !== 'undefined' && StageManager.getAllBlocks) {
         EditorState.blocks = StageManager.getAllBlocks();
+        // 构建 blockId → spriteIdx 映射，用于并发执行时切换当前精灵
+        const sprites = StageManager.getSprites();
+        for (let si = 0; si < sprites.length; si++) {
+          if (sprites[si].blocks) {
+            for (const bid of Object.keys(sprites[si].blocks)) {
+              _blockSpriteIdx[bid] = si;
+            }
+          }
+        }
       }
 
       // 先收集类定义
@@ -69,6 +80,8 @@ const Executor = (function () {
             const targetKey = (b.params && b.params.key) || 'space';
             if (targetKey === keyName && !firedKeys[keyName]) {
               firedKeys[keyName] = true;
+              const si = _blockSpriteIdx[b.id];
+              if (si !== undefined) StageManager.setActiveSprite(si);
               executeChain(b, {}).catch(err => log('错误: ' + err.message));
             }
           });
@@ -89,6 +102,8 @@ const Executor = (function () {
       const ms = Math.max(sec * 1000, 50);
       const intervalId = setInterval(() => {
         if (_stopRequested || !_running) return;
+        const si = _blockSpriteIdx[tb.id];
+        if (si !== undefined) StageManager.setActiveSprite(si);
         executeChain(tb, {}).catch(err => log('定时器错误: ' + err.message));
       }, ms);
       _timers.push(intervalId);
@@ -97,6 +112,8 @@ const Executor = (function () {
     // 注册广播接收者
     const receiveBlocks = Object.values(EditorState.blocks).filter(b => b.type === 'event_receive');
     _broadcastListeners = receiveBlocks;
+    // 广播触发时需要设置正确的精灵索引
+    const broadcastBlockSpriteIdx = _blockSpriteIdx;
 
     // 注册精灵点击事件
     const spriteClickBlocks = Object.values(EditorState.blocks).filter(b => b.type === 'event_sprite_clicked');
@@ -120,6 +137,8 @@ const Executor = (function () {
               // 点击了精灵 i
               StageManager.setActiveSprite(i);
               spriteClickBlocks.forEach(b => {
+                const si = _blockSpriteIdx[b.id];
+                if (si !== undefined) StageManager.setActiveSprite(si);
                 executeChain(b, {}).catch(err => log('精灵点击错误: ' + err.message));
               });
               break;
@@ -130,12 +149,14 @@ const Executor = (function () {
       }
     }
 
-    // 找到所有 event_start 积木并执行
+    // 找到所有 event_start 积木并并发执行（每个精灵独立运行）
     const starts = Object.values(EditorState.blocks).filter(b => b.type === 'event_start');
-    for (const start of starts) {
-      if (_stopRequested) break;
-      await executeChain(start, {});
-    }
+    await Promise.all(starts.map(start => {
+      if (_stopRequested) return Promise.resolve();
+      const si = _blockSpriteIdx[start.id];
+      if (si !== undefined) StageManager.setActiveSprite(si);
+      return executeChain(start, {});
+    }));
 
     // 如果有按键事件/定时器/广播接收者/精灵点击，保持运行
     const hasPersistentEvents = keyBlocks.length > 0 || timerBlocks.length > 0 || receiveBlocks.length > 0 || spriteClickBlocks.length > 0;
@@ -189,6 +210,9 @@ const Executor = (function () {
   async function executeChain(block, localScope) {
     let cur = block;
     while (cur && !_stopRequested) {
+      // 并发执行时，每个 block 执行前恢复其所属精灵的上下文
+      const si = _blockSpriteIdx[cur.id];
+      if (si !== undefined && typeof StageManager !== 'undefined') StageManager.setActiveSprite(si);
       const result = await executeBlock(cur, localScope);
       if (result === '__RETURN__' || result === '__STOP__') return result;
       cur = cur.flowOut ? EditorState.blocks[cur.flowOut] : null;
@@ -224,6 +248,8 @@ const Executor = (function () {
       _broadcastListeners.forEach(rb => {
         const targetMsg = String(rb.params?.msg || '');
         if (targetMsg === msg) {
+          const si = broadcastBlockSpriteIdx[rb.id];
+          if (si !== undefined) StageManager.setActiveSprite(si);
           executeChain(rb, {}).catch(err => log('广播错误: ' + err.message));
         }
       });
@@ -235,6 +261,8 @@ const Executor = (function () {
       _broadcastListeners.forEach(rb => {
         const targetMsg = String(rb.params?.msg || '');
         if (targetMsg === msg) {
+          const si = broadcastBlockSpriteIdx[rb.id];
+          if (si !== undefined) StageManager.setActiveSprite(si);
           promises.push(executeChain(rb, {}));
         }
       });
