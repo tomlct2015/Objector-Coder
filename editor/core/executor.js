@@ -48,8 +48,11 @@ const Executor = (function () {
     try {
       // 运行时使用所有精灵的积木（而非仅当前精灵）
       _savedBlocks = EditorState.blocks;
+      const _savedActiveIdx = typeof StageManager !== 'undefined' ? StageManager.getActiveSpriteIdx() : 0;
       _blockSpriteIdx = {};  // blockId → spriteIdx 映射
       if (typeof StageManager !== 'undefined' && StageManager.getAllBlocks) {
+        // 进入执行模式：禁止 setActiveSprite 同步积木
+        if (StageManager.setExecuting) StageManager.setExecuting(true);
         EditorState.blocks = StageManager.getAllBlocks();
         // 构建 blockId → spriteIdx 映射，用于并发执行时切换当前精灵
         const sprites = StageManager.getSprites();
@@ -191,10 +194,17 @@ const Executor = (function () {
 
     _running = false;
     EditorState.running = false;
-    // 恢复编辑器状态的积木（当前精灵的）
+    // 退出执行模式，恢复编辑器状态
+    if (typeof StageManager !== 'undefined' && StageManager.setExecuting) {
+      StageManager.setExecuting(false);
+    }
     if (_savedBlocks) {
       EditorState.blocks = _savedBlocks;
       _savedBlocks = null;
+    }
+    // 恢复到运行前的精灵状态
+    if (typeof StageManager !== 'undefined' && StageManager.setActiveSprite) {
+      StageManager.setActiveSprite(typeof _savedActiveIdx !== 'undefined' ? _savedActiveIdx : 0);
     }
     if (typeof DevMode !== 'undefined') DevMode.setExecutingBlock(null);
     document.getElementById('btn-run').disabled = false;
