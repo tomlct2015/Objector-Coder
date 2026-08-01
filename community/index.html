@@ -52,6 +52,15 @@
     <div id="hot-extensions" class="card-grid"></div>
   </section>
 
+  <!-- 学习文章 -->
+  <section class="section">
+    <div class="section-header">
+      <h2>📖 学习文章</h2>
+      <a href="learn/index.html" class="view-all">查看全部 →</a>
+    </div>
+    <div id="recent-articles" class="card-grid"></div>
+  </section>
+
   <footer class="footer">
     <p>Objector Community · Powered by Supabase</p>
   </footer>
@@ -95,6 +104,17 @@
         ).join('');
       } else {
         extGrid.innerHTML = '<div class="empty-state"><p>还没有扩展，开发第一个吧！</p></div>';
+      }
+
+      // 学习文章（取6个）
+      const learnRes = await CommunityAPI.getPosts(1, 'learn', 'popular');
+      const articlesGrid = document.getElementById('recent-articles');
+      if (learnRes.data && learnRes.data.length > 0) {
+        articlesGrid.innerHTML = learnRes.data.slice(0, 6).map(a =>
+          CommunityUI.renderArticleCard(a, 'learn/')
+        ).join('');
+      } else {
+        articlesGrid.innerHTML = '<div class="empty-state"><p>还没有学习文章，来发表第一篇吧！</p><a href="learn/publish.html" class="btn btn-primary">写文章</a></div>';
       }
     }
 
