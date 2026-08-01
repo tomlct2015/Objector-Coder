@@ -9,30 +9,32 @@ const CommunityUI = (function () {
   // Navigation 导航栏
   // ============================================================
 
-  function renderNav(containerId) {
+  function renderNav(containerId, basePath) {
     const container = document.getElementById(containerId || 'nav');
     if (!container) return;
+    const base = basePath || '';
     const user = API.getUser();
     const profile = API.getProfile();
 
     container.innerHTML = `
       <div class="nav-inner">
-        <a href="index.html" class="nav-logo">⚡ Objector 社区</a>
+        <a href="${base}index.html" class="nav-logo">⚡ Objector 社区</a>
         <div class="nav-links">
-          <a href="index.html" class="nav-link ${isPage('index') ? 'active' : ''}">首页</a>
-          <a href="projects.html" class="nav-link ${isPage('projects') || isPage('project-detail') ? 'active' : ''}">作品</a>
-          <a href="posts.html" class="nav-link ${isPage('posts') || isPage('post-detail') || isPage('post-new') ? 'active' : ''}">讨论</a>
-          <a href="extensions.html" class="nav-link ${isPage('extensions') || isPage('extension-detail') ? 'active' : ''}">扩展</a>
+          <a href="${base}index.html" class="nav-link ${isPage('community/index') || (!isPage('projects') && !isPage('posts') && !isPage('extensions') && !isPage('learn') && isPage('index')) ? 'active' : ''}">首页</a>
+          <a href="${base}projects.html" class="nav-link ${isPage('projects') || isPage('project-detail') ? 'active' : ''}">作品</a>
+          <a href="${base}posts.html" class="nav-link ${isPage('posts') || (isPage('post-detail') && !isPage('learn')) || isPage('post-new') ? 'active' : ''}">讨论</a>
+          <a href="${base}extensions.html" class="nav-link ${isPage('extensions') || isPage('extension-detail') ? 'active' : ''}">扩展</a>
+          <a href="${base}learn/index.html" class="nav-link ${isPage('learn') ? 'active' : ''}">📖 学习</a>
         </div>
         <div class="nav-actions">
           ${user ? `
-            <span class="nav-user" onclick="window.location.href='profile.html?id=${user.id}'">
+            <span class="nav-user" onclick="window.location.href='${base}profile.html?id=${user.id}'">
               <span class="nav-avatar">${(profile?.username || 'U')[0].toUpperCase()}</span>
               <span class="nav-username">${API.escapeHtml(profile?.username || 'User')}</span>
             </span>
             <button class="nav-btn nav-btn-ghost" id="btn-logout">退出</button>
           ` : `
-            <a href="login.html" class="nav-btn nav-btn-primary">登录 / 注册</a>
+            <a href="${base}login.html" class="nav-btn nav-btn-primary">登录 / 注册</a>
           `}
         </div>
       </div>
@@ -89,6 +91,30 @@ const CommunityUI = (function () {
           </div>
           <div class="card-title">${API.escapeHtml(post.title)}</div>
           <div class="card-preview">${API.escapeHtml((post.content || '').slice(0, 100))}${(post.content || '').length > 100 ? '...' : ''}</div>
+          <div class="card-meta">
+            <span class="card-author">${API.escapeHtml(author.username || '匿名')}</span>
+            <span class="card-stats">
+              <span>❤ ${post.likes_count || 0}</span>
+              <span>💬 ${post.comments_count || 0}</span>
+            </span>
+          </div>
+        </div>
+      </a>
+    `;
+  }
+
+  function renderArticleCard(post, linkBase) {
+    const author = post.profiles || {};
+    const base = linkBase || '';
+    return `
+      <a href="${base}article.html?id=${post.id}" class="card article-card">
+        <div class="card-body">
+          <div class="card-top-row">
+            <span class="card-category" style="background:#cba6f7">📖 学习</span>
+            <span class="card-time">${API.formatTime(post.created_at)}</span>
+          </div>
+          <div class="card-title">${API.escapeHtml(post.title)}</div>
+          <div class="card-preview">${API.escapeHtml((post.content || '').slice(0, 150))}${(post.content || '').length > 150 ? '...' : ''}</div>
           <div class="card-meta">
             <span class="card-author">${API.escapeHtml(author.username || '匿名')}</span>
             <span class="card-stats">
@@ -317,7 +343,7 @@ const CommunityUI = (function () {
   }
 
   return {
-    renderNav, renderProjectCard, renderPostCard, renderExtensionCard,
+    renderNav, renderProjectCard, renderPostCard, renderArticleCard, renderExtensionCard,
     renderCommentList, renderCommentForm, bindCommentForm,
     renderPagination, renderLikeButton, renderEmpty, renderLoading, showToast,
   };
