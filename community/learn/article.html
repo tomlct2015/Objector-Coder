@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>文章详情 - Objector 社区</title>
+  <link rel="icon" href="../icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="../shared/community.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="../shared/community-api.js"></script>
+  <script src="../shared/community-ui.js"></script>
+</head>
+<body>
+  <div id="nav"></div>
+
+  <div class="page-container">
+    <div style="margin-bottom:16px">
+      <a href="index.html" class="btn btn-outline btn-sm">← 返回学习列表</a>
+    </div>
+
+    <div id="article-detail">
+      <div class="loading-spinner"><div class="spinner"></div><div>加载中...</div></div>
+    </div>
+
+    <!-- 评论区 -->
+    <section id="comments-section" style="display:none; margin-top:32px;">
+      <h3 class="section-title">💬 评论</h3>
+      <div id="comment-form-wrap"></div>
+      <div id="comments-list"></div>
+    </section>
+  </div>
+
+  <footer class="footer">
+    <p>Objector Community · Powered by Supabase</p>
+  </footer>
+
+  <script>
+    CommunityAPI.init();
+    CommunityUI.renderNav('nav', '../');
+    CommunityAPI.restoreSession().then(() => CommunityUI.renderNav('nav', '../'));
+
+    const articleId = new URLSearchParams(location.search).get('id');
+
+    async function loadArticle() {
+      if (!articleId) {
+        document.getElementById('article-detail').innerHTML = CommunityUI.renderEmpty('文章不存在', '⚠️');
+        return;
+      }
+
+      const res = await CommunityAPI.getPostById(articleId);
+      if (res.error || !res.data) {
+        document.getElementById('article-detail').innerHTML = CommunityUI.renderEmpty('文章不存在或已被删除', '⚠️');
+        return;
+      }
+
+      renderArticle(res.data);
+      loadComments();
+    }
+
+    function renderArticle(a) {
+      const user = CommunityAPI.getUser();
+      const isAuthor = user && a.author_id === user.id;
+      const authorName = a.profiles ? a.profiles.username : '匿名';
+      const authorAvatar = a.profiles ? a.profiles.avatar_url : null;
+
+      document.getElementById('article-detail').innerHTML = `
+        <article class="post-article">
+          <div class="post-header">
+            <span class="badge" style="background:#cba6f7;color:#1a1a2e;">📖 学习</span>
+            <h1>${CommunityAPI.escapeHtml(a.title)}</h1>
+            <div class="post-meta">
+              <a href="../profile.html?id=${a.author_id}" class="user-link">
+                ${authorAvatar ? `<img src="${authorAvatar}" class="avatar-sm" />` : ''}
+                ${CommunityAPI.escapeHtml(authorName)}
+              </a>
+              <span>·</span>
+              <span>${new Date(a.created_at).toLocaleDateString('zh-CN')}</span>
+              <span>·</span>
+              <span>❤️ ${a.likes_count || 0}</span>
+              <span>·</span>
+              <span>💬 ${a.comments_count || 0}</span>
+            </div>
+          </div>
+          <div class="post-content markdown-body">${marked.parse(a.content || '')}</div>
+          <div class="post-actions">
+            <div id="like-container" style="display:inline-block"></div>
+            ${isAuthor ? `<button class="btn btn-danger btn-sm" id="btn-delete">删除</button>` : ''}
+          </div>
+        </article>
+      `;
+
+      // 点赞按钮
+      const likeContainer = document.getElementById('like-container');
+      if (user && likeContainer) {
+        CommunityUI.renderLikeButton(likeContainer, 'post', articleId, a.likes_count || 0, false);
+      }
+
+      // 删除按钮
+      const btnDelete = document.getElementById('btn-delete');
+      if (btnDelete) {
+        btnDelete.addEventListener('click', async () => {
+          if (!confirm('确定要删除这篇文章吗？')) return;
+          const result = await CommunityAPI.deletePost(articleId);
+          if (result.error) {
+            CommunityUI.showToast('删除失败', 'error');
+          } else {
+            CommunityUI.showToast('已删除', 'success');
+            setTimeout(() => location.href = 'index.html', 800);
+          }
+        });
+      }
+
+      document.getElementById('comments-section').style.display = '';
+    }
+
+    async function loadComments() {
+      const res = await CommunityAPI.getComments('post', articleId);
+      const list = document.getElementById('comments-list');
+      const formWrap = document.getElementById('comment-form-wrap');
+
+      // 渲染评论表单
+      const user = CommunityAPI.getUser();
+      if (user) {
+        formWrap.innerHTML = CommunityUI.renderCommentForm('post', articleId, loadComments);
+        CommunityUI.bindCommentForm('post', articleId, '#comment-form-wrap', loadComments);
+      } else {
+        formWrap.innerHTML = '<div class="comment-form-locked"><a href="../login.html">登录</a>后才能评论</div>';
+      }
+
+      // 渲染评论列表
+      if (res.data && res.data.length > 0) {
+        list.innerHTML = CommunityUI.renderCommentList(res.data);
+      } else {
+        list.innerHTML = '<div class="empty-hint">暂无评论</div>';
+      }
+    }
+
+    loadArticle();
+  </script>
+</body>
+</html>

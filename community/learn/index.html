@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>📖 学习 - Objector 社区</title>
+  <link rel="icon" href="../icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="../shared/community.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="../shared/community-api.js"></script>
+  <script src="../shared/community-ui.js"></script>
+</head>
+<body>
+  <div id="nav"></div>
+
+  <div class="page-container">
+    <div class="page-header">
+      <div class="page-header-row">
+        <div>
+          <h1>📖 学习文章</h1>
+          <p>关于 Objector 的教程、技巧与论文</p>
+        </div>
+        <a href="publish.html" class="btn btn-primary" id="btn-publish" style="display:none">✏️ 发表文章</a>
+      </div>
+    </div>
+
+    <!-- 搜索 -->
+    <div class="filter-bar">
+      <input type="text" class="form-input" id="search-input" placeholder="搜索文章..." />
+      <select class="form-select" id="sort-select">
+        <option value="newest">最新</option>
+        <option value="popular">最热</option>
+      </select>
+    </div>
+
+    <!-- 文章列表 -->
+    <div id="articles-list" class="card-grid"></div>
+
+    <!-- 分页 -->
+    <div id="pagination" class="pagination"></div>
+  </div>
+
+  <footer class="footer">
+    <p>Objector Community · Powered by Supabase</p>
+  </footer>
+
+  <script>
+    CommunityAPI.init();
+    CommunityUI.renderNav('nav', '../');
+    CommunityAPI.restoreSession().then(() => {
+      CommunityUI.renderNav('nav', '../');
+      if (CommunityAPI.getUser()) {
+        document.getElementById('btn-publish').style.display = '';
+      }
+    });
+
+    let currentPage = 1;
+    let currentSort = 'newest';
+    let searchQuery = '';
+    let searchTimer = null;
+
+    document.getElementById('sort-select').addEventListener('change', (e) => {
+      currentSort = e.target.value;
+      currentPage = 1;
+      loadArticles();
+    });
+
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        searchQuery = e.target.value.trim();
+        currentPage = 1;
+        loadArticles();
+      }, 400);
+    });
+
+    async function loadArticles() {
+      const list = document.getElementById('articles-list');
+      list.innerHTML = CommunityUI.renderLoading();
+
+      const res = await CommunityAPI.getPosts(currentPage, 'learn', currentSort, searchQuery);
+      if (res.error) {
+        list.innerHTML = CommunityUI.renderEmpty('加载失败', '⚠️');
+        return;
+      }
+
+      if (!res.data || res.data.length === 0) {
+        list.innerHTML = CommunityUI.renderEmpty(searchQuery ? '没有找到相关文章' : '还没有文章，来发表第一篇吧！', '📖');
+        document.getElementById('pagination').innerHTML = '';
+        return;
+      }
+
+      list.innerHTML = res.data.map(p => CommunityUI.renderArticleCard(p)).join('');
+      CommunityUI.renderPagination('pagination', currentPage, res.total || res.data.length, (page) => {
+        currentPage = page;
+        loadArticles();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+
+    loadArticles();
+  </script>
+</body>
+</html>
