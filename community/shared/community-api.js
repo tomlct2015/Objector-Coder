@@ -499,24 +499,33 @@ const CommunityAPI = (function () {
         contentType = 'application/json';
       }
       const filePath = `${_user.id}/${extId}_${Date.now()}${fileExt}`;
+
+      // 确保 bucket 存在
+      try {
+        await _supabase.storage.from('extensions').list('', { limit: 1 });
+      } catch (bucketErr) {
+        console.warn('[publishExtension] bucket 检查失败，尝试创建:', bucketErr.message);
+      }
+
       const { error } = await _supabase.storage.from('extensions').upload(filePath, blob, {
         contentType,
         upsert: false,
         cacheControl: '0',
       });
       if (error) {
-        console.warn('[publishExtension] 上传失败:', error.message);
-      } else {
-        const { data: urlData } = _supabase.storage.from('extensions').getPublicUrl(filePath);
-        fileUrl = urlData.publicUrl;
+        console.error('[publishExtension] 上传失败:', error.message);
+        return { error: { message: '文件上传失败: ' + error.message + '。请检查 Supabase storage bucket "extensions" 是否已创建。' } };
       }
+      const { data: urlData } = _supabase.storage.from('extensions').getPublicUrl(filePath);
+      fileUrl = urlData.publicUrl;
     }
 
-    const { data, error } = await _supabase.from('extensions').insert({
+    // 使用 upsert 避免 ext_id 重复键错误（自动覆盖同 ext_id 的记录）
+    const { data, error } = await _supabase.from('extensions').upsert({
       author_id: _user.id, name, ext_id: extId,
       description: description || '', version: version || '1.0.0',
       file_url: fileUrl,
-    }).select().single();
+    }, { onConflict: 'ext_id' }).select().single();
     return { data, error };
   }
 
