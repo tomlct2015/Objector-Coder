@@ -696,13 +696,39 @@
 
         // ===== 发布扩展 =====
         if (isExtension && (formData.publishMode === 'ext_only' || formData.publishMode === 'both')) {
+          // 重新收集扩展文件（发布时可能已修改）
+          let currentExtFileContent = extensionFileContent;
+          if (!currentExtFileContent) {
+            const pp = EditorState.projectPath.replace(/\\/g, '/').replace(/\/+$/, '');
+            const vfsPfx = 'vfs:';
+            const eDir = pp + '/extensions/';
+            for (let i = 0; i < localStorage.length; i++) {
+              const k = localStorage.key(i);
+              if (!k.startsWith(vfsPfx)) continue;
+              const fp = k.slice(vfsPfx.length);
+              if (fp.startsWith(eDir) && !fp.endsWith('/__dir__')) {
+                const c = localStorage.getItem(k);
+                if (c) { currentExtFileContent = c; break; }
+              }
+            }
+          }
+
+          if (!currentExtFileContent) {
+            const noFileMsg = i18n.isEnglish()
+              ? 'No extension files found in extensions/ directory. Please create and save at least one .json or .js file.'
+              : '未找到扩展文件。请在 extensions/ 目录下新建并保存至少一个 .json 或 .js 文件。';
+            alert(noFileMsg);
+            document.getElementById('status-text').textContent = i18n.t('status.ready');
+            return;
+          }
+
           let extResult;
           if (formData.extAction === 'update' && formData.extExistingId) {
             extResult = await CommunityAPI.updateExtension(formData.extExistingId, {
               name: formData.title,
               description: formData.description,
               version: formData.version,
-            }, extensionFileContent);
+            }, currentExtFileContent);
             extResultId = formData.extExistingId;
           } else {
             extResult = await CommunityAPI.publishExtension(
@@ -710,7 +736,7 @@
               formData.extId || projectName.replace(/\s+/g, '_').toLowerCase(),
               formData.description,
               formData.version,
-              extensionFileContent
+              currentExtFileContent
             );
             extResultId = extResult.data?.id;
           }
