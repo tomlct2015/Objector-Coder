@@ -498,7 +498,11 @@ const CommunityAPI = (function () {
         fileExt = '.json';
         contentType = 'application/json';
       }
-      const filePath = `${_user.id}/${extId}_${Date.now()}${fileExt}`;
+      // 对 extId 做 ASCII 安全化处理（Supabase Storage key 不允许非 ASCII 字符）
+      const safeExtId = String(extId).replace(/[^a-zA-Z0-9_\-]/g, function(ch) {
+        return '_u' + ch.charCodeAt(0).toString(16) + '_';
+      });
+      const filePath = `${_user.id}/${safeExtId}_${Date.now()}${fileExt}`;
 
       // 确保 bucket 存在
       try {
