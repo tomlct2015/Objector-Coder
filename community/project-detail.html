@@ -108,13 +108,7 @@
       const btnPreview = document.getElementById('btn-preview');
       if (btnPreview) {
         btnPreview.addEventListener('click', () => {
-          try {
-            const jsonData = JSON.parse(p.json_data);
-            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(jsonData))));
-            window.open('../editor/editor.html?preview=' + encoded, '_blank');
-          } catch (e) {
-            CommunityUI.showToast('预览数据解析失败', 'error');
-          }
+          window.open('../editor/editor.html?preview=' + encodeURIComponent(projectId), '_blank');
         });
       }
 
