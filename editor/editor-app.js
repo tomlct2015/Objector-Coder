@@ -912,6 +912,12 @@
       loadProject(projectPath, projectMode);
     }
 
+    // 社区作品在线预览：通过项目 ID 从社区 API 加载
+    const previewId = params.get('preview');
+    if (previewId) {
+      loadProjectFromCommunity(previewId);
+    }
+
     // 工具栏事件
     document.getElementById('btn-home').addEventListener('click', () => {
       // Web 版：导航回主页
@@ -1023,6 +1029,104 @@
       });
     }
   });
+
+  // ============================================================
+  // 社区作品在线预览：从社区 API 获取项目并加载到编辑器
+  // ============================================================
+  async function loadProjectFromCommunity(projectId) {
+    try {
+      document.getElementById('status-text').textContent = i18n.isEnglish() ? 'Loading preview...' : '正在加载预览...';
+
+      // 初始化社区 API
+      if (typeof CommunityAPI === 'undefined') {
+        throw new Error(i18n.isEnglish() ? 'Community module not loaded' : '社区模块未加载');
+      }
+      CommunityAPI.init();
+
+      // 获取项目数据
+      const res = await CommunityAPI.getProjectById(projectId);
+      if (res.error || !res.data) {
+        throw new Error(i18n.isEnglish() ? 'Project not found' : '作品不存在');
+      }
+
+      const project = res.data;
+      const previewPath = 'vfs:community-preview/' + project.title;
+
+      // 优先使用 ZIP 文件（包含完整项目结构、精灵、造型等）
+      if (project.zip_url) {
+        try {
+          const resp = await fetch(project.zip_url);
+          if (resp.ok) {
+            const blob = await resp.blob();
+            const zip = await JSZip.loadAsync(blob);
+
+            // 将 ZIP 内容写入 VFS
+            for (const [relativePath, file] of Object.entries(zip.files)) {
+              if (file.dir) continue;
+              const fullPath = previewPath + '/' + relativePath;
+              if (file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg') ||
+                  file.name.endsWith('.wav') || file.name.endsWith('.mp3') || file.name.endsWith('.ogg')) {
+                // 二进制文件
+                const base64 = await file.async('base64');
+                localStorage.setItem('vfsb:' + fullPath, 'data:application/octet-stream;base64,' + base64);
+              } else {
+                // 文本文件
+                const text = await file.async('text');
+                await window.api.writeFile(fullPath, text);
+              }
+            }
+
+            // 更新目录索引
+            const dirs = new Set();
+            for (const [relativePath] of Object.entries(zip.files)) {
+              const parts = relativePath.split('/');
+              let dirPath = previewPath;
+              for (let i = 0; i < parts.length - 1; i++) {
+                dirPath += '/' + parts[i];
+                dirs.add(dirPath);
+              }
+            }
+            for (const dir of dirs) {
+              const dirKey = 'vfs:' + dir + '/__dir__';
+              if (!localStorage.getItem(dirKey)) {
+                localStorage.setItem(dirKey, '1');
+              }
+            }
+
+            document.getElementById('status-text').textContent = (i18n.isEnglish() ? 'Preview loaded: ' : '预览已加载: ') + project.title;
+            await loadProject(previewPath, project.mode || 'normal');
+            return;
+          }
+        } catch (zipErr) {
+          console.warn('[preview] ZIP 加载失败，回退到 json_data:', zipErr.message);
+        }
+      }
+
+      // 回退方案：使用 json_data（仅包含积木数据）
+      if (project.json_data) {
+        // 创建最小化的 project.json
+        const config = {
+          name: project.title || 'Preview',
+          mode: project.mode || 'normal',
+          sprites: []
+        };
+        await window.api.writeFile(previewPath + '/project.json', JSON.stringify(config, null, 2));
+        // 写入积木数据
+        await window.api.writeFile(previewPath + '/scripts/main.json', project.json_data);
+
+        document.getElementById('status-text').textContent = (i18n.isEnglish() ? 'Preview loaded (blocks only): ' : '预览已加载(仅积木): ') + project.title;
+        await loadProject(previewPath, 'normal');
+        return;
+      }
+
+      throw new Error(i18n.isEnglish() ? 'No preview data available' : '无可预览的数据');
+
+    } catch (e) {
+      console.error('[preview] 加载失败:', e);
+      document.getElementById('status-text').textContent = (i18n.isEnglish() ? 'Preview failed: ' : '预览加载失败: ') + e.message;
+      alert((i18n.isEnglish() ? 'Preview failed: ' : '在线预览失败: ') + e.message);
+    }
+  }
 
   async function loadProject(folder, mode) {
     try {
