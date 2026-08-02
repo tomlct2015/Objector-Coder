@@ -22,10 +22,7 @@
     <!-- 评论区 -->
     <section class="comments-section" id="comments-section" style="display:none">
       <h3>💬 回复</h3>
-      <div class="comment-form" id="comment-form" style="display:none">
-        <textarea id="comment-input" placeholder="写下你的回复..." rows="3"></textarea>
-        <button class="btn btn-primary btn-sm" id="btn-comment">发表回复</button>
-      </div>
+      <div id="comment-form-wrap"></div>
       <div id="comments-list" class="comment-list"></div>
     </section>
   </div>
@@ -119,32 +116,29 @@
       }
 
       document.getElementById('comments-section').style.display = '';
-      if (user) document.getElementById('comment-form').style.display = '';
     }
 
     async function loadComments() {
       const res = await CommunityAPI.getComments('post', postId);
       const list = document.getElementById('comments-list');
-      if (res.data && res.data.length > 0) {
-        list.innerHTML = res.data.map(c => CommunityUI.renderCommentItem(c)).join('');
+      const formWrap = document.getElementById('comment-form-wrap');
+
+      // 渲染评论表单
+      const user = CommunityAPI.getUser();
+      if (user) {
+        formWrap.innerHTML = CommunityUI.renderCommentForm('post', postId, loadComments);
+        CommunityUI.bindCommentForm('post', postId, '#comment-form-wrap', loadComments);
       } else {
-        list.innerHTML = '<div class="empty-state"><p>暂无回复</p></div>';
+        formWrap.innerHTML = '<div class="comment-form-locked"><a href="login.html">登录</a>后才能回复</div>';
+      }
+
+      // 渲染评论列表
+      if (res.data && res.data.length > 0) {
+        list.innerHTML = CommunityUI.renderCommentList(res.data);
+      } else {
+        list.innerHTML = '<div class="empty-hint">暂无回复</div>';
       }
     }
-
-    document.getElementById('btn-comment').addEventListener('click', async () => {
-      const input = document.getElementById('comment-input');
-      const content = input.value.trim();
-      if (!content) return;
-      const result = await CommunityAPI.addComment('post', postId, content);
-      if (result.error) {
-        CommunityUI.showToast('回复失败', 'error');
-      } else {
-        input.value = '';
-        CommunityUI.showToast('回复成功', 'success');
-        loadComments();
-      }
-    });
 
     loadPost();
   </script>

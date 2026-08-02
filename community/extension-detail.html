@@ -18,6 +18,13 @@
     <div id="ext-detail">
       <div class="loading">加载中...</div>
     </div>
+
+    <!-- 评论区 -->
+    <section class="comments-section" id="comments-section" style="display:none; margin-top:32px;">
+      <h3>💬 评论</h3>
+      <div id="comment-form-wrap"></div>
+      <div id="comments-list" class="comment-list"></div>
+    </section>
   </div>
 
   <footer class="footer">
@@ -181,6 +188,32 @@
             setTimeout(() => location.href = 'extensions.html', 1000);
           }
         });
+      }
+
+      // 显示评论区
+      document.getElementById('comments-section').style.display = '';
+      loadComments();
+    }
+
+    async function loadComments() {
+      const res = await CommunityAPI.getComments('extension', extId);
+      const list = document.getElementById('comments-list');
+      const formWrap = document.getElementById('comment-form-wrap');
+
+      // 渲染评论表单
+      const user = CommunityAPI.getUser();
+      if (user) {
+        formWrap.innerHTML = CommunityUI.renderCommentForm('extension', extId, loadComments);
+        CommunityUI.bindCommentForm('extension', extId, '#comment-form-wrap', loadComments);
+      } else {
+        formWrap.innerHTML = '<div class="comment-form-locked"><a href="login.html">登录</a>后才能评论</div>';
+      }
+
+      // 渲染评论列表
+      if (res.data && res.data.length > 0) {
+        list.innerHTML = CommunityUI.renderCommentList(res.data);
+      } else {
+        list.innerHTML = '<div class="empty-hint">暂无评论</div>';
       }
     }
 
