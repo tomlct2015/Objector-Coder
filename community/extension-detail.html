@@ -75,7 +75,7 @@
             ${ext.description ? `<div class="detail-desc markdown-body">${marked.parse(ext.description)}</div>` : ''}
             <div class="detail-actions">
               ${user ? `<button class="btn btn-outline" id="btn-like">${ext.user_liked ? '❤️ 已点赞' : '🤍 点赞'}</button>` : ''}
-              ${ext.file_url ? `<a href="${ext.file_url}" class="btn btn-primary" download>⬇️ 下载扩展</a>` : `<span class="btn btn-outline" style="opacity:0.5;cursor:not-allowed;">❗ 无可下载文件（发布者上传失败）</span>`}
+              ${ext.file_url ? `<button class="btn btn-primary" id="btn-download">⬇️ 下载扩展</button>` : `<span class="btn btn-outline" style="opacity:0.5;cursor:not-allowed;">❗ 无可下载文件</span>`}
               <button class="btn btn-outline" id="btn-install">📦 安装到编辑器</button>
               ${isAuthor ? `<button class="btn btn-danger btn-sm" id="btn-delete">删除</button>` : ''}
             </div>
@@ -94,23 +94,52 @@
         });
       }
 
+      // 下载按钮：通过 fetch + blob 实现跨域下载
+      const btnDownload = document.getElementById('btn-download');
+      if (btnDownload && ext.file_url) {
+        btnDownload.addEventListener('click', async () => {
+          btnDownload.disabled = true;
+          btnDownload.textContent = '下载中...';
+          try {
+            const resp = await fetch(ext.file_url);
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const blob = await resp.blob();
+            // 从 URL 提取文件名
+            const urlParts = ext.file_url.split('/');
+            const fileName = urlParts[urlParts.length - 1] || (ext.name + '.json');
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            CommunityUI.showToast('下载完成', 'success');
+          } catch (e) {
+            // 降级：新标签打开
+            window.open(ext.file_url, '_blank');
+          }
+          btnDownload.disabled = false;
+          btnDownload.textContent = '⬇️ 下载扩展';
+        });
+      }
+
+      // 安装按钮
       const btnInstall = document.getElementById('btn-install');
       if (btnInstall) {
         btnInstall.addEventListener('click', async () => {
           if (!ext.file_url) {
-            CommunityUI.showToast('此扩展没有可下载文件，可能发布者上传失败', 'error');
+            CommunityUI.showToast('此扩展没有可下载文件', 'error');
             return;
           }
           try {
             CommunityUI.showToast('正在下载并安装...', 'info');
             const response = await fetch(ext.file_url);
+            if (!response.ok) throw new Error('HTTP ' + response.status);
             const blob = await response.blob();
             const text = await blob.text();
-            // 尝试解析为 JSON 并存入 localStorage 供 Web IDE 使用
             const jsonData = JSON.parse(text);
             const key = 'extension:' + (ext.ext_id || ext.name);
             localStorage.setItem(key, JSON.stringify(jsonData));
-            CommunityUI.showToast('安装成功！请在 Web IDE 中查看', 'success');
+            CommunityUI.showToast('安装成功！请在编辑器中查看', 'success');
           } catch (e) {
             CommunityUI.showToast('安装失败: ' + e.message, 'error');
           }
