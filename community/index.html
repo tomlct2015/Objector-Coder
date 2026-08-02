@@ -3,32 +3,312 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Objector 社区</title>
+  <title>Objector 社区 - 创意编程平台</title>
+  <meta name="description" content="Objector 社区：分享作品、交流创意、发现扩展的创意编程平台" />
   <link rel="icon" href="../icon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="shared/community.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="shared/community-api.js"></script>
   <script src="shared/community-ui.js"></script>
+  <style>
+    /* ===== Enhanced Hero ===== */
+    .hero {
+      position: relative;
+      padding: 100px 24px 80px;
+      text-align: center;
+      background: linear-gradient(180deg, #0a0a15 0%, #12122a 50%, #0f0f1a 100%);
+      border-bottom: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: 
+        radial-gradient(ellipse 800px 400px at 50% 0%, rgba(137, 180, 250, 0.15) 0%, transparent 70%),
+        radial-gradient(ellipse 600px 300px at 20% 100%, rgba(162, 155, 254, 0.1) 0%, transparent 60%),
+        radial-gradient(ellipse 600px 300px at 80% 100%, rgba(166, 227, 161, 0.08) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%; transform: translateX(-50%);
+      width: 1px; height: 100%;
+      background: linear-gradient(180deg, transparent, rgba(137, 180, 250, 0.3) 30%, rgba(137, 180, 250, 0.3) 70%, transparent);
+      pointer-events: none;
+    }
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(137, 180, 250, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(137, 180, 250, 0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 30%, transparent 70%);
+      -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 30%, transparent 70%);
+    }
+    .hero-content {
+      position: relative;
+      max-width: 700px;
+      margin: 0 auto;
+      z-index: 2;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 16px;
+      background: rgba(137, 180, 250, 0.1);
+      border: 1px solid rgba(137, 180, 250, 0.2);
+      border-radius: 100px;
+      font-size: 12px;
+      color: var(--accent);
+      margin-bottom: 24px;
+      backdrop-filter: blur(8px);
+    }
+    .hero-badge .pulse {
+      width: 6px; height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.5); }
+    }
+    .hero-content h1 {
+      font-size: clamp(32px, 5vw, 48px);
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 16px;
+      letter-spacing: -1px;
+      line-height: 1.2;
+    }
+    .hero-content h1 .gradient-text {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 50%, var(--green) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-content p {
+      font-size: 18px;
+      color: var(--text2);
+      margin-bottom: 36px;
+      line-height: 1.6;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .hero-actions .btn {
+      padding: 12px 28px;
+      font-size: 15px;
+      border-radius: 10px;
+      transition: all 0.3s;
+    }
+    .hero-actions .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      box-shadow: 0 4px 20px rgba(137, 180, 250, 0.3);
+    }
+    .hero-actions .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(137, 180, 250, 0.4);
+    }
+    .hero-actions .btn-outline {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(8px);
+    }
+    .hero-actions .btn-outline:hover {
+      background: rgba(137, 180, 250, 0.1);
+      transform: translateY(-2px);
+    }
+
+    /* ===== Quick Links ===== */
+    .quick-links {
+      position: relative;
+      margin-top: -40px;
+      margin-bottom: 40px;
+      z-index: 10;
+    }
+    .quick-links-inner {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      padding: 0 24px;
+    }
+    .quick-link {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 20px 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      transition: all 0.3s;
+      text-decoration: none;
+    }
+    .quick-link:hover {
+      transform: translateY(-4px);
+      border-color: var(--accent);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.3), 0 0 0 1px rgba(137, 180, 250, 0.1);
+    }
+    .quick-link-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .quick-link-text {
+      display: flex;
+      flex-direction: column;
+    }
+    .quick-link-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .quick-link-desc {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ===== Section Enhancements ===== */
+    .section {
+      position: relative;
+      padding: 48px 0;
+    }
+    .section::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%; transform: translateX(-50%);
+      width: 80%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+    }
+    .section-header h2 {
+      position: relative;
+      padding-left: 16px;
+    }
+    .section-header h2::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 50%; transform: translateY(-50%);
+      width: 4px;
+      height: 20px;
+      background: linear-gradient(180deg, var(--accent), var(--accent2));
+      border-radius: 2px;
+    }
+
+    /* ===== Stats Bar ===== */
+    .stats-bar {
+      display: flex;
+      justify-content: center;
+      gap: 48px;
+      padding: 32px 24px;
+      flex-wrap: wrap;
+    }
+    .stat-item {
+      text-align: center;
+    }
+    .stat-number {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .stat-label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ===== Animations ===== */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in-up {
+      animation: fadeInUp 0.6s ease forwards;
+    }
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+  </style>
 </head>
 <body>
   <div id="nav"></div>
 
   <!-- Hero Banner -->
   <section class="hero">
+    <div class="hero-grid"></div>
     <div class="hero-content">
-      <h1>⚡ Objector 社区</h1>
-      <p>分享作品、交流创意、发现扩展</p>
-      <div class="hero-actions">
-        <a href="projects.html" class="btn btn-primary">浏览作品</a>
-        <a href="posts.html" class="btn btn-outline">参与讨论</a>
+      <div class="hero-badge fade-in-up">
+        <span class="pulse"></span>
+        <span>开源创意编程平台</span>
+      </div>
+      <h1 class="fade-in-up delay-1">
+        <span class="gradient-text">Objector</span> 社区
+      </h1>
+      <p class="fade-in-up delay-2">用积木构建创意，用代码实现梦想<br/>分享作品、交流灵感、发现扩展</p>
+      <div class="hero-actions fade-in-up delay-3">
+        <a href="projects.html" class="btn btn-primary">探索作品</a>
+        <a href="../editor/index.html" class="btn btn-outline">开始创作</a>
       </div>
     </div>
   </section>
 
+  <!-- Quick Links -->
+  <div class="quick-links">
+    <div class="quick-links-inner">
+      <a href="projects.html" class="quick-link">
+        <div class="quick-link-icon" style="background:rgba(137,180,250,0.15)">🎮</div>
+        <div class="quick-link-text">
+          <span class="quick-link-title">作品广场</span>
+          <span class="quick-link-desc">浏览创意作品</span>
+        </div>
+      </a>
+      <a href="extensions.html" class="quick-link">
+        <div class="quick-link-icon" style="background:rgba(166,227,161,0.15)">🧩</div>
+        <div class="quick-link-text">
+          <span class="quick-link-title">扩展市场</span>
+          <span class="quick-link-desc">发现实用扩展</span>
+        </div>
+      </a>
+      <a href="posts.html" class="quick-link">
+        <div class="quick-link-icon" style="background:rgba(249,226,175,0.15)">💬</div>
+        <div class="quick-link-text">
+          <span class="quick-link-title">讨论交流</span>
+          <span class="quick-link-desc">参与社区话题</span>
+        </div>
+      </a>
+      <a href="learn/index.html" class="quick-link">
+        <div class="quick-link-icon" style="background:rgba(203,166,247,0.15)">📖</div>
+        <div class="quick-link-text">
+          <span class="quick-link-title">学习文章</span>
+          <span class="quick-link-desc">探索编程知识</span>
+        </div>
+      </a>
+    </div>
+  </div>
+
   <!-- 热门作品 -->
   <section class="section">
     <div class="section-header">
-      <h2>🔥 热门作品</h2>
+      <h2>热门作品</h2>
       <a href="projects.html" class="view-all">查看全部 →</a>
     </div>
     <div id="hot-projects" class="card-grid"></div>
@@ -37,7 +317,7 @@
   <!-- 最新讨论 -->
   <section class="section">
     <div class="section-header">
-      <h2>💬 最新讨论</h2>
+      <h2>最新讨论</h2>
       <a href="posts.html" class="view-all">查看全部 →</a>
     </div>
     <div id="recent-posts" class="card-list"></div>
@@ -46,7 +326,7 @@
   <!-- 热门扩展 -->
   <section class="section">
     <div class="section-header">
-      <h2>🧩 热门扩展</h2>
+      <h2>热门扩展</h2>
       <a href="extensions.html" class="view-all">查看全部 →</a>
     </div>
     <div id="hot-extensions" class="card-grid"></div>
@@ -55,7 +335,7 @@
   <!-- 学习文章 -->
   <section class="section">
     <div class="section-header">
-      <h2>📖 学习文章</h2>
+      <h2>学习文章</h2>
       <a href="learn/index.html" class="view-all">查看全部 →</a>
     </div>
     <div id="recent-articles" class="card-grid"></div>
@@ -64,7 +344,7 @@
   <!-- 查找用户 -->
   <section class="section">
     <div class="section-header">
-      <h2>🔍 查找用户</h2>
+      <h2>查找用户</h2>
       <a href="search-users.html" class="view-all">搜索更多 →</a>
     </div>
     <div id="recent-users" class="card-list"></div>
