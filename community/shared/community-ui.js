@@ -350,6 +350,50 @@ const CommunityUI = (function () {
   }
 
   // ============================================================
+  // Fill Cards with Load More 卡片加载更多
+  // ============================================================
+
+  /**
+   * 渲染卡片列表，超过 pageSize 时隐藏多余卡片并显示“加载更多”按钮
+   * @param {HTMLElement} container - 卡片容器（需有 card-grid 或 card-list 类）
+   * @param {string[]} cardsHtml - 卡片 HTML 字符串数组
+   * @param {number} [pageSize=5] - 每次显示的卡片数
+   */
+  function fillCards(container, cardsHtml, pageSize) {
+    var size = pageSize || 5;
+    if (!cardsHtml || cardsHtml.length === 0) return;
+    var shown = Math.min(size, cardsHtml.length);
+    var html = '';
+    for (var i = 0; i < cardsHtml.length; i++) {
+      html += '<div class="card-wrapper' + (i >= shown ? ' card-hidden' : '') + '">' + cardsHtml[i] + '</div>';
+    }
+    if (cardsHtml.length > shown) {
+      html += '<div class="load-more-wrap"><button class="btn btn-outline load-more-btn">点击加载更多 (' + shown + '/' + cardsHtml.length + ')</button></div>';
+    }
+    container.innerHTML = html;
+
+    // 绑定加载更多
+    var btn = container.querySelector('.load-more-btn');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        var wrappers = container.querySelectorAll('.card-wrapper.card-hidden');
+        var revealed = 0;
+        for (var j = 0; j < wrappers.length && revealed < size; j++) {
+          wrappers[j].classList.remove('card-hidden');
+          revealed++;
+        }
+        var remaining = container.querySelectorAll('.card-wrapper.card-hidden').length;
+        var totalVisible = container.querySelectorAll('.card-wrapper:not(.card-hidden)').length;
+        if (remaining === 0) {
+          btn.parentElement.style.display = 'none';
+        } else {
+          btn.textContent = '点击加载更多 (' + totalVisible + '/' + cardsHtml.length + ')';
+        }
+      });
+    }
+  }
+
+  // ============================================================
   // Loading 加载状态
   // ============================================================
 
@@ -377,5 +421,6 @@ const CommunityUI = (function () {
     renderNav, renderProjectCard, renderPostCard, renderArticleCard, renderExtensionCard, renderUserCard,
     renderCommentList, renderCommentItem, renderCommentForm, bindCommentForm,
     renderPagination, renderLikeButton, renderEmpty, renderLoading, showToast,
+    fillCards,
   };
 })();
