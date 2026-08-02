@@ -25,6 +25,7 @@ const CommunityUI = (function () {
           <a href="${base}posts.html" class="nav-link ${isPage('posts') || (isPage('post-detail') && !isPage('learn')) || isPage('post-new') ? 'active' : ''}">讨论</a>
           <a href="${base}extensions.html" class="nav-link ${isPage('extensions') || isPage('extension-detail') ? 'active' : ''}">扩展</a>
           <a href="${base}learn/index.html" class="nav-link ${isPage('learn') ? 'active' : ''}">📖 学习</a>
+          <a href="https://tomlct2015.github.io/Objector-Coder/editor" class="nav-link">去创作</a>
         </div>
         <div class="nav-actions">
           ${user ? `
