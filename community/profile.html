@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -205,21 +205,24 @@
       if (currentTab === 'projects') {
         const res = await CommunityAPI.getUserProjects(targetUserId);
         if (res.data && res.data.length > 0) {
-          content.innerHTML = '<div class="card-grid">' + res.data.map(p => CommunityUI.renderProjectCard(p)).join('') + '</div>';
+          content.innerHTML = '<div class="card-grid"></div>';
+          CommunityUI.fillCards(content.querySelector('.card-grid'), res.data.map(p => CommunityUI.renderProjectCard(p)));
         } else {
           content.innerHTML = '<div class="empty-state"><p>暂无作品</p></div>';
         }
       } else if (currentTab === 'posts') {
         const res = await CommunityAPI.getUserPosts(targetUserId);
         if (res.data && res.data.length > 0) {
-          content.innerHTML = '<div class="post-list">' + res.data.map(p => CommunityUI.renderPostCard(p)).join('') + '</div>';
+          content.innerHTML = '<div class="card-list"></div>';
+          CommunityUI.fillCards(content.querySelector('.card-list'), res.data.map(p => CommunityUI.renderPostCard(p)));
         } else {
           content.innerHTML = '<div class="empty-state"><p>暂无帖子</p></div>';
         }
       } else if (currentTab === 'extensions') {
         const res = await CommunityAPI.getUserExtensions(targetUserId);
         if (res.data && res.data.length > 0) {
-          content.innerHTML = '<div class="card-grid">' + res.data.map(e => CommunityUI.renderExtensionCard(e)).join('') + '</div>';
+          content.innerHTML = '<div class="card-grid"></div>';
+          CommunityUI.fillCards(content.querySelector('.card-grid'), res.data.map(e => CommunityUI.renderExtensionCard(e)));
         } else {
           content.innerHTML = '<div class="empty-state"><p>暂无扩展</p></div>';
         }
@@ -230,12 +233,13 @@
         }
         const res = await CommunityAPI.getFavorites();
         if (res.data && res.data.length > 0) {
-          content.innerHTML = '<div class="card-grid">' + res.data.map(item => {
+          content.innerHTML = '<div class="card-grid"></div>';
+          CommunityUI.fillCards(content.querySelector('.card-grid'), res.data.map(item => {
             if (item.target_type === 'project') return CommunityUI.renderProjectCard(item.projects || item);
             if (item.target_type === 'post') return CommunityUI.renderPostCard(item.posts || item);
             if (item.target_type === 'extension') return CommunityUI.renderExtensionCard(item.extensions || item);
             return '';
-          }).join('') + '</div>';
+          }));
         } else {
           content.innerHTML = '<div class="empty-state"><p>暂无收藏</p></div>';
         }

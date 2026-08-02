@@ -61,10 +61,10 @@
 
     // 加载最近加入的用户
     async function loadRecent() {
-      const res = await CommunityAPI.getRecentProfiles(12);
+      const res = await CommunityAPI.getRecentProfiles(20);
       const el = document.getElementById('recent-users');
       if (res.data && res.data.length > 0) {
-        el.innerHTML = res.data.map(u => CommunityUI.renderUserCard(u)).join('');
+        CommunityUI.fillCards(el, res.data.map(u => CommunityUI.renderUserCard(u)));
       } else {
         el.innerHTML = '<div class="empty-state"><p>暂无用户</p></div>';
       }
@@ -101,7 +101,8 @@
           resultsContainer.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">没有找到匹配的用户</div></div>';
           return;
         }
-        resultsContainer.innerHTML = '<div class="card-list">' + users.map(u => CommunityUI.renderUserCard(u)).join('') + '</div>';
+        resultsContainer.innerHTML = '<div class="card-list" id="search-results-list"></div>';
+        CommunityUI.fillCards(document.getElementById('search-results-list'), users.map(u => CommunityUI.renderUserCard(u)));
       }, 350);
     }
 
