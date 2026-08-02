@@ -763,6 +763,36 @@ const CommunityAPI = (function () {
   }
 
   // ============================================================
+  // Search Users - 搜索用户
+  // ============================================================
+
+  /** 按用户名模糊搜索用户，最多返回 20 条 */
+  async function searchProfiles(keyword) {
+    if (!_supabase) return { data: [] };
+    const kw = (keyword || '').trim();
+    if (!kw) return { data: [] };
+    const { data, error } = await _supabase
+      .from('profiles')
+      .select('id, username, avatar_url, bio, created_at')
+      .ilike('username', '%' + kw.replace(/%/g, '\\%') + '%')
+      .limit(20);
+    if (error) { console.error('[searchProfiles]', error.message); return { data: [], error }; }
+    return { data: data || [] };
+  }
+
+  /** 获取最近注册的用户列表 */
+  async function getRecentProfiles(limit) {
+    if (!_supabase) return { data: [] };
+    const { data, error } = await _supabase
+      .from('profiles')
+      .select('id, username, avatar_url, bio, created_at')
+      .order('created_at', { ascending: false })
+      .limit(limit || 6);
+    if (error) { console.error('[getRecentProfiles]', error.message); return { data: [], error }; }
+    return { data: data || [] };
+  }
+
+  // ============================================================
   // Binding Codes - Software Account Binding
   // ============================================================
 
@@ -867,7 +897,7 @@ const CommunityAPI = (function () {
     toggleLike, likeTarget, unlikeTarget, isLiked,
     toggleFavorite, toggleFollow, followUser, unfollowUser, isFollowing, getFollowers, getFollowing,
     getFavorites,
-    getUserProjects, getUserPosts, getUserExtensions, getUserFavorites, getProfileById,
+    getUserProjects, getUserPosts, getUserExtensions, getUserFavorites, getProfileById, searchProfiles, getRecentProfiles,
     formatTime, escapeHtml, getParams,
     generateBindingCode, verifyBindingCode,
     sendLoginOtp, verifyLoginOtp, recordLogin,

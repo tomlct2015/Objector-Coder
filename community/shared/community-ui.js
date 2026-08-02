@@ -25,6 +25,7 @@ const CommunityUI = (function () {
           <a href="${base}posts.html" class="nav-link ${isPage('posts') || (isPage('post-detail') && !isPage('learn')) || isPage('post-new') ? 'active' : ''}">讨论</a>
           <a href="${base}extensions.html" class="nav-link ${isPage('extensions') || isPage('extension-detail') ? 'active' : ''}">扩展</a>
           <a href="${base}learn/index.html" class="nav-link ${isPage('learn') ? 'active' : ''}">📖 学习</a>
+          <a href="${base}search-users.html" class="nav-link ${isPage('search-users') ? 'active' : ''}">🔍 查找用户</a>
         </div>
         <div class="nav-actions">
           <a href="${base}../editor/index.html" class="nav-btn nav-btn-accent">🚀 去创作</a>
@@ -141,6 +142,28 @@ const CommunityUI = (function () {
               <span>v${API.escapeHtml(ext.version || '1.0.0')}</span>
               <span>⬇ ${ext.downloads_count || 0}</span>
             </span>
+          </div>
+        </div>
+      </a>
+    `;
+  }
+
+  // ============================================================
+  // User Card 用户卡片
+  // ============================================================
+
+  function renderUserCard(profile) {
+    const initial = (profile.username || '?')[0].toUpperCase();
+    const avatar = profile.avatar_url || `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'><rect fill='%23252545' width='60' height='60' rx='30'/><text fill='%2389b4fa' font-size='24' x='50%25' y='55%25' text-anchor='middle'>${initial}</text></svg>`;
+    const bio = profile.bio ? API.escapeHtml(profile.bio.slice(0, 60)) + (profile.bio.length > 60 ? '...' : '') : '<span style="color:var(--muted,#6c7086)">暂无简介</span>';
+    return `
+      <a href="profile.html?id=${profile.id}" class="card user-card">
+        <div class="user-card-inner">
+          <img src="${avatar}" class="user-card-avatar" alt="${API.escapeHtml(profile.username)}" />
+          <div class="user-card-info">
+            <div class="user-card-name">${API.escapeHtml(profile.username)}</div>
+            <div class="user-card-bio">${bio}</div>
+            <div class="user-card-joined">加入于 ${new Date(profile.created_at).toLocaleDateString()}</div>
           </div>
         </div>
       </a>
@@ -344,7 +367,7 @@ const CommunityUI = (function () {
   }
 
   return {
-    renderNav, renderProjectCard, renderPostCard, renderArticleCard, renderExtensionCard,
+    renderNav, renderProjectCard, renderPostCard, renderArticleCard, renderExtensionCard, renderUserCard,
     renderCommentList, renderCommentForm, bindCommentForm,
     renderPagination, renderLikeButton, renderEmpty, renderLoading, showToast,
   };

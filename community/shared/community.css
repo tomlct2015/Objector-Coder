@@ -115,6 +115,8 @@ a:hover { color: var(--accent2); }
 .nav-btn:hover { background: var(--hover); }
 .nav-btn-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
 .nav-btn-primary:hover { background: var(--accent2); }
+.nav-btn-accent { background: var(--green); color: var(--bg); border-color: var(--green); font-weight: 600; }
+.nav-btn-accent:hover { background: #8dd39a; border-color: #8dd39a; }
 .nav-btn-ghost { background: transparent; }
 
 /* ============================================================
@@ -966,6 +968,58 @@ a:hover { color: var(--accent2); }
   font-size: 13px;
   border-top: 1px solid var(--border);
   margin-top: 48px;
+}
+
+/* ============================================================
+   User Card
+   ============================================================ */
+.user-card {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  gap: 14px;
+}
+.user-card-inner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+.user-card-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+}
+.user-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+.user-card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.user-card-bio {
+  font-size: 13px;
+  color: var(--text2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.user-card-joined {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Search input focus */
+#search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(137,180,250,0.15);
 }
 
 /* ============================================================
