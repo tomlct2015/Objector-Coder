@@ -76,7 +76,6 @@
             <div class="detail-actions">
               ${user ? `<button class="btn btn-outline" id="btn-like">${ext.user_liked ? '❤️ 已点赞' : '🤍 点赞'}</button>` : ''}
               ${ext.file_url ? `<button class="btn btn-primary" id="btn-download">⬇️ 下载扩展</button>` : `<span class="btn btn-outline" style="opacity:0.5;cursor:not-allowed;">❗ 无可下载文件</span>`}
-              <button class="btn btn-outline" id="btn-install">📦 安装到编辑器</button>
               ${isAuthor ? `<button class="btn btn-danger btn-sm" id="btn-delete">删除</button>` : ''}
             </div>
           </div>
@@ -103,18 +102,50 @@
           try {
             const resp = await fetch(ext.file_url);
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            const blob = await resp.blob();
+            const respBlob = await resp.blob();
+            // 根据响应头 content-type 确定 MIME 类型，区分 js 和 json
+            const serverType = resp.headers.get('content-type') || '';
+            let mimeType = respBlob.type || serverType;
+            let fileName;
             // 从 URL 提取文件名
             const urlParts = ext.file_url.split('/');
-            const fileName = urlParts[urlParts.length - 1] || (ext.name + '.json');
+            const rawName = urlParts[urlParts.length - 1] || '';
+            if (rawName.endsWith('.js')) {
+              mimeType = 'application/javascript';
+              fileName = ext.name + '.js';
+            } else if (rawName.endsWith('.json')) {
+              mimeType = 'application/json';
+              fileName = ext.name + '.json';
+            } else {
+              // URL 无明确后缀时，通过内容判断
+              const text = await respBlob.text();
+              try {
+                JSON.parse(text);
+                mimeType = 'application/json';
+                fileName = ext.name + '.json';
+              } catch (_) {
+                mimeType = 'application/javascript';
+                fileName = ext.name + '.js';
+              }
+              const blob = new Blob([text], { type: mimeType });
+              const a = document.createElement('a');
+              a.href = URL.createObjectURL(blob);
+              a.download = fileName;
+              a.click();
+              URL.revokeObjectURL(a.href);
+              CommunityUI.showToast('下载完成 (' + fileName + ')', 'success');
+              btnDownload.disabled = false;
+              btnDownload.textContent = '⬇️ 下载扩展';
+              return;
+            }
+            const blob = new Blob([respBlob], { type: mimeType });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
             a.download = fileName;
             a.click();
             URL.revokeObjectURL(a.href);
-            CommunityUI.showToast('下载完成', 'success');
+            CommunityUI.showToast('下载完成 (' + fileName + ')', 'success');
           } catch (e) {
-            // 降级：新标签打开
             window.open(ext.file_url, '_blank');
           }
           btnDownload.disabled = false;
@@ -134,11 +165,18 @@
             CommunityUI.showToast('正在下载并安装...', 'info');
             const response = await fetch(ext.file_url);
             if (!response.ok) throw new Error('HTTP ' + response.status);
-            const blob = await response.blob();
-            const text = await blob.text();
-            const jsonData = JSON.parse(text);
+            const text = await response.text();
             const key = 'extension:' + (ext.ext_id || ext.name);
-            localStorage.setItem(key, JSON.stringify(jsonData));
+            // 尝试 JSON 解析，失败则作为纯 JS 存储
+            let stored;
+            try {
+              const jsonData = JSON.parse(text);
+              stored = JSON.stringify(jsonData);
+            } catch (jsonErr) {
+              // 非 JSON（如 .js 文件），直接存储原始文本
+              stored = text;
+            }
+            localStorage.setItem(key, stored);
             CommunityUI.showToast('安装成功！请在编辑器中查看', 'success');
           } catch (e) {
             CommunityUI.showToast('安装失败: ' + e.message, 'error');
