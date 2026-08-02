@@ -110,41 +110,26 @@
             // 从 URL 提取文件名
             const urlParts = ext.file_url.split('/');
             const rawName = urlParts[urlParts.length - 1] || '';
-            if (rawName.endsWith('.js')) {
-              mimeType = 'application/javascript';
-              fileName = ext.name + '.js';
-            } else if (rawName.endsWith('.json')) {
+            // URL 无明确后缀时，通过内容判断
+            const text = await respBlob.text();
+            try {
+              JSON.parse(text);
               mimeType = 'application/json';
               fileName = ext.name + '.json';
-            } else {
-              // URL 无明确后缀时，通过内容判断
-              const text = await respBlob.text();
-              try {
-                JSON.parse(text);
-                mimeType = 'application/json';
-                fileName = ext.name + '.json';
-              } catch (_) {
-                mimeType = 'application/javascript';
-                fileName = ext.name + '.js';
-              }
-              const blob = new Blob([text], { type: mimeType });
-              const a = document.createElement('a');
-              a.href = URL.createObjectURL(blob);
-              a.download = fileName;
-              a.click();
-              URL.revokeObjectURL(a.href);
-              CommunityUI.showToast('下载完成 (' + fileName + ')', 'success');
-              btnDownload.disabled = false;
-              btnDownload.textContent = '⬇️ 下载扩展';
-              return;
+            } catch (_) {
+              mimeType = 'application/javascript';
+              fileName = ext.name + '.js';
             }
-            const blob = new Blob([respBlob], { type: mimeType });
+            const blob = new Blob([text], { type: mimeType });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
             a.download = fileName;
             a.click();
             URL.revokeObjectURL(a.href);
             CommunityUI.showToast('下载完成 (' + fileName + ')', 'success');
+            btnDownload.disabled = false;
+            btnDownload.textContent = '⬇️ 下载扩展';
+            return;
           } catch (e) {
             window.open(ext.file_url, '_blank');
           }
