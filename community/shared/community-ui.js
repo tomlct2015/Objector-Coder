@@ -178,18 +178,25 @@ const CommunityUI = (function () {
     if (!comments || comments.length === 0) {
       return '<div class="empty-hint">暂无评论</div>';
     }
-    return comments.map(c => {
-      const author = c.profiles || {};
-      return `
-        <div class="comment-item">
-          <div class="comment-header">
-            <a href="profile.html?id=${c.author_id}" class="comment-author">${API.escapeHtml(author.username || '匿名')}</a>
-            <span class="comment-time">${API.formatTime(c.created_at)}</span>
-          </div>
-          <div class="comment-content">${API.escapeHtml(c.content)}</div>
+    return comments.map(c => renderCommentItem(c)).join('');
+  }
+
+  function renderCommentItem(c) {
+    const author = c.profiles || {};
+    const initial = (author.username || '?')[0].toUpperCase();
+    const avatar = author.avatar_url || `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect fill='%23252545' width='40' height='40' rx='20'/><text fill='%2389b4fa' font-size='16' x='50%25' y='55%25' text-anchor='middle'>${initial}</text></svg>`;
+    return `
+      <div class="comment-item">
+        <div class="comment-header">
+          <a href="profile.html?id=${c.author_id}" class="comment-author">
+            <img src="${avatar}" class="comment-avatar" alt="${API.escapeHtml(author.username || '匿名')}" />
+            <span>${API.escapeHtml(author.username || '匿名')}</span>
+          </a>
+          <span class="comment-time">${API.formatTime(c.created_at)}</span>
         </div>
-      `;
-    }).join('');
+        <div class="comment-content">${API.escapeHtml(c.content)}</div>
+      </div>
+    `;
   }
 
   function renderCommentForm(targetType, targetId, onAdded) {
@@ -368,7 +375,7 @@ const CommunityUI = (function () {
 
   return {
     renderNav, renderProjectCard, renderPostCard, renderArticleCard, renderExtensionCard, renderUserCard,
-    renderCommentList, renderCommentForm, bindCommentForm,
+    renderCommentList, renderCommentItem, renderCommentForm, bindCommentForm,
     renderPagination, renderLikeButton, renderEmpty, renderLoading, showToast,
   };
 })();
