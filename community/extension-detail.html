@@ -75,7 +75,7 @@
             ${ext.description ? `<div class="detail-desc markdown-body">${marked.parse(ext.description)}</div>` : ''}
             <div class="detail-actions">
               ${user ? `<button class="btn btn-outline" id="btn-like">${ext.user_liked ? '❤️ 已点赞' : '🤍 点赞'}</button>` : ''}
-              ${ext.file_url ? `<a href="${ext.file_url}" class="btn btn-primary" download>⬇️ 下载扩展</a>` : ''}
+              ${ext.file_url ? `<a href="${ext.file_url}" class="btn btn-primary" download>⬇️ 下载扩展</a>` : `<span class="btn btn-outline" style="opacity:0.5;cursor:not-allowed;">❗ 无可下载文件（发布者上传失败）</span>`}
               <button class="btn btn-outline" id="btn-install">📦 安装到编辑器</button>
               ${isAuthor ? `<button class="btn btn-danger btn-sm" id="btn-delete">删除</button>` : ''}
             </div>
@@ -98,7 +98,7 @@
       if (btnInstall) {
         btnInstall.addEventListener('click', async () => {
           if (!ext.file_url) {
-            CommunityUI.showToast('无可下载文件', 'error');
+            CommunityUI.showToast('此扩展没有可下载文件，可能发布者上传失败', 'error');
             return;
           }
           try {
