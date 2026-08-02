@@ -61,6 +61,15 @@
     <div id="recent-articles" class="card-grid"></div>
   </section>
 
+  <!-- 查找用户 -->
+  <section class="section">
+    <div class="section-header">
+      <h2>🔍 查找用户</h2>
+      <a href="search-users.html" class="view-all">搜索更多 →</a>
+    </div>
+    <div id="recent-users" class="card-list"></div>
+  </section>
+
   <footer class="footer">
     <p>Objector Community · Powered by Supabase</p>
   </footer>
@@ -115,6 +124,15 @@
         ).join('');
       } else {
         articlesGrid.innerHTML = '<div class="empty-state"><p>还没有学习文章，来发表第一篇吧！</p><a href="learn/publish.html" class="btn btn-primary">写文章</a></div>';
+      }
+
+      // 最近加入的用户（取6个）
+      const usersRes = await CommunityAPI.getRecentProfiles(6);
+      const usersList = document.getElementById('recent-users');
+      if (usersRes.data && usersRes.data.length > 0) {
+        usersList.innerHTML = usersRes.data.map(u => CommunityUI.renderUserCard(u)).join('');
+      } else {
+        usersList.innerHTML = '<div class="empty-state"><p>还没有用户，快来注册第一个吧！</p><a href="search-users.html" class="btn btn-primary">查找用户</a></div>';
       }
     }
 
