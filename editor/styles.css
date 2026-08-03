@@ -193,7 +193,7 @@ body { font-family: 'Segoe UI','Microsoft YaHei',sans-serif; background:var(--bg
 .file-item-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .file-item-delete { color:var(--red); cursor:pointer; padding:0 4px; opacity:0.6; }
 .file-item-delete:hover { opacity:1; }
-#file-editor-area { flex:1; background:var(--bg-primary); color:var(--text-primary); border:none; resize:none; padding:12px; font-family:'Cascadia Code','Consolas',monospace; font-size:12px; line-height:1.5; outline:none; }
+#file-editor-area { flex:1; background:var(--bg-primary); color:var(--text-primary); border:none; resize:none; padding:12px; font-family:'Cascadia Code','Consolas',monospace; font-size:12px; line-height:1.5; outline:none; tab-size:4; -moz-tab-size:4; }
 
 /* Extension mode wider stage panel */
 #stage-panel.extension-mode { --stage-w:480px; }
