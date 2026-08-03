@@ -226,6 +226,36 @@ const FileEditor = (function () {
     const PAIRS = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'", '`': '`' };
     const CLOSERS = new Set([')', ']', '}', '"', "'", '`']);
 
+    // ── Tab 防讧：三层保护确保 Tab 始终插入 4 空格 ───────────────
+    // 第1层: capture 阶段 preventDefault 阻止浏览器默认焦点跳转
+    // 第2层: textarea keydown 正常插入空格并清除 _tabNotHandled 标记
+    // 第3层: capture 中的 setTimeout(16ms) 兜底 —
+    //         若 textarea keydown 未执行（浏览器拦截了事件），
+    //         _tabNotHandled 仍为 true 且焦点已丢失 → 恢复焦点并补插
+    let _tabNotHandled = false;
+    let _tabCursorPos = 0;
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Tab' && document.activeElement === ta) {
+        e.preventDefault();
+        _tabNotHandled = true;
+        _tabCursorPos = ta.selectionStart;
+        // 延迟检查：给 textarea keydown 足够时间执行
+        // 如果 textarea keydown 执行了，它会将 _tabNotHandled 设为 false
+        setTimeout(function () {
+          if (_tabNotHandled && document.activeElement !== ta) {
+            // 焦点被浏览器抢走了，textarea keydown 没有执行
+            _tabNotHandled = false;
+            const pos = _tabCursorPos;
+            const v = ta.value;
+            ta.value = v.slice(0, pos) + INDENT + v.slice(pos);
+            ta.selectionStart = ta.selectionEnd = pos + 4;
+            ta.focus();
+          }
+          _tabNotHandled = false;
+        }, 16);
+      }
+    }, true); // ← capture phase
+
     ta.addEventListener('keydown', function (e) {
       const start = ta.selectionStart;
       const end = ta.selectionEnd;
@@ -234,6 +264,7 @@ const FileEditor = (function () {
       // ── Tab / Shift+Tab ──────────────────────────────────────
       if (e.key === 'Tab') {
         e.preventDefault();
+        _tabNotHandled = false; // keydown 执行了，清除兜底标记
         if (start === end && !e.shiftKey) {
           // 无选区：直接插入 4 空格
           ta.value = val.slice(0, start) + INDENT + val.slice(end);
