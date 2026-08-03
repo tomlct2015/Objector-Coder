@@ -216,6 +216,104 @@ const FileEditor = (function () {
     }, 2000);
   }
 
+ /** 为 textarea 绑定编辑器快捷键（Tab缩进/自动缩进/括号配对/Ctrl+S） */
+  function bindEditorKeys() {
+    const ta = document.getElementById('file-editor-area');
+    if (!ta || ta._keysBound) return;
+    ta._keysBound = true;
+
+    const INDENT = '    '; // 4 spaces
+    const PAIRS = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'", '`': '`' };
+    const CLOSERS = new Set([')', ']', '}', '"', "'", '`']);
+
+    ta.addEventListener('keydown', function (e) {
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      const val = ta.value;
+
+      // ── Tab / Shift+Tab ──────────────────────────────────────
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        if (start === end && !e.shiftKey) {
+          // 无选区：直接插入 4 空格
+          ta.value = val.slice(0, start) + INDENT + val.slice(end);
+          ta.selectionStart = ta.selectionEnd = start + 4;
+        } else {
+          // 有选区或 Shift+Tab：按行缩进/取消缩进
+          const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+          const block = val.slice(lineStart, end);
+          let newBlock;
+          if (e.shiftKey) {
+            newBlock = block.replace(/^( {1,4})/gm, '');
+          } else {
+            newBlock = block.replace(/^/gm, INDENT);
+          }
+          ta.value = val.slice(0, lineStart) + newBlock + val.slice(end);
+          ta.selectionStart = lineStart;
+          ta.selectionEnd = lineStart + newBlock.length;
+        }
+        return;
+      }
+
+      // ── Enter 自动缩进 ───────────────────────────────────────
+      if (e.key === 'Enter') {
+        const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+        const currentLine = val.slice(lineStart, start);
+        const leadingWS = (currentLine.match(/^(\s*)/) || ['',''])[1];
+        // 如果当前行以 { ( [ 结尾，增加一级缩进
+        const lastChar = currentLine.trimEnd().slice(-1);
+        const extra = (lastChar === '{' || lastChar === '(' || lastChar === '[') ? INDENT : '';
+        if (leadingWS || extra) {
+          e.preventDefault();
+          const insert = '\n' + leadingWS + extra;
+          ta.value = val.slice(0, start) + insert + val.slice(end);
+          ta.selectionStart = ta.selectionEnd = start + insert.length;
+        }
+        return;
+      }
+
+      // ── Ctrl/Cmd + S 保存 ───────────────────────────────────
+      if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        saveFile();
+        return;
+      }
+
+      // ── 自动配对括号/引号 ────────────────────────────────────
+      if (PAIRS[e.key] && start === end) {
+        // 若下一个字符已经是同类型闭符号，则跳过插入（仅引号适用）
+        if (CLOSERS.has(e.key) && val[start] === e.key) {
+          e.preventDefault();
+          ta.selectionStart = ta.selectionEnd = start + 1;
+          return;
+        }
+        e.preventDefault();
+        const close = PAIRS[e.key];
+        ta.value = val.slice(0, start) + e.key + close + val.slice(end);
+        ta.selectionStart = ta.selectionEnd = start + 1;
+        return;
+      }
+
+      // ── 跳过闭符号（光标紧跟在闭符号前时按闭符号直接跳过）─────
+      if (CLOSERS.has(e.key) && val[start] === e.key && start === end) {
+        e.preventDefault();
+        ta.selectionStart = ta.selectionEnd = start + 1;
+        return;
+      }
+
+      // ── Backspace 删除配对（光标在两配对符号中间时同时删除两个）
+      if (e.key === 'Backspace' && start === end && start > 0) {
+        const before = val[start - 1];
+        const after = val[start];
+        if (PAIRS[before] === after) {
+          e.preventDefault();
+          ta.value = val.slice(0, start - 1) + val.slice(start + 1);
+          ta.selectionStart = ta.selectionEnd = start - 1;
+        }
+      }
+    });
+  }
+
   /** 初始化（绑定按钮事件） */
   function init() {
     const newBtn = document.getElementById('btn-new-file');
@@ -225,6 +323,8 @@ const FileEditor = (function () {
     if (newBtn) newBtn.addEventListener('click', createFile);
     if (saveBtn) saveBtn.addEventListener('click', saveFile);
     if (loadBtn) loadBtn.addEventListener('click', loadTest);
+
+    bindEditorKeys();
   }
 
   return { init, refreshFileList, openFile, createFile, saveFile };
