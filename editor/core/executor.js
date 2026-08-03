@@ -243,6 +243,7 @@ const Executor = (function () {
     // 优先检查扩展自定义执行器
     const customExec = ExtensionManager.getExecutor(type);
     if (customExec) {
+      p._block = block; // 暴露原始积木对象，供 BlockRunner 使用
       const result = await customExec(p, scope);
       if (result === '__RETURN__' || result === '__STOP__') return result;
       await delay(1);
@@ -1164,7 +1165,7 @@ const Executor = (function () {
       default: {
         // 检查扩展自定义执行器
         const customExec = ExtensionManager.getExecutor(type);
-        if (customExec) return customExec(p, scope);
+        if (customExec) { p._block = block; return customExec(p, scope); }
         return block.params ? Object.values(block.params)[0] : 0;
       }
     }
@@ -1268,5 +1269,40 @@ const Executor = (function () {
 
   function _getGlobalVars() { return { ..._globalVars }; }
 
-  return { run, stop, getOutput, clearOutput, _getGlobalVars };
+  /** 公开API：执行积木链（供扩展执行器使用） */
+  async function publicRunBlock(blockOrId, scope) {
+    const block = typeof blockOrId === 'string' ? EditorState.blocks[blockOrId] : blockOrId;
+    if (!block) return;
+    return await executeChain(block, scope || {});
+  }
+
+  /** 公开API：执行 C 型积木的子代码槽（供扩展执行器使用） */
+  async function publicRunSubBlock(block, subName, scope) {
+    const subTop = getSubTop(block, subName || 'body');
+    if (subTop) return await executeChain(subTop, scope || {});
+  }
+
+  return { run, stop, getOutput, clearOutput, _getGlobalVars, runBlock: publicRunBlock, runSubBlock: publicRunSubBlock };
 })();
+
+/**
+ * BlockRunner - 供扩展执行器运行积木的全局 API
+ * 统一处理 C 型积木子代码槽和 block 类型参数
+ */
+const BlockRunner = {
+  /** 运行 C 型积木的子代码槽 */
+  async runSubBlock(block, subName, scope) {
+    return Executor.runSubBlock(block, subName, scope);
+  },
+  /** 运行 block 类型参数的值（{__blockRef: id} 或直接 blockId 字符串） */
+  async runBlockParam(blockRefOrId, scope) {
+    if (!blockRefOrId) return;
+    const id = (typeof blockRefOrId === 'object' && blockRefOrId.__blockRef)
+      ? blockRefOrId.__blockRef : blockRefOrId;
+    return Executor.runBlock(id, scope);
+  },
+  /** 运行任意积木链 */
+  async run(blockOrId, scope) {
+    return Executor.runBlock(blockOrId, scope);
+  },
+};
