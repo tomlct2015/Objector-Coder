@@ -102,6 +102,7 @@ tr:nth-child(even) td { background:rgba(49,50,68,.4); }
   <a data-go="executor-scope">scope 对象</a>
   <a data-go="executor-return">返回值</a>
   <a data-go="global-api">全局 API</a>
+  <a data-go="api-blockrunner">BlockRunner API</a>
   <h3>API 参考</h3>
   <a data-go="api-register">registerExtension</a>
   <a data-go="api-load">加载方法</a>
@@ -267,7 +268,7 @@ tr:nth-child(even) td { background:rgba(49,50,68,.4); }
   <tr><td><code>string</code></td><td>文本输入</td><td><code>{ default: 'hello' }</code></td></tr>
   <tr><td><code>number</code></td><td>数字输入</td><td><code>{ default: 10 }</code></td></tr>
   <tr><td><code>dropdown</code></td><td>下拉选择</td><td><code>{ default: 'A', options: ['A','B','C'] }</code></td></tr>
-  <tr><td><code>block</code></td><td>代码块引用</td><td><code>{ default: null }</code></td></tr>
+  <tr><td><code>block</code></td><td>代码块引用（可用 BlockRunner 运行）</td><td><code>{ default: null }</code></td></tr>
 </table>
 <pre><code><span class="cm">// 参数定义示例</span>
 <span class="kw">params</span>: [
@@ -347,7 +348,10 @@ params.count  <span class="cm">// → 10 或用户输入的值，或连接的 re
 
 <span class="cm">// 动态参数也包含在内</span>
 params.arg1   <span class="cm">// → 第一个动态参数</span>
-params.arg2   <span class="cm">// → 第二个动态参数</span></code></pre>
+params.arg2   <span class="cm">// → 第二个动态参数</span>
+
+<span class="cm">// 特殊属性：原始积木对象（用于 BlockRunner）</span>
+params._block <span class="cm">// → 当前积木的原始对象（含 subBlocks、paramConnections 等）</span></code></pre>
 </div>
 
 <div class="doc-section" id="sec-executor-scope">
@@ -383,6 +387,7 @@ params.arg2   <span class="cm">// → 第二个动态参数</span></code></pre>
   <tr><td><code>SensingInput</code></td><td>输入检测（鼠标位置、键盘状态）<a data-go="api-sensing" style="color:var(--accent);margin-left:4px;">→ 详情</a></td></tr>
   <tr><td><code>ExtensionManager</code></td><td>扩展管理器（注册/查询扩展）</td></tr>
   <tr><td><code>BlockRegistry</code></td><td>积木注册表（查询积木定义）</td></tr>
+  <tr><td><code>BlockRunner</code></td><td>积木运行器（运行 C 型子代码 / block 参数）<a data-go="api-blockrunner" style="color:var(--accent);margin-left:4px;">→ 详情</a></td></tr>
   <tr><td><code>Math</code> / <code>Date</code> 等</td><td>标准 JavaScript 全局对象</td></tr>
 </table>
 <div class="tip">运行程序时，执行引擎自动收集所有精灵的积木，所有精灵的事件和脚本会同时生效。</div>
@@ -682,20 +687,105 @@ params.arg2   <span class="cm">// → 第二个动态参数</span></code></pre>
 });</code></pre>
 </div>
 
+<div class="doc-section" id="sec-api-blockrunner">
+<h2>BlockRunner API</h2>
+<p>让扩展中的 <strong>C 型积木</strong>和含 <strong>block 类型参数</strong>的积木能够运行内部子代码。两者用法一致，通过 <code>BlockRunner</code> 全局对象调用。</p>
+<h3>为什么需要 BlockRunner？</h3>
+<p>普通 stack / reporter 积木只需处理参数值即可。但 C 型积木（循环、条件等）和 block 参数（传入的代码块引用）需要<strong>执行子积木链</strong>，这要求访问执行引擎内部函数。<code>BlockRunner</code> 将这些能力暴露给扩展。</p>
+<h3>方法列表</h3>
+<table>
+  <tr><th>方法</th><th>参数</th><th>说明</th></tr>
+  <tr><td><code>runSubBlock(block, subName, scope)</code></td><td>block: 原始积木对象<br>subName: 子槽名（通常 <code>'body'</code>）<br>scope: 作用域</td><td>运行 C 型积木内部的子代码链</td></tr>
+  <tr><td><code>runBlockParam(blockRef, scope)</code></td><td>blockRef: block 参数值<br>scope: 作用域</td><td>运行 block 类型参数引用的积木链</td></tr>
+  <tr><td><code>run(blockOrId, scope)</code></td><td>blockOrId: 积木对象或 ID<br>scope: 作用域</td><td>运行任意积木链</td></tr>
+</table>
+<div class="tip">扩展执行器的 <code>params._block</code> 包含当前积木的原始对象，用于传给 <code>runSubBlock</code>。</div>
+<h3>示例：自定义循环 C 型积木</h3>
+<pre><code><span class="fn">ExtensionManager.registerExtension</span>({
+  <span class="kw">id</span>: <span class="str">'ext_loop'</span>,
+  <span class="kw">name</span>: <span class="str">'自定义循环'</span>,
+  <span class="kw">color</span>: <span class="str">'#FFBF00'</span>,
+  <span class="kw">blocks</span>: [
+    {
+      <span class="kw">type</span>: <span class="str">'ext_repeat_n'</span>,
+      <span class="kw">label</span>: <span class="str">'重复 {n} 次'</span>,
+      <span class="kw">shape</span>: <span class="str">'c-block'</span>,
+      <span class="kw">ports</span>: { <span class="kw">flowIn</span>: <span class="kw">true</span>, <span class="kw">flowOut</span>: <span class="kw">true</span> },
+      <span class="kw">subBlocks</span>: [<span class="str">'body'</span>],
+      <span class="kw">params</span>: [{ <span class="kw">name</span>: <span class="str">'n'</span>, <span class="kw">type</span>: <span class="str">'number'</span>, <span class="kw">default</span>: <span class="num">10</span> }],
+    },
+  ],
+  <span class="kw">executors</span>: {
+    <span class="fn">ext_repeat_n</span>: <span class="kw">async function</span>(params, scope) {
+      <span class="kw">const</span> n = <span class="fn">Number</span>(params.n);
+      <span class="kw">const</span> block = params._block;  <span class="cm">// ← 获取原始积木对象</span>
+      <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i < n; i++) {
+        <span class="kw">const</span> r = <span class="kw">await</span> <span class="fn">BlockRunner</span>.<span class="fn">runSubBlock</span>(block, <span class="str">'body'</span>, { ...scope, __i: i });
+        <span class="kw">if</span> (r === <span class="str">'__RETURN__'</span>) <span class="kw">return</span> r;
+      }
+    },
+  },
+});</code></pre>
+<h3>示例：block 参数运行传入的代码块</h3>
+<pre><code>{
+  <span class="kw">type</span>: <span class="str">'ext_run_twice'</span>,
+  <span class="kw">label</span>: <span class="str">'运行两次 {code}'</span>,
+  <span class="kw">shape</span>: <span class="str">'stack'</span>,
+  <span class="kw">params</span>: [{ <span class="kw">name</span>: <span class="str">'code'</span>, <span class="kw">type</span>: <span class="str">'block'</span>, <span class="kw">default</span>: <span class="kw">null</span> }],
+}
+
+<span class="cm">// 执行器</span>
+<span class="fn">ext_run_twice</span>: <span class="kw">async function</span>(params, scope) {
+  <span class="kw">const</span> blockRef = params.code;  <span class="cm">// {__blockRef: 'xxx'}</span>
+  <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i < <span class="num">2</span>; i++) {
+    <span class="kw">await</span> <span class="fn">BlockRunner</span>.<span class="fn">runBlockParam</span>(blockRef, scope);
+  }
+},</code></pre>
+<div class="tip">block 类型参数的值（<code>params.code</code>）与 C 型槽内的子积木在运行时无本质区别，均可通过 <code>BlockRunner</code> 执行。</div>
+</div>
+
 <div class="doc-section" id="sec-example-async">
 <h2>C 型积木示例：条件循环</h2>
-<pre><code><span class="cm">// 注意：C 型积木需要在执行器中手动获取并执行子代码</span>
-<span class="cm">// 此功能需要访问内部 API，当前版本有限支持</span>
+<pre><code><span class="cm">// C 型积木通过 BlockRunner.runSubBlock 执行子代码</span>
 
-{
-  <span class="kw">type</span>: <span class="str">'ext_repeat'</span>,
-  <span class="kw">label</span>: <span class="str">'重复 {n} 次'</span>,
-  <span class="kw">shape</span>: <span class="str">'c-block'</span>,
-  <span class="kw">ports</span>: { <span class="kw">flowIn</span>: <span class="kw">true</span>, <span class="kw">flowOut</span>: <span class="kw">true</span> },
-  <span class="kw">subBlocks</span>: [<span class="str">'body'</span>],
-  <span class="kw">params</span>: [{ <span class="kw">name</span>: <span class="str">'n'</span>, <span class="kw">type</span>: <span class="str">'number'</span>, <span class="kw">default</span>: <span class="num">10</span> }],
-}</code></pre>
-<div class="warn">C 型积木（c-block）的子代码执行需要访问执行引擎内部函数（<code>getSubTop</code>、<code>executeChain</code>）。目前在扩展执行器中无法直接调用，建议优先使用 <code>stack</code> 和 <code>reporter</code> 形状。</div>
+<span class="fn">ExtensionManager.registerExtension</span>({
+  <span class="kw">id</span>: <span class="str">'ext_control'</span>,
+  <span class="kw">name</span>: <span class="str">'高级控制'</span>,
+  <span class="kw">color</span>: <span class="str">'#FFBF00'</span>,
+  <span class="kw">blocks</span>: [
+    {
+      <span class="kw">type</span>: <span class="str">'ext_repeat'</span>,
+      <span class="kw">label</span>: <span class="str">'重复 {n} 次'</span>,
+      <span class="kw">shape</span>: <span class="str">'c-block'</span>,
+      <span class="kw">ports</span>: { <span class="kw">flowIn</span>: <span class="kw">true</span>, <span class="kw">flowOut</span>: <span class="kw">true</span> },
+      <span class="kw">subBlocks</span>: [<span class="str">'body'</span>],
+      <span class="kw">params</span>: [{ <span class="kw">name</span>: <span class="str">'n'</span>, <span class="kw">type</span>: <span class="str">'number'</span>, <span class="kw">default</span>: <span class="num">10</span> }],
+    },
+    {
+      <span class="kw">type</span>: <span class="str">'ext_if'</span>,
+      <span class="kw">label</span>: <span class="str">'如果 {cond}'</span>,
+      <span class="kw">shape</span>: <span class="str">'c-block'</span>,
+      <span class="kw">ports</span>: { <span class="kw">flowIn</span>: <span class="kw">true</span>, <span class="kw">flowOut</span>: <span class="kw">true</span> },
+      <span class="kw">subBlocks</span>: [<span class="str">'body'</span>],
+      <span class="kw">params</span>: [{ <span class="kw">name</span>: <span class="str">'cond'</span>, <span class="kw">type</span>: <span class="str">'boolean'</span>, <span class="kw">default</span>: <span class="kw">false</span> }],
+    },
+  ],
+  <span class="kw">executors</span>: {
+    <span class="fn">ext_repeat</span>: <span class="kw">async function</span>(params, scope) {
+      <span class="kw">const</span> n = <span class="fn">Number</span>(params.n);
+      <span class="kw">for</span> (<span class="kw">let</span> i = <span class="num">0</span>; i < n; i++) {
+        <span class="kw">const</span> r = <span class="kw">await</span> <span class="fn">BlockRunner</span>.<span class="fn">runSubBlock</span>(params._block, <span class="str">'body'</span>, scope);
+        <span class="kw">if</span> (r === <span class="str">'__RETURN__'</span>) <span class="kw">return</span> r;
+      }
+    },
+    <span class="fn">ext_if</span>: <span class="kw">async function</span>(params, scope) {
+      <span class="kw">if</span> (params.cond === <span class="kw">true</span> || params.cond === <span class="str">'true'</span>) {
+        <span class="kw">return await</span> <span class="fn">BlockRunner</span>.<span class="fn">runSubBlock</span>(params._block, <span class="str">'body'</span>, scope);
+      }
+    },
+  },
+});</code></pre>
+<div class="tip">更多 C 型积木和 block 参数用法，参见 <a data-go="api-blockrunner" style="color:var(--accent);">BlockRunner API</a>。</div>
 </div>
 
 <div class="doc-section" id="sec-example-sprite">
