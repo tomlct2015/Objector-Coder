@@ -340,6 +340,8 @@
     try {
       // 先保存到 VFS
       await ProjectManager.saveProject();
+      EditorState._isDirty = false;
+      EditorState._blocksSnapshot = JSON.stringify(EditorState.blocks);
 
       // 选择保存文件夹
       const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
@@ -690,6 +692,8 @@
       try {
         // 先保存到 VFS
         await ProjectManager.saveProject();
+        EditorState._isDirty = false;
+        EditorState._blocksSnapshot = JSON.stringify(EditorState.blocks);
 
         let projectId = null;
         let extResultId = null;
@@ -919,11 +923,22 @@
     }
 
     // 工具栏事件
-    document.getElementById('btn-home').addEventListener('click', () => {
-      // Web 版：导航回主页
+    document.getElementById('btn-home').addEventListener('click', (e) => {
+      // Web 版：检查未保存状态后再导航
+      if (EditorState._isDirty) {
+        var msg = i18n.isEnglish()
+          ? 'You have unsaved changes. Leave anyway?'
+          : '您有未保存的更改，确定要离开吗？';
+        if (!confirm(msg)) { e.preventDefault(); return; }
+      }
+      EditorState._isDirty = false; // 用户确认离开，清除标记
       window.location.href = 'index.html';
     });
-    document.getElementById('btn-save').addEventListener('click', () => ProjectManager.saveProject());
+    document.getElementById('btn-save').addEventListener('click', async () => {
+      await ProjectManager.saveProject();
+      EditorState._isDirty = false;
+      EditorState._blocksSnapshot = JSON.stringify(EditorState.blocks);
+    });
 
     // 保存到本地（ZIP）
     document.getElementById('btn-save-local')?.addEventListener('click', saveProjectToLocal);
@@ -1010,17 +1025,38 @@
 
     // 键盘快捷键
     document.addEventListener('keydown', (e) => {
-      if (e.ctrlKey && e.key === 's') { e.preventDefault(); ProjectManager.saveProject(); }
+      if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        ProjectManager.saveProject().then(() => {
+          EditorState._isDirty = false;
+          EditorState._blocksSnapshot = JSON.stringify(EditorState.blocks);
+        });
+      }
     });
 
-    // 定期更新积木计数（切换精灵时自动反映）
+    // 定期更新积木计数（切换精灵时自动反映）+ 未保存状态检测
+    EditorState._isDirty = false;
+    EditorState._blocksSnapshot = JSON.stringify(EditorState.blocks || {});
     setInterval(() => {
       const count = Object.keys(EditorState.blocks || {}).length;
       const sprite = StageManager.getActiveSprite();
       const spriteName = sprite ? sprite.name : '';
       document.getElementById('block-count').textContent =
         (i18n.isEnglish() ? spriteName + ': ' : spriteName + '：') + count + (i18n.isEnglish() ? ' blocks' : ' 个积木');
+      // 检测积木数据变化，标记未保存状态
+      const snapshot = JSON.stringify(EditorState.blocks || {});
+      if (snapshot !== EditorState._blocksSnapshot) {
+        EditorState._isDirty = true;
+      }
     }, 500);
+
+    // 网页端未保存退出弹窗（刷新页面 / 关闭标签页 / 跳转外链）
+    window.addEventListener('beforeunload', (e) => {
+      if (EditorState._isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
 
     // 监听主进程发来的加载新项目事件
     if (window.api && window.api.onLoadProject) {
@@ -1188,6 +1224,10 @@
     // 更新积木计数
     const count = Object.keys(EditorState.blocks).length;
     document.getElementById('block-count').textContent = i18n.t('editor.blockCount', null).replace('{n}', count);
+
+    // 项目加载完成后重置未保存状态
+    EditorState._isDirty = false;
+    EditorState._blocksSnapshot = JSON.stringify(EditorState.blocks || {});
     } catch(e) {
       console.error('[项目加载失败]', e);
       document.getElementById('status-text').textContent = i18n.t('status.loadFailed', null).replace('{error}', e.message);
