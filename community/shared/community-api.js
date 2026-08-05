@@ -353,7 +353,7 @@ const CommunityAPI = (function () {
     return await _supabase.from('projects').delete().eq('id', id).eq('author_id', _user.id);
   }
 
-  async function updateProject(id, updates, zipBlob) {
+  async function updateProject(id, updates, zipBlob, thumbBlob) {
     if (!_user) return { error: 'Not logged in' };
 
     // 如果有新 ZIP，先上传
@@ -365,6 +365,22 @@ const CommunityAPI = (function () {
       if (!zipErr) {
         const { data: urlData } = _supabase.storage.from('projects').getPublicUrl(zipPath);
         updates.zip_url = urlData.publicUrl;
+      }
+    }
+
+    // 如果有新封面，上传
+    if (thumbBlob) {
+      const ext = thumbBlob.name ? thumbBlob.name.split('.').pop() : 'png';
+      const thumbPath = `${_user.id}/${id}_thumb_${Date.now()}.${ext}`;
+      const { error: thumbErr } = await _supabase.storage.from('projects').upload(thumbPath, thumbBlob, {
+        contentType: thumbBlob.type || 'image/png', upsert: true
+      });
+      if (!thumbErr) {
+        const { data: urlData } = _supabase.storage.from('projects').getPublicUrl(thumbPath);
+        updates.thumbnail_url = urlData.publicUrl;
+      } else {
+        console.error('[updateProject] thumbnail upload failed:', thumbErr.message);
+        return { error: '封面上传失败: ' + thumbErr.message };
       }
     }
 

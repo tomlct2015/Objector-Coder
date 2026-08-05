@@ -1173,6 +1173,25 @@ a:hover { color: var(--accent2); }
   line-height: 1.6;
 }
 
+/* Thumb preview modal */
+.thumb-modal {
+  max-width: 480px;
+}
+.thumb-preview-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 12px 0;
+  background: var(--bg, #181825);
+  border-radius: 8px;
+  padding: 12px;
+}
+.thumb-preview-img {
+  max-width: 100%;
+  max-height: 240px;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
 /* ============================================================
    Responsive
    ============================================================ */
