@@ -104,6 +104,147 @@
       });
     }
 
+    // 头像上传处理
+    function handleAvatarChange(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // 验证文件类型和大小
+      if (!file.type.startsWith('image/')) {
+        CommunityUI.showToast('请选择图片文件', 'error');
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        CommunityUI.showToast('图片大小不能超过 2MB', 'error');
+        return;
+      }
+
+      // 显示预览并确认
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        showAvatarPreview(ev.target.result, file);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function showAvatarPreview(dataUrl, file) {
+      // 创建预览弹窗
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.id = 'avatar-modal';
+      modal.innerHTML = `
+        <div class="modal-content avatar-modal">
+          <h3>更换头像</h3>
+          <div class="avatar-preview-wrap">
+            <img src="${dataUrl}" class="avatar-preview-img" alt="预览" />
+          </div>
+          <p style="color:var(--muted,#6c7086);font-size:13px;margin:12px 0;">确认使用这张图片作为头像吗？</p>
+          <div class="modal-actions">
+            <button class="btn btn-outline btn-sm" id="avatar-cancel">取消</button>
+            <button class="btn btn-primary btn-sm" id="avatar-confirm">确认上传</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      document.getElementById('avatar-cancel').addEventListener('click', () => {
+        modal.remove();
+        // 重置 file input
+        const input = document.getElementById('avatar-input');
+        if (input) input.value = '';
+      });
+
+      document.getElementById('avatar-confirm').addEventListener('click', async () => {
+        const btn = document.getElementById('avatar-confirm');
+        btn.disabled = true;
+        btn.textContent = '上传中...';
+        const res = await CommunityAPI.uploadAvatar(file);
+        if (res.error) {
+          CommunityUI.showToast('上传失败: ' + res.error, 'error');
+          btn.disabled = false;
+          btn.textContent = '确认上传';
+        } else {
+          CommunityUI.showToast('头像更新成功', 'success');
+          modal.remove();
+          loadProfile();
+        }
+      });
+
+      // 点击背景关闭
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.remove();
+          const input = document.getElementById('avatar-input');
+          if (input) input.value = '';
+        }
+      });
+    }
+
+    // 注销账户弹窗
+    function showDeleteAccountModal() {
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.id = 'delete-account-modal';
+      modal.innerHTML = `
+        <div class="modal-content delete-modal">
+          <h3 style="color:#f38ba8;">⚠️ 注销账户</h3>
+          <p style="margin:12px 0;color:var(--text,#cdd6f4);">此操作将永久删除你的账户及所有数据，包括：</p>
+          <ul style="color:var(--muted,#6c7086);font-size:13px;margin:0 0 16px 20px;">
+            <li>所有发布的作品</li>
+            <li>所有发布的帖子和评论</li>
+            <li>所有发布的扩展</li>
+            <li>收藏和关注记录</li>
+          </ul>
+          <p style="color:#f38ba8;font-size:13px;margin-bottom:12px;">此操作无法撤销！</p>
+          <label style="display:block;margin-bottom:8px;font-size:13px;">
+            请输入账户密码确认：
+            <input type="password" id="delete-pwd-input" class="modal-input"
+              placeholder="你的密码" autocomplete="current-password" />
+          </label>
+          <div class="modal-actions">
+            <button class="btn btn-outline btn-sm" id="delete-cancel">取消</button>
+            <button class="btn btn-sm" id="delete-confirm" style="background:#f38ba8;color:#1e1e2e;">确认注销</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      const pwdInput = document.getElementById('delete-pwd-input');
+      pwdInput.focus();
+      pwdInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') document.getElementById('delete-confirm').click();
+      });
+
+      document.getElementById('delete-cancel').addEventListener('click', () => {
+        modal.remove();
+      });
+
+      document.getElementById('delete-confirm').addEventListener('click', async () => {
+        const pwd = pwdInput.value;
+        if (!pwd) {
+          CommunityUI.showToast('请输入密码', 'error');
+          return;
+        }
+        const btn = document.getElementById('delete-confirm');
+        btn.disabled = true;
+        btn.textContent = '处理中...';
+        const res = await CommunityAPI.deleteAccount(pwd);
+        if (res.error) {
+          CommunityUI.showToast('注销失败: ' + res.error, 'error');
+          btn.disabled = false;
+          btn.textContent = '确认注销';
+        } else {
+          CommunityUI.showToast('账户已注销', 'success');
+          setTimeout(() => { location.href = 'index.html'; }, 1500);
+        }
+      });
+
+      // 点击背景关闭
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+      });
+    }
+
     async function loadProfile() {
       const res = await CommunityAPI.getProfile(targetUserId);
       if (res.error || !res.data) {
@@ -126,6 +267,7 @@
         actionsHtml = `
           <button class="btn btn-outline btn-sm" id="btn-edit-profile">✏️ 编辑简介</button>
           <button class="btn btn-outline btn-sm" id="btn-logout">退出登录</button>
+          <button class="btn btn-outline btn-sm btn-danger-text" id="btn-delete-account">🗑️ 注销账户</button>
         `;
       } else if (currentUser) {
         actionsHtml = `
@@ -144,9 +286,18 @@
         bioHtml = profile.bio ? `<p class="profile-bio">${profile.bio}</p>` : '';
       }
 
+      // 自己的头像可以点击修改
+      const avatarHtml = isOwnProfile
+        ? `<div class="profile-avatar-wrap" id="avatar-wrap" title="点击更换头像">
+            <img src="${avatar}" class="profile-avatar" alt="${profile.username}" onerror="this.onerror=null;this.src=CommunityUI.makeAvatarSvgUrl('${initial}',80)" />
+            <div class="profile-avatar-overlay">📷</div>
+           </div>
+           <input type="file" id="avatar-input" accept="image/*" style="display:none" />`
+        : `<img src="${avatar}" class="profile-avatar" alt="${profile.username}" onerror="this.onerror=null;this.src=CommunityUI.makeAvatarSvgUrl('${initial}',80)" />`;
+
       document.getElementById('profile-header').innerHTML = `
         <div class="profile-card">
-          <img src="${avatar}" class="profile-avatar" alt="${profile.username}" onerror="this.onerror=null;this.src=CommunityUI.makeAvatarSvgUrl('${initial}',80)" />
+          ${avatarHtml}
           <div class="profile-info">
             <h1>${profile.username}</h1>
             ${bioHtml}
@@ -155,6 +306,22 @@
           <div class="profile-actions">${actionsHtml}</div>
         </div>
       `;
+
+      // 绑定头像上传
+      if (isOwnProfile) {
+        const avatarWrap = document.getElementById('avatar-wrap');
+        const avatarInput = document.getElementById('avatar-input');
+        if (avatarWrap && avatarInput) {
+          avatarWrap.addEventListener('click', () => avatarInput.click());
+          avatarInput.addEventListener('change', handleAvatarChange);
+        }
+      }
+
+      // 绑定注销账户
+      const btnDeleteAccount = document.getElementById('btn-delete-account');
+      if (btnDeleteAccount) {
+        btnDeleteAccount.addEventListener('click', showDeleteAccountModal);
+      }
 
       // 绑定事件
       const btnLogout = document.getElementById('btn-logout');
