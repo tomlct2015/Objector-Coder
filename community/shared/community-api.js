@@ -717,7 +717,7 @@ const CommunityAPI = (function () {
     if (!_supabase) return { data: [] };
     const { data } = await _supabase
       .from('projects')
-      .select('*')
+      .select('*, profiles(username, avatar_url)')
       .eq('author_id', userId)
       .eq('is_public', true)
       .order('created_at', { ascending: false });
@@ -728,7 +728,7 @@ const CommunityAPI = (function () {
     if (!_supabase) return { data: [] };
     const { data } = await _supabase
       .from('posts')
-      .select('*')
+      .select('*, profiles(username, avatar_url)')
       .eq('author_id', userId)
       .order('created_at', { ascending: false });
     return { data: data || [] };
@@ -738,7 +738,7 @@ const CommunityAPI = (function () {
     if (!_supabase) return { data: [] };
     const { data } = await _supabase
       .from('extensions')
-      .select('*')
+      .select('*, profiles(username, avatar_url)')
       .eq('author_id', userId)
       .order('created_at', { ascending: false });
     return { data: data || [] };
@@ -746,7 +746,7 @@ const CommunityAPI = (function () {
 
   async function getUserFavorites(userId, targetType) {
     if (!_supabase) return { data: [] };
-    let query = _supabase.from('favorites').select('*, projects(*), posts(*), extensions(*)').eq('user_id', userId);
+    let query = _supabase.from('favorites').select('*, projects(*, profiles!projects_author_id_fkey(username, avatar_url)), posts(*, profiles!posts_author_id_fkey(username, avatar_url)), extensions(*, profiles!extensions_author_id_fkey(username, avatar_url))').eq('user_id', userId);
     if (targetType) query = query.eq('target_type', targetType);
     const { data } = await query;
     return { data: data || [] };
