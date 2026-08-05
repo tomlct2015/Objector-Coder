@@ -6,8 +6,31 @@ const CommunityUI = (function () {
   const API = CommunityAPI;
 
   // 全局配置 marked：单个换行也产生 <br>（GFM 行为）
-  if (typeof marked !== 'undefined' && marked.setOptions) {
-    marked.setOptions({ breaks: true, gfm: true });
+  if (typeof marked !== 'undefined') {
+    if (marked.use) { marked.use({ breaks: true, gfm: true }); }
+    else if (marked.setOptions) { marked.setOptions({ breaks: true, gfm: true }); }
+  }
+
+  /**
+   * 安全的 Markdown 解析封装（始终启用 breaks 模式）
+   * 兼容 marked v4/v5/v12+ 各种版本
+   */
+  function parseMarkdown(text) {
+    if (!text) return '';
+    if (typeof marked === 'undefined') return API.escapeHtml(text).replace(/\n/g, '<br>');
+    try {
+      // v12+: marked.parse(text, options)
+      if (typeof marked.parse === 'function') {
+        return marked.parse(text, { breaks: true, gfm: true });
+      }
+      // older: marked(text, options)
+      if (typeof marked === 'function') {
+        return marked(text, { breaks: true, gfm: true });
+      }
+    } catch (e) {
+      console.warn('[parseMarkdown] marked error:', e.message);
+    }
+    return API.escapeHtml(text).replace(/\n/g, '<br>');
   }
 
   // ============================================================
@@ -463,5 +486,6 @@ const CommunityUI = (function () {
     renderPagination, renderLikeButton, renderEmpty, renderLoading, showToast,
     fillCards,
     makeAvatarSvgUrl, makeThumbPlaceholder, onImgError, onThumbError,
+    parseMarkdown,
   };
 })();
