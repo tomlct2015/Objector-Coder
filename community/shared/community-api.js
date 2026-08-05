@@ -220,6 +220,46 @@ const CommunityAPI = (function () {
     return { data, error };
   }
 
+  /** 上传头像图片到 Storage 并更新 profile */
+  async function uploadAvatar(file) {
+    if (!_user) return { error: 'Not logged in' };
+    if (!file) return { error: 'No file provided' };
+    // 验证文件类型
+    if (!file.type.startsWith('image/')) return { error: 'Only image files are allowed' };
+    // 限制大小 2MB
+    if (file.size > 2 * 1024 * 1024) return { error: 'Image must be smaller than 2MB' };
+
+    // 生成文件路径
+    const ext = file.name.split('.').pop() || 'png';
+    const filePath = `${_user.id}/avatar_${Date.now()}.${ext}`;
+
+    // 上传到 avatars bucket
+    const { error: uploadErr } = await _supabase.storage.from('avatars').upload(filePath, file, {
+      contentType: file.type,
+      upsert: true,
+      cacheControl: '0'
+    });
+    if (uploadErr) {
+      console.error('[uploadAvatar] upload failed:', uploadErr.message);
+      return { error: 'Upload failed: ' + uploadErr.message };
+    }
+
+    // 获取公开 URL
+    const { data: urlData } = _supabase.storage.from('avatars').getPublicUrl(filePath);
+    const avatarUrl = urlData.publicUrl;
+
+    // 更新 profile
+    const { data, error } = await _supabase
+      .from('profiles')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', _user.id)
+      .select()
+      .single();
+    if (error) return { error: error.message };
+    _profile = data;
+    return { data: { avatar_url: avatarUrl } };
+  }
+
   // ============================================================
   // Projects 作品
   // ============================================================
@@ -889,7 +929,7 @@ const CommunityAPI = (function () {
 
   return {
     init, isConfigured, restoreSession,
-    signUp, signIn, signOut, getCurrentUser, loadProfile, getProfile, getUser, updateProfile,
+    signUp, signIn, signOut, getCurrentUser, loadProfile, getProfile, getUser, updateProfile, uploadAvatar,
     getProjects, getProject, getProjectById: getProject, publishProject, deleteProject, updateProject, getUserProjectByTitle, incrementDownloads,
     getPosts, getPost, getPostById: getPost, createPost, updatePost, deletePost,
     getComments, addComment, deleteComment,
