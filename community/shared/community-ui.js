@@ -9,7 +9,7 @@ const CommunityUI = (function () {
   // Image Helpers - 安全的 SVG 头像生成 & 图片错误兜底
   // ============================================================
 
-  /** 生成 base64 编码的 SVG 头像 data URI（100% 安全，兼容所有浏览器） */
+  /** 生成安全的 SVG 头像 data URI（兼容 emoji 和中文） */
   function makeAvatarSvgUrl(initial, size) {
     size = size || 40;
     var r = size / 2;
@@ -18,16 +18,16 @@ const CommunityUI = (function () {
       '<rect fill="#252545" width="' + size + '" height="' + size + '" rx="' + r + '"/>' +
       '<text fill="#89b4fa" font-size="' + fs + '" x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif">' +
       (initial || '?') + '</text></svg>';
-    return 'data:image/svg+xml;base64,' + btoa(svg);
+    return 'data:image/svg+xml,' + encodeURIComponent(svg);
   }
 
-  /** 生成 base64 编码的 SVG 缩略图占位符 */
+  /** 生成安全的 SVG 缩略图占位符（兼容 emoji） */
   function makeThumbPlaceholder(icon) {
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">' +
       '<rect fill="#252545" width="400" height="300"/>' +
       '<text fill="#89b4fa" font-size="48" x="50%" y="50%" text-anchor="middle" dominant-baseline="middle">' +
-      (icon || '⚡') + '</text></svg>';
-    return 'data:image/svg+xml;base64,' + btoa(svg);
+      (icon || '?') + '</text></svg>';
+    return 'data:image/svg+xml,' + encodeURIComponent(svg);
   }
 
   /** 图片 onerror 处理：加载失败时替换为 base64 SVG 头像 */
