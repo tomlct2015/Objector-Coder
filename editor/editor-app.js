@@ -785,7 +785,7 @@
             const content = localStorage.getItem(key);
             if (!content) continue;
 
-            if (relativePath === 'main.json' && !isBinary) {
+            if ((relativePath === 'main.json' || relativePath === 'scripts/main.json') && !isBinary) {
               mainJsonData = content;
             }
 
