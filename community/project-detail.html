@@ -68,7 +68,7 @@
         <div class="detail-main">
           <div class="detail-preview">
             <img src="${thumb}" alt="${p.title}" class="preview-img" id="preview-img" onerror="CommunityUI.onThumbError(this,'⚡')" />
-            ${p.json_data ? '<button class="btn btn-outline btn-sm" id="btn-preview">在线预览</button>' : ''}
+            ${(p.json_data || p.zip_url) ? '<button class="btn btn-outline btn-sm" id="btn-preview">▶ 在线预览</button>' : ''}
             ${isAuthor ? `
               <button class="btn btn-outline btn-sm" id="btn-change-thumb" style="margin-top:8px;">📷 修改封面</button>
               <input type="file" id="thumb-input" accept="image/*" style="display:none" />
