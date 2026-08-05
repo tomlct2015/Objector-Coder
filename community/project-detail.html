@@ -60,7 +60,7 @@
       const user = CommunityAPI.getUser();
       const isAuthor = user && p.author_id === user.id;
       const authorName = p.profiles ? p.profiles.username : '匿名';
-      const authorAvatar = p.profiles ? p.profiles.avatar_url : null;
+      const authorAvatar = p.profiles ? (p.profiles.avatar_url || `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect fill='%23252545' width='40' height='40' rx='20'/><text fill='%2389b4fa' font-size='16' x='50%25' y='55%25' text-anchor='middle'>${(authorName || '?')[0].toUpperCase()}</text></svg>`) : `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect fill='%23252545' width='40' height='40' rx='20'/><text fill='%2389b4fa' font-size='16' x='50%25' y='55%25' text-anchor='middle'>?</text></svg>`;
       const thumb = p.thumbnail_url || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect fill="%23252545" width="400" height="300"/><text fill="%2389b4fa" font-size="48" x="50%" y="50%" text-anchor="middle" dy=".3em">⚡</text></svg>';
 
       document.getElementById('project-detail').innerHTML = `
@@ -73,7 +73,7 @@
             <h1>${p.title}</h1>
             <div class="detail-meta">
               <a href="profile.html?id=${p.author_id}" class="user-link">
-                ${authorAvatar ? `<img src="${authorAvatar}" class="avatar-sm" />` : ''}
+                <img src="${authorAvatar}" class="avatar-sm" />
                 ${authorName}
               </a>
               <span>·</span>
