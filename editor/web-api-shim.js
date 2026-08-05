@@ -357,9 +357,16 @@
           }
           // fallback: 尝试 VFS_PREFIX
           const text = localStorage.getItem(VFS_PREFIX + vfsPath);
-          if (text && text.startsWith('data:')) {
-            originalDescriptor.set.call(this, text);
-            return;
+          if (text) {
+            if (text.startsWith('data:')) {
+              originalDescriptor.set.call(this, text);
+              return;
+            }
+            // SVG 文件可能以纯文本存储
+            if (text.trimStart().startsWith('<svg') || /<svg[\s>]/.test(text.slice(0, 200))) {
+              originalDescriptor.set.call(this, 'data:image/svg+xml,' + encodeURIComponent(text));
+              return;
+            }
           }
         }
         originalDescriptor.set.call(this, value);

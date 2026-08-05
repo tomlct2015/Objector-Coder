@@ -1096,20 +1096,44 @@
             const blob = await resp.blob();
             const zip = await JSZip.loadAsync(blob);
 
+            // 二进制文件扩展名 → MIME 类型映射
+            const BINARY_EXTS = {
+              '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg',
+              '.gif':'image/gif', '.bmp':'image/bmp', '.webp':'image/webp', '.svg':'image/svg+xml',
+              '.wav':'audio/wav', '.mp3':'audio/mpeg', '.ogg':'audio/ogg'
+            };
+            function _mimeForName(fname) {
+              const dot = fname.lastIndexOf('.');
+              if (dot < 0) return null;
+              return BINARY_EXTS[fname.slice(dot).toLowerCase()] || null;
+            }
+
             // 将 ZIP 内容写入 VFS
+            let _assetWarnCount = 0;
             for (const [relativePath, file] of Object.entries(zip.files)) {
               if (file.dir) continue;
               const fullPath = previewPath + '/' + relativePath;
-              if (file.name.endsWith('.png') || file.name.endsWith('.jpg') || file.name.endsWith('.jpeg') ||
-                  file.name.endsWith('.wav') || file.name.endsWith('.mp3') || file.name.endsWith('.ogg')) {
-                // 二进制文件
-                const base64 = await file.async('base64');
-                localStorage.setItem('vfsb:' + fullPath, 'data:application/octet-stream;base64,' + base64);
+              const mime = _mimeForName(file.name);
+              if (mime) {
+                // 二进制文件：用正确的 MIME 类型 data URL 存储
+                try {
+                  const base64 = await file.async('base64');
+                  localStorage.setItem('vfsb:' + fullPath, 'data:' + mime + ';base64,' + base64);
+                } catch (storeErr) {
+                  _assetWarnCount++;
+                  console.warn('[preview] 存储失败（可能超出容量）:', relativePath, storeErr.message);
+                }
               } else {
                 // 文本文件
                 const text = await file.async('text');
                 await window.api.writeFile(fullPath, text);
               }
+            }
+            if (_assetWarnCount > 0) {
+              const msg = (i18n.isEnglish()
+                ? 'Warning: {n} asset(s) failed to store (localStorage may be full). Try clearing browser storage.'
+                : '警告：{n} 个素材存储失败（localStorage 可能已满），请尝试清除浏览器存储。').replace('{n}', _assetWarnCount);
+              document.getElementById('status-text').textContent = msg;
             }
 
             // 更新目录索引
