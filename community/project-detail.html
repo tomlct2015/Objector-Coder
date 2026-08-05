@@ -80,7 +80,7 @@
               <span>·</span>
               <span>${new Date(p.created_at).toLocaleDateString()}</span>
             </div>
-            ${p.description ? `<div class="detail-desc">${marked.parse(p.description)}</div>` : ''}
+            ${p.description ? `<div class="detail-desc">${CommunityUI.parseMarkdown(p.description)}</div>` : ''}
             <div class="detail-stats">
               <span>❤️ ${p.likes_count || 0} 点赞</span>
               <span>⬇️ ${p.downloads_count || 0} 下载</span>

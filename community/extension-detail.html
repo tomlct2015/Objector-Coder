@@ -80,7 +80,7 @@
               <span class="meta-item">⬇️ ${ext.downloads_count || 0} 次下载</span>
               <span class="meta-item">❤️ ${ext.likes_count || 0} 个点赞</span>
             </div>
-            ${ext.description ? `<div class="detail-desc markdown-body">${marked.parse(ext.description)}</div>` : ''}
+            ${ext.description ? `<div class="detail-desc markdown-body">${CommunityUI.parseMarkdown(ext.description)}</div>` : ''}
             <div class="detail-actions">
               ${user ? `<button class="btn btn-outline" id="btn-like">${ext.user_liked ? '❤️ 已点赞' : '🤍 点赞'}</button>` : ''}
               ${ext.file_url ? `<button class="btn btn-primary" id="btn-download">⬇️ 下载扩展</button>` : `<span class="btn btn-outline" style="opacity:0.5;cursor:not-allowed;">❗ 无可下载文件</span>`}

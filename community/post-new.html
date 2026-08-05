@@ -108,7 +108,7 @@
       toggleBtn.addEventListener('click', () => {
         isPreview = !isPreview;
         if (isPreview) {
-          preview.innerHTML = marked.parse(textarea.value || '*暂无内容*');
+          preview.innerHTML = CommunityUI.parseMarkdown(textarea.value || '*暂无内容*');
           preview.style.display = '';
           textarea.style.display = 'none';
           toggleBtn.classList.add('active');
