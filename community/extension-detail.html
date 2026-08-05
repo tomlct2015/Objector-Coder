@@ -57,7 +57,8 @@
       const user = CommunityAPI.getUser();
       const isAuthor = user && ext.author_id === user.id;
       const authorName = ext.profiles ? ext.profiles.username : '匿名';
-      const authorAvatar = ext.profiles ? (ext.profiles.avatar_url || `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect fill='%23252545' width='40' height='40' rx='20'/><text fill='%2389b4fa' font-size='16' x='50%25' y='55%25' text-anchor='middle'>${(authorName || '?')[0].toUpperCase()}</text></svg>`) : `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect fill='%23252545' width='40' height='40' rx='20'/><text fill='%2389b4fa' font-size='16' x='50%25' y='55%25' text-anchor='middle'>?</text></svg>`;
+      const authorInitial = (authorName || '?')[0].toUpperCase();
+      const authorAvatar = ext.profiles && ext.profiles.avatar_url ? ext.profiles.avatar_url : CommunityUI.makeAvatarSvgUrl(authorInitial, 40);
 
       document.getElementById('ext-detail').innerHTML = `
         <div class="detail-main detail-ext">
@@ -66,7 +67,7 @@
             <h1>${ext.name}</h1>
             <div class="detail-meta">
               <a href="profile.html?id=${ext.author_id}" class="user-link">
-                <img src="${authorAvatar}" class="avatar-sm" />
+                <img src="${authorAvatar}" class="avatar-sm" onerror="CommunityUI.onImgError(this,'${authorInitial}')" />
                 ${authorName}
               </a>
               <span>·</span>

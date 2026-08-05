@@ -60,20 +60,21 @@
       const user = CommunityAPI.getUser();
       const isAuthor = user && p.author_id === user.id;
       const authorName = p.profiles ? p.profiles.username : '匿名';
-      const authorAvatar = p.profiles ? (p.profiles.avatar_url || `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect fill='%23252545' width='40' height='40' rx='20'/><text fill='%2389b4fa' font-size='16' x='50%25' y='55%25' text-anchor='middle'>${(authorName || '?')[0].toUpperCase()}</text></svg>`) : `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect fill='%23252545' width='40' height='40' rx='20'/><text fill='%2389b4fa' font-size='16' x='50%25' y='55%25' text-anchor='middle'>?</text></svg>`;
-      const thumb = p.thumbnail_url || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect fill="%23252545" width="400" height="300"/><text fill="%2389b4fa" font-size="48" x="50%" y="50%" text-anchor="middle" dy=".3em">⚡</text></svg>';
+      const authorInitial = (authorName || '?')[0].toUpperCase();
+      const authorAvatar = p.profiles && p.profiles.avatar_url ? p.profiles.avatar_url : CommunityUI.makeAvatarSvgUrl(authorInitial, 40);
+      const thumb = p.thumbnail_url || CommunityUI.makeThumbPlaceholder('⚡');
 
       document.getElementById('project-detail').innerHTML = `
         <div class="detail-main">
           <div class="detail-preview">
-            <img src="${thumb}" alt="${p.title}" class="preview-img" />
+            <img src="${thumb}" alt="${p.title}" class="preview-img" onerror="CommunityUI.onThumbError(this,'⚡')" />
             ${p.json_data ? '<button class="btn btn-outline btn-sm" id="btn-preview">在线预览</button>' : ''}
           </div>
           <div class="detail-info">
             <h1>${p.title}</h1>
             <div class="detail-meta">
               <a href="profile.html?id=${p.author_id}" class="user-link">
-                <img src="${authorAvatar}" class="avatar-sm" />
+                <img src="${authorAvatar}" class="avatar-sm" onerror="CommunityUI.onImgError(this,'${authorInitial}')" />
                 ${authorName}
               </a>
               <span>·</span>

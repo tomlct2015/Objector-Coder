@@ -117,7 +117,8 @@
     }
 
     function renderProfileHeader(profile) {
-      const avatar = profile.avatar_url || `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><rect fill="%23252545" width="80" height="80" rx="40"/><text fill="%2389b4fa" font-size="32" x="50%" y="55%" text-anchor="middle">${(profile.username || '?')[0].toUpperCase()}</text></svg>`;
+      const initial = (profile.username || '?')[0].toUpperCase();
+      const avatar = profile.avatar_url || CommunityUI.makeAvatarSvgUrl(initial, 80);
       const isFollowing = profile.is_following;
 
       let actionsHtml = '';
@@ -145,7 +146,7 @@
 
       document.getElementById('profile-header').innerHTML = `
         <div class="profile-card">
-          <img src="${avatar}" class="profile-avatar" alt="${profile.username}" />
+          <img src="${avatar}" class="profile-avatar" alt="${profile.username}" onerror="this.onerror=null;this.src=CommunityUI.makeAvatarSvgUrl('${initial}',80)" />
           <div class="profile-info">
             <h1>${profile.username}</h1>
             ${bioHtml}
