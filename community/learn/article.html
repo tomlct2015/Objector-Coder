@@ -83,7 +83,7 @@
               <span>💬 ${a.comments_count || 0}</span>
             </div>
           </div>
-          <div class="post-content markdown-body">${marked.parse(a.content || '')}</div>
+          <div class="post-content markdown-body">${CommunityUI.parseMarkdown(a.content)}</div>
           <div class="post-actions">
             <div id="like-container" style="display:inline-block"></div>
             ${isAuthor ? `<button class="btn btn-danger btn-sm" id="btn-delete">删除</button>` : ''}
