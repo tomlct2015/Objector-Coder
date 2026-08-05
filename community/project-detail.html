@@ -67,8 +67,12 @@
       document.getElementById('project-detail').innerHTML = `
         <div class="detail-main">
           <div class="detail-preview">
-            <img src="${thumb}" alt="${p.title}" class="preview-img" onerror="CommunityUI.onThumbError(this,'⚡')" />
+            <img src="${thumb}" alt="${p.title}" class="preview-img" id="preview-img" onerror="CommunityUI.onThumbError(this,'⚡')" />
             ${p.json_data ? '<button class="btn btn-outline btn-sm" id="btn-preview">在线预览</button>' : ''}
+            ${isAuthor ? `
+              <button class="btn btn-outline btn-sm" id="btn-change-thumb" style="margin-top:8px;">📷 修改封面</button>
+              <input type="file" id="thumb-input" accept="image/*" style="display:none" />
+            ` : ''}
           </div>
           <div class="detail-info">
             <h1>${p.title}</h1>
@@ -93,6 +97,16 @@
           </div>
         </div>
       `;
+
+      // 绑定修改封面
+      if (isAuthor) {
+        const btnChangeThumb = document.getElementById('btn-change-thumb');
+        const thumbInput = document.getElementById('thumb-input');
+        if (btnChangeThumb && thumbInput) {
+          btnChangeThumb.addEventListener('click', () => thumbInput.click());
+          thumbInput.addEventListener('change', handleThumbChange);
+        }
+      }
 
       // 绑定事件
       const btnLike = document.getElementById('btn-like');
@@ -129,6 +143,77 @@
 
       // 显示评论区
       document.getElementById('comments-section').style.display = '';
+    }
+
+    // 封面修改处理
+    function handleThumbChange(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        CommunityUI.showToast('请选择图片文件', 'error');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        CommunityUI.showToast('封面图片不能超过 5MB', 'error');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        showThumbPreview(ev.target.result, file);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function showThumbPreview(dataUrl, file) {
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.id = 'thumb-modal';
+      modal.innerHTML = `
+        <div class="modal-content thumb-modal">
+          <h3>修改封面</h3>
+          <div class="thumb-preview-wrap">
+            <img src="${dataUrl}" class="thumb-preview-img" alt="封面预览" />
+          </div>
+          <p style="color:var(--muted,#6c7086);font-size:13px;margin:12px 0;">确认使用这张图片作为作品封面吗？</p>
+          <div class="modal-actions">
+            <button class="btn btn-outline btn-sm" id="thumb-cancel">取消</button>
+            <button class="btn btn-primary btn-sm" id="thumb-confirm">确认上传</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      document.getElementById('thumb-cancel').addEventListener('click', () => {
+        modal.remove();
+        const input = document.getElementById('thumb-input');
+        if (input) input.value = '';
+      });
+
+      document.getElementById('thumb-confirm').addEventListener('click', async () => {
+        const btn = document.getElementById('thumb-confirm');
+        btn.disabled = true;
+        btn.textContent = '上传中...';
+        const res = await CommunityAPI.updateProject(projectId, {}, null, file);
+        if (res.error) {
+          CommunityUI.showToast('上传失败: ' + res.error, 'error');
+          btn.disabled = false;
+          btn.textContent = '确认上传';
+        } else {
+          CommunityUI.showToast('封面已更新', 'success');
+          modal.remove();
+          loadProject();
+        }
+      });
+
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.remove();
+          const input = document.getElementById('thumb-input');
+          if (input) input.value = '';
+        }
+      });
     }
 
     async function loadComments() {
