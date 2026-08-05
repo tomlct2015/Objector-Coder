@@ -6,6 +6,42 @@ const CommunityUI = (function () {
   const API = CommunityAPI;
 
   // ============================================================
+  // Image Helpers - 安全的 SVG 头像生成 & 图片错误兜底
+  // ============================================================
+
+  /** 生成 base64 编码的 SVG 头像 data URI（100% 安全，兼容所有浏览器） */
+  function makeAvatarSvgUrl(initial, size) {
+    size = size || 40;
+    var r = size / 2;
+    var fs = Math.round(size * 0.4);
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + size + '" height="' + size + '">' +
+      '<rect fill="#252545" width="' + size + '" height="' + size + '" rx="' + r + '"/>' +
+      '<text fill="#89b4fa" font-size="' + fs + '" x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif">' +
+      (initial || '?') + '</text></svg>';
+    return 'data:image/svg+xml;base64,' + btoa(svg);
+  }
+
+  /** 生成 base64 编码的 SVG 缩略图占位符 */
+  function makeThumbPlaceholder(icon) {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">' +
+      '<rect fill="#252545" width="400" height="300"/>' +
+      '<text fill="#89b4fa" font-size="48" x="50%" y="50%" text-anchor="middle" dominant-baseline="middle">' +
+      (icon || '⚡') + '</text></svg>';
+    return 'data:image/svg+xml;base64,' + btoa(svg);
+  }
+
+  /** 图片 onerror 处理：加载失败时替换为 base64 SVG 头像 */
+  function onImgError(el, initial) {
+    el.onerror = null;
+    el.src = makeAvatarSvgUrl(initial || '?', 40);
+  }
+
+  function onThumbError(el, icon) {
+    el.onerror = null;
+    el.src = makeThumbPlaceholder(icon || '⚡');
+  }
+
+  // ============================================================
   // Navigation 导航栏
   // ============================================================
 
@@ -59,12 +95,11 @@ const CommunityUI = (function () {
 
   function renderProjectCard(project) {
     const author = project.profiles || {};
+    const thumbUrl = project.thumbnail_url || makeThumbPlaceholder('🎮');
     return `
       <a href="project-detail.html?id=${project.id}" class="card project-card">
         <div class="card-thumb">
-          ${project.thumbnail_url
-            ? `<img src="${project.thumbnail_url}" alt="" loading="lazy" />`
-            : '<div class="card-thumb-placeholder">🎮</div>'}
+          <img src="${thumbUrl}" alt="" loading="lazy" onerror="CommunityUI.onThumbError(this,'🎮')" />
         </div>
         <div class="card-body">
           <div class="card-title">${API.escapeHtml(project.title)}</div>
@@ -154,12 +189,12 @@ const CommunityUI = (function () {
 
   function renderUserCard(profile) {
     const initial = (profile.username || '?')[0].toUpperCase();
-    const avatar = profile.avatar_url || `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'><rect fill='%23252545' width='60' height='60' rx='30'/><text fill='%2389b4fa' font-size='24' x='50%25' y='55%25' text-anchor='middle'>${initial}</text></svg>`;
+    const avatar = profile.avatar_url || makeAvatarSvgUrl(initial, 60);
     const bio = profile.bio ? API.escapeHtml(profile.bio.slice(0, 60)) + (profile.bio.length > 60 ? '...' : '') : '<span style="color:var(--muted,#6c7086)">暂无简介</span>';
     return `
       <a href="profile.html?id=${profile.id}" class="card user-card">
         <div class="user-card-inner">
-          <img src="${avatar}" class="user-card-avatar" alt="${API.escapeHtml(profile.username)}" />
+          <img src="${avatar}" class="user-card-avatar" alt="${API.escapeHtml(profile.username)}" onerror="CommunityUI.onImgError(this,'${initial}')" />
           <div class="user-card-info">
             <div class="user-card-name">${API.escapeHtml(profile.username)}</div>
             <div class="user-card-bio">${bio}</div>
@@ -184,12 +219,12 @@ const CommunityUI = (function () {
   function renderCommentItem(c) {
     const author = c.profiles || {};
     const initial = (author.username || '?')[0].toUpperCase();
-    const avatar = author.avatar_url || `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect fill='%23252545' width='40' height='40' rx='20'/><text fill='%2389b4fa' font-size='16' x='50%25' y='55%25' text-anchor='middle'>${initial}</text></svg>`;
+    const avatar = author.avatar_url || makeAvatarSvgUrl(initial, 40);
     return `
       <div class="comment-item">
         <div class="comment-header">
           <a href="profile.html?id=${c.author_id}" class="comment-author">
-            <img src="${avatar}" class="comment-avatar" alt="${API.escapeHtml(author.username || '匿名')}" />
+            <img src="${avatar}" class="comment-avatar" alt="${API.escapeHtml(author.username || '匿名')}" onerror="CommunityUI.onImgError(this,'${initial}')" />
             <span>${API.escapeHtml(author.username || '匿名')}</span>
           </a>
           <span class="comment-time">${API.formatTime(c.created_at)}</span>
@@ -422,5 +457,6 @@ const CommunityUI = (function () {
     renderCommentList, renderCommentItem, renderCommentForm, bindCommentForm,
     renderPagination, renderLikeButton, renderEmpty, renderLoading, showToast,
     fillCards,
+    makeAvatarSvgUrl, makeThumbPlaceholder, onImgError, onThumbError,
   };
 })();
