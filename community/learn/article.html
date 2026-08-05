@@ -62,7 +62,8 @@
       const user = CommunityAPI.getUser();
       const isAuthor = user && a.author_id === user.id;
       const authorName = a.profiles ? a.profiles.username : '匿名';
-      const authorAvatar = a.profiles ? (a.profiles.avatar_url || `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect fill='%23252545' width='40' height='40' rx='20'/><text fill='%2389b4fa' font-size='16' x='50%25' y='55%25' text-anchor='middle'>${(authorName || '?')[0].toUpperCase()}</text></svg>`) : `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><rect fill='%23252545' width='40' height='40' rx='20'/><text fill='%2389b4fa' font-size='16' x='50%25' y='55%25' text-anchor='middle'>?</text></svg>`;
+      const authorInitial = (authorName || '?')[0].toUpperCase();
+      const authorAvatar = a.profiles && a.profiles.avatar_url ? a.profiles.avatar_url : CommunityUI.makeAvatarSvgUrl(authorInitial, 40);
 
       document.getElementById('article-detail').innerHTML = `
         <article class="post-article">
@@ -71,7 +72,7 @@
             <h1>${CommunityAPI.escapeHtml(a.title)}</h1>
             <div class="post-meta">
               <a href="https://tomlct2015.github.io/Objector-Coder/community/profile.html?id=${a.author_id}" class="user-link">
-                <img src="${authorAvatar}" class="avatar-sm" />
+                <img src="${authorAvatar}" class="avatar-sm" onerror="CommunityUI.onImgError(this,'${authorInitial}')" />
                 ${CommunityAPI.escapeHtml(authorName)}
               </a>
               <span>·</span>
