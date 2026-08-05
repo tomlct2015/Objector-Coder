@@ -5,8 +5,13 @@
 const CommunityUI = (function () {
   const API = CommunityAPI;
 
+  // 全局配置 marked：单个换行也产生 <br>（GFM 行为）
+  if (typeof marked !== 'undefined' && marked.setOptions) {
+    marked.setOptions({ breaks: true, gfm: true });
+  }
+
   // ============================================================
-  // Image Helpers - 安全的 SVG 头像生成 & 图片错误兜底
+  // Image Helpers - 安全的 SVG 头像生成 & 图片错误兗底
   // ============================================================
 
   /** 生成安全的 SVG 头像 data URI（兼容 emoji 和中文） */
