@@ -81,6 +81,27 @@
     </div>
   </div>
 
+  <!-- 渲染模式子选择弹窗（点击普通创作后显示） -->
+  <div id="render-mode-dialog" class="dialog-overlay hidden">
+    <div class="dialog-box mode-dialog-box">
+      <h2>选择渲染模式</h2>
+      <p>选择你想要的画面渲染方式</p>
+      <div class="mode-cards">
+        <div class="mode-card" data-render="2d">
+          <div class="mode-icon">🖼️</div>
+          <h3>2D 模式</h3>
+          <p>经典 2D 平面渲染，适合大多数创作</p>
+        </div>
+        <div class="mode-card" data-render="3d">
+          <div class="mode-icon">🎲</div>
+          <h3>3D 模式</h3>
+          <p>3D 立体渲染，增加空间感和深度</p>
+        </div>
+      </div>
+      <button id="render-mode-cancel" class="tb-btn">取消</button>
+    </div>
+  </div>
+
   <!-- 打开项目来源选择弹窗 -->
   <div id="open-source-dialog" class="dialog-overlay hidden">
     <div class="dialog-box open-source-box">
@@ -532,10 +553,20 @@
       document.getElementById('mode-dialog').classList.add('hidden');
     }
 
+    // 渲染模式子选择弹窗
+    function showRenderModeDialog() {
+      document.getElementById('render-mode-dialog').classList.remove('hidden');
+    }
+    function hideRenderModeDialog() {
+      document.getElementById('render-mode-dialog').classList.add('hidden');
+    }
+
     // 新建项目（Web 版：直接在 VFS 中创建，无需选择文件夹）
-    async function createNewProject(mode) {
+    async function createNewProject(mode, renderMode) {
       hideModeDialog();
+      hideRenderModeDialog();
       mode = mode || 'normal';
+      renderMode = renderMode || '2d';
       const projectName = i18n.t('app.myWork');
       const folder = '/projects/' + projectName + '_' + Date.now();
 
@@ -551,6 +582,7 @@
         name: projectName,
         version: '1.0',
         mode: mode,
+        renderMode: renderMode,
         created: new Date().toISOString(),
         stageWidth: 480,
         stageHeight: 360,
@@ -559,7 +591,7 @@
       await window.api.writeFile(folder + '/scripts/main.json', '{}');
 
       // 导航到编辑器
-      await window.api.openEditor(folder, mode);
+      await window.api.openEditor(folder, mode, renderMode);
 
       // 添加到最近项目
       addRecentProject(folder);
@@ -631,10 +663,28 @@
       });
 
       // 模式选择
-      document.querySelectorAll('.mode-card').forEach(card => {
-        card.addEventListener('click', () => createNewProject(card.dataset.mode));
+      document.querySelectorAll('#mode-dialog .mode-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const mode = card.dataset.mode;
+          if (mode === 'normal') {
+            // 普通创作显示渲染模式子选择
+            hideModeDialog();
+            showRenderModeDialog();
+          } else {
+            createNewProject(mode, '2d');
+          }
+        });
       });
       document.getElementById('mode-cancel').addEventListener('click', hideModeDialog);
+
+      // 渲染模式子选择
+      document.querySelectorAll('#render-mode-dialog .mode-card').forEach(card => {
+        card.addEventListener('click', () => {
+          hideRenderModeDialog();
+          createNewProject('normal', card.dataset.render);
+        });
+      });
+      document.getElementById('render-mode-cancel').addEventListener('click', hideRenderModeDialog);
 
       // 渲染项目列表
       renderPinnedProjects();
@@ -642,8 +692,11 @@
 
       // 检查 URL 参数是否指定创建模式
       const urlMode = new URLSearchParams(window.location.search).get('mode');
-      if (urlMode === 'extension' || urlMode === 'normal') {
-        createNewProject(urlMode);
+      const urlRender = new URLSearchParams(window.location.search).get('render') || '2d';
+      if (urlMode === 'extension') {
+        createNewProject(urlMode, '2d');
+      } else if (urlMode === 'normal') {
+        createNewProject(urlMode, urlRender);
       }
 
       // ============ 社区登录 ============

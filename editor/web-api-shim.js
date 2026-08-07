@@ -328,9 +328,11 @@
     window.open('../extension-api/', '_blank');
   }
 
-  async function openEditor(folder, mode) {
+  async function openEditor(folder, mode, renderMode) {
     // 导航到编辑器页面
-    window.location.href = 'editor.html?path=' + encodeURIComponent(folder) + '&mode=' + (mode || 'normal');
+    var url = 'editor.html?path=' + encodeURIComponent(folder) + '&mode=' + (mode || 'normal');
+    if (renderMode) url += '&render=' + renderMode;
+    window.location.href = url;
   }
 
   /** 监听项目加载事件（Web 版不需要） */

@@ -879,14 +879,31 @@
     // 应用 i18n 到 DOM
     i18n.applyToDOM();
 
+    // 获取 URL 参数中的渲染模式
+    const params = new URLSearchParams(window.location.search);
+    const renderMode = params.get('render') || '2d';
+
     try {
     // 初始化各模块
     console.log('[初始化] EditorCanvas...');
     EditorCanvas.init();
     console.log('[初始化] Palette...');
     Palette.init();
-    console.log('[初始化] StageCanvas...');
-    StageCanvas.init();
+
+    // 根据渲染模式初始化舞台
+    if (renderMode === '3d' && typeof Stage3D !== 'undefined') {
+      console.log('[初始化] Stage3D (3D 模式)...');
+      const stageCanvas = document.getElementById('stage-canvas');
+      const success = Stage3D.init(stageCanvas);
+      if (!success) {
+        console.warn('[Stage3D] 初始化失败，回退到 2D 模式');
+        StageCanvas.init();
+      }
+    } else {
+      console.log('[初始化] StageCanvas (2D 模式)...');
+      StageCanvas.init();
+    }
+
     console.log('[初始化] StageManager...');
     StageManager.init();
     console.log('[初始化] FileEditor...');
@@ -908,7 +925,6 @@
     window.__extTimerStart = Date.now();
 
     // 获取 URL 参数中的项目路径和模式
-    const params = new URLSearchParams(window.location.search);
     const projectPath = params.get('path');
     const projectMode = params.get('mode') || 'normal';
 
