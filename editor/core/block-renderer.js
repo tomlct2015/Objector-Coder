@@ -302,22 +302,31 @@ const BlockRenderer = (function () {
     const parts = parseLabel(label, block.params);
     let cx = block.x + BLOCK_PADDING_X;
     const cy = block.y + (def.shape === 'hat' ? HAT_HEIGHT : 0) + BLOCK_HEIGHT / 2;
-    ctx.font = FONT;
-    ctx.textBaseline = 'middle';
+    const allParams = getAllParams(block);
 
+    // 第一遍：只绘制参数槽背景（每个槽用 save/restore 完全隔离）
+    var slotX = cx;
+    ctx.font = FONT;
     parts.forEach(p => {
       if (p.isParam) {
+        ctx.font = PARAM_FONT;
         const slotW = Math.max(PARAM_SLOT_W, ctx.measureText(String(p.value)).width + 16);
-        const paramDefForDraw = (getAllParams(block)).find(pr => pr.name === p.name);
-        // 参数槽背景（预计算等效 30% 黑色叠加效果，避免与积木体叠加变暗）
-        // 背景 #1e1e2e + 30%黑 ≈ #151520
+        ctx.font = FONT;
+        const paramDef = allParams.find(pr => pr.name === p.name);
+        // 用 save/restore 完全隔离每个槽的绘制
+        ctx.save();
         ctx.beginPath();
-        ctx.fillStyle = '#151520';
-        roundRect(ctx, cx, cy - PARAM_SLOT_H / 2, slotW, PARAM_SLOT_H, 4);
+        roundRect(ctx, slotX, cy - PARAM_SLOT_H / 2, slotW, PARAM_SLOT_H, 4);
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.fill();
-        // block 类型参数特殊边框（双色渐变）
-        if (paramDefForDraw?.type === 'block') {
-          const grad = ctx.createLinearGradient(cx, cy - PARAM_SLOT_H / 2, cx + slotW, cy + PARAM_SLOT_H / 2);
+        ctx.strokeStyle = def.color;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        // block 类型参数特殊边框
+        if (paramDef && paramDef.type === 'block') {
+          ctx.beginPath();
+          roundRect(ctx, slotX, cy - PARAM_SLOT_H / 2, slotW, PARAM_SLOT_H, 4);
+          var grad = ctx.createLinearGradient(slotX, cy - PARAM_SLOT_H / 2, slotX + slotW, cy + PARAM_SLOT_H / 2);
           grad.addColorStop(0, '#f9e2af');
           grad.addColorStop(1, def.color);
           ctx.strokeStyle = grad;
@@ -325,32 +334,42 @@ const BlockRenderer = (function () {
           ctx.setLineDash([4, 2]);
           ctx.stroke();
           ctx.setLineDash([]);
-        } else {
-          ctx.strokeStyle = def.color;
-          ctx.lineWidth = 1;
-          ctx.stroke();
         }
-        // 参数值文本
-        ctx.fillStyle = '#ffffff';
+        ctx.restore();
+        slotX += slotW;
+      } else {
+        slotX += ctx.measureText(p.text).width;
+      }
+    });
+
+    // 第二遍：绘制所有文字（在所有 fill/stroke 之后，不会被覆盖）
+    var textX = cx;
+    ctx.font = FONT;
+    ctx.textBaseline = 'middle';
+    parts.forEach(p => {
+      if (p.isParam) {
         ctx.font = PARAM_FONT;
-        let displayText = String(p.value);
-        if (paramDefForDraw?.type === 'dropdown') displayText += ' ▾';
-        else if (paramDefForDraw?.type === 'block') displayText = '🧩 ' + displayText;
-        ctx.fillText(displayText, cx + 6, cy);
-        ctx.font = FONT;
-        // 动态参数的移除按钮（小×）
-        const isExtra = (block._extraParams || []).some(ep => ep.name === p.name);
+        var displayText = String(p.value);
+        var paramDef2 = allParams.find(pr => pr.name === p.name);
+        if (paramDef2 && paramDef2.type === 'dropdown') displayText += ' ▾';
+        else if (paramDef2 && paramDef2.type === 'block') displayText = '🧩 ' + displayText;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(displayText, textX + 6, cy);
+        var slotW = Math.max(PARAM_SLOT_W, ctx.measureText(String(p.value)).width + 16);
+        // 动态参数移除按钮
+        var isExtra = (block._extraParams || []).some(ep => ep.name === p.name);
         if (isExtra) {
-          ctx.fillStyle = 'rgba(255,100,100,0.7)';
           ctx.font = '11px sans-serif';
-          ctx.fillText('×', cx + slotW - 12, cy);
-          ctx.font = FONT;
+          ctx.fillStyle = 'rgba(255,100,100,0.7)';
+          ctx.fillText('×', textX + slotW - 12, cy);
         }
-        cx += slotW;
+        ctx.font = FONT;
+        textX += slotW;
       } else {
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(p.text, cx, cy);
-        cx += ctx.measureText(p.text).width;
+        ctx.font = FONT;
+        ctx.fillText(p.text, textX, cy);
+        textX += ctx.measureText(p.text).width;
       }
     });
   }
