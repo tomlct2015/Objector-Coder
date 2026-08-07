@@ -289,7 +289,15 @@
     // 打开项目（Web 版：导航到 editor.html）
     async function openProject(folder) {
       addRecentProject(folder);
-      await window.api.openEditor(folder, 'normal');
+      var renderMode = '2d';
+      try {
+        var configStr = await window.api.readFile(folder + '/project.json');
+        if (configStr) {
+          var config = JSON.parse(configStr);
+          renderMode = config.renderMode || '2d';
+        }
+      } catch(e) {}
+      await window.api.openEditor(folder, 'normal', renderMode);
     }
 
     // ============ 打开项目来源选择弹窗 ============
@@ -644,7 +652,12 @@
         try {
           const folder = await importFolderToVFS(folderInput.files);
           addRecentProject(folder);
-          await window.api.openEditor(folder, 'normal');
+          var rm = '2d';
+          try {
+            var cfg = await window.api.readFile(folder + '/project.json');
+            if (cfg) rm = (JSON.parse(cfg).renderMode) || '2d';
+          } catch(e) {}
+          await window.api.openEditor(folder, 'normal', rm);
         } catch (e) {
           alert('导入文件夹失败: ' + e.message);
         }
