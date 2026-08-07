@@ -1076,8 +1076,17 @@
 
     // 监听主进程发来的加载新项目事件
     if (window.api && window.api.onLoadProject) {
-      window.api.onLoadProject((path, mode) => {
-        loadProject(path, mode);
+      window.api.onLoadProject((path, mode, renderMode) => {
+        // 重新加载页面以应用新的 renderMode
+        if (renderMode) {
+          const url = new URL(window.location.href);
+          url.searchParams.set('path', path);
+          url.searchParams.set('mode', mode || 'normal');
+          url.searchParams.set('render', renderMode);
+          window.location.href = url.toString();
+        } else {
+          loadProject(path, mode);
+        }
       });
     }
   });
