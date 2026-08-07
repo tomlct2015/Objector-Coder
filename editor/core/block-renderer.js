@@ -311,6 +311,7 @@ const BlockRenderer = (function () {
         const paramDefForDraw = (getAllParams(block)).find(pr => pr.name === p.name);
         // 参数槽背景（预计算等效 30% 黑色叠加效果，避免与积木体叠加变暗）
         // 背景 #1e1e2e + 30%黑 ≈ #151520
+        ctx.beginPath();
         ctx.fillStyle = '#151520';
         roundRect(ctx, cx, cy - PARAM_SLOT_H / 2, slotW, PARAM_SLOT_H, 4);
         ctx.fill();
