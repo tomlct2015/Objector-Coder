@@ -104,6 +104,108 @@
         params: [{ name: 'show', type: 'dropdown', options: [['显示', 'show'], ['隐藏', 'hide']], default: 'show' }]
     });
 
+    // ===== 3D 创建基础网格 =====
+    BlockRegistry.register({
+        type: '3d_create_box',
+        category: '3d',
+        color: C,
+        label: '创建立方体 x:{x} y:{y} z:{z} 宽:{w} 高:{h} 深:{d} 颜色:{color}',
+        labelKey: 'blocks.3d.create_box',
+        shape: 'stack',
+        ports: { flowIn: true, flowOut: true },
+        params: [
+            { name: 'x', type: 'number', default: 0 },
+            { name: 'y', type: 'number', default: 2 },
+            { name: 'z', type: 'number', default: 0 },
+            { name: 'w', type: 'number', default: 4 },
+            { name: 'h', type: 'number', default: 4 },
+            { name: 'd', type: 'number', default: 4 },
+            { name: 'color', type: 'color', default: '#FF6B35' }
+        ]
+    });
+
+    BlockRegistry.register({
+        type: '3d_create_sphere',
+        category: '3d',
+        color: C,
+        label: '创建球体 x:{x} y:{y} z:{z} 半径:{radius} 颜色:{color}',
+        labelKey: 'blocks.3d.create_sphere',
+        shape: 'stack',
+        ports: { flowIn: true, flowOut: true },
+        params: [
+            { name: 'x', type: 'number', default: 0 },
+            { name: 'y', type: 'number', default: 2 },
+            { name: 'z', type: 'number', default: 0 },
+            { name: 'radius', type: 'number', default: 2 },
+            { name: 'color', type: 'color', default: '#4a90d9' }
+        ]
+    });
+
+    BlockRegistry.register({
+        type: '3d_create_cylinder',
+        category: '3d',
+        color: C,
+        label: '创建圆柱 x:{x} y:{y} z:{z} 半径:{radius} 高:{h} 颜色:{color}',
+        labelKey: 'blocks.3d.create_cylinder',
+        shape: 'stack',
+        ports: { flowIn: true, flowOut: true },
+        params: [
+            { name: 'x', type: 'number', default: 0 },
+            { name: 'y', type: 'number', default: 2 },
+            { name: 'z', type: 'number', default: 0 },
+            { name: 'radius', type: 'number', default: 2 },
+            { name: 'h', type: 'number', default: 6 },
+            { name: 'color', type: 'color', default: '#66cc66' }
+        ]
+    });
+
+    BlockRegistry.register({
+        type: '3d_create_cone',
+        category: '3d',
+        color: C,
+        label: '创建圆锥 x:{x} y:{y} z:{z} 半径:{radius} 高:{h} 颜色:{color}',
+        labelKey: 'blocks.3d.create_cone',
+        shape: 'stack',
+        ports: { flowIn: true, flowOut: true },
+        params: [
+            { name: 'x', type: 'number', default: 0 },
+            { name: 'y', type: 'number', default: 2 },
+            { name: 'z', type: 'number', default: 0 },
+            { name: 'radius', type: 'number', default: 2 },
+            { name: 'h', type: 'number', default: 6 },
+            { name: 'color', type: 'color', default: '#cc6666' }
+        ]
+    });
+
+    BlockRegistry.register({
+        type: '3d_create_plane',
+        category: '3d',
+        color: C,
+        label: '创建平面 x:{x} y:{y} z:{z} 宽:{w} 高:{h} 颜色:{color}',
+        labelKey: 'blocks.3d.create_plane',
+        shape: 'stack',
+        ports: { flowIn: true, flowOut: true },
+        params: [
+            { name: 'x', type: 'number', default: 0 },
+            { name: 'y', type: 'number', default: 0 },
+            { name: 'z', type: 'number', default: 0 },
+            { name: 'w', type: 'number', default: 10 },
+            { name: 'h', type: 'number', default: 10 },
+            { name: 'color', type: 'color', default: '#aaaaaa' }
+        ]
+    });
+
+    BlockRegistry.register({
+        type: '3d_clear_meshes',
+        category: '3d',
+        color: C,
+        label: '清除所有 3D 网格',
+        labelKey: 'blocks.3d.clear_meshes',
+        shape: 'stack',
+        ports: { flowIn: true, flowOut: true },
+        params: []
+    });
+
     // ===== 3D 报告器 =====
     BlockRegistry.register({
         type: '3d_camera_x',
