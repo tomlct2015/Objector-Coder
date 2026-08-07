@@ -156,8 +156,9 @@ const BlockRenderer = (function () {
       drawStackPath(ctx, x, y, size.w, size.h);
     }
 
-    // 透明填充 + 彩色边框
-    ctx.fillStyle = selected ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.15)';
+    // 纯色填充（预计算等效半透明叠加效果，避免多层叠加变暗）
+    // 背景 #1e1e2e + 15%黑 ≈ #1a1a27；选中 + 8%白 ≈ #2d2d3d
+    ctx.fillStyle = selected ? '#2d2d3d' : '#1a1a27';
     ctx.fill();
     ctx.strokeStyle = color;
     ctx.lineWidth = selected ? 3 : 2;
@@ -308,8 +309,9 @@ const BlockRenderer = (function () {
       if (p.isParam) {
         const slotW = Math.max(PARAM_SLOT_W, ctx.measureText(String(p.value)).width + 16);
         const paramDefForDraw = (getAllParams(block)).find(pr => pr.name === p.name);
-        // 参数槽背景
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        // 参数槽背景（预计算等效 30% 黑色叠加效果，避免与积木体叠加变暗）
+        // 背景 #1e1e2e + 30%黑 ≈ #151520
+        ctx.fillStyle = '#151520';
         roundRect(ctx, cx, cy - PARAM_SLOT_H / 2, slotW, PARAM_SLOT_H, 4);
         ctx.fill();
         // block 类型参数特殊边框（双色渐变）
@@ -328,7 +330,7 @@ const BlockRenderer = (function () {
           ctx.stroke();
         }
         // 参数值文本
-        ctx.fillStyle = '#e0e0e0';
+        ctx.fillStyle = '#ffffff';
         ctx.font = PARAM_FONT;
         let displayText = String(p.value);
         if (paramDefForDraw?.type === 'dropdown') displayText += ' ▾';
