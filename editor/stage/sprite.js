@@ -28,6 +28,8 @@ class Sprite {
     this.rotationStyle = 'allAround';
     // 位置历史（最多 50 步）
     this._posHistory = [];
+    // 精灵独立的积木脚本（每个精灵有自己的代码区）
+    this.blocks = {};
   }
 
   /** 获取当前造型的 Image 对象（从 CostumeManager） */
