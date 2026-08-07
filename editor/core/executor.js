@@ -780,19 +780,14 @@ const Executor = (function () {
       }
     }
     else if (type === '3d_set_height') {
-      // 3D 高度控制（通过 Y 轴）
-      if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
-        const sprites = StageManager.getSprites();
-        const active = sprites[StageManager.getActiveSpriteIdx()];
-        if (active) active._height3d = Number(p.height);
-      }
+      const sprites = StageManager.getSprites();
+      const active = sprites[StageManager.getActiveSpriteIdx()];
+      if (active) active._height3d = Number(p.height);
     }
     else if (type === '3d_change_height') {
-      if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
-        const sprites = StageManager.getSprites();
-        const active = sprites[StageManager.getActiveSpriteIdx()];
-        if (active) active._height3d = (active._height3d || 0) + Number(p.amount);
-      }
+      const sprites = StageManager.getSprites();
+      const active = sprites[StageManager.getActiveSpriteIdx()];
+      if (active) active._height3d = (active._height3d || 0) + Number(p.amount);
     }
     else if (type === '3d_set_scale_3d') {
       const idx = StageManager.getActiveSpriteIdx();
@@ -800,20 +795,48 @@ const Executor = (function () {
     }
     else if (type === '3d_set_bgcolor') {
       if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
-        const scene = Stage3D.getScene();
-        if (scene && scene.background) scene.background.set(String(p.color));
+        Stage3D.setSkyColor(String(p.color));
       }
     }
     else if (type === '3d_set_ground_color') {
       if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
-        // 地面颜色通过 Stage3D 内部方法设置
-        console.log('[3D] 地面颜色设置:', p.color);
+        Stage3D.setGroundColor(String(p.color));
       }
     }
     else if (type === '3d_toggle_grid') {
       if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
-        // 网格显示/隐藏
-        console.log('[3D] 网格设置:', p.show);
+        Stage3D.setGridVisible(p.show === 'show');
+      }
+    }
+    // === 3D 创建网格 ===
+    else if (type === '3d_create_box') {
+      if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+        Stage3D.createMesh('box', { x: p.x, y: p.y, z: p.z, w: p.w, h: p.h, d: p.d, color: p.color });
+      }
+    }
+    else if (type === '3d_create_sphere') {
+      if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+        Stage3D.createMesh('sphere', { x: p.x, y: p.y, z: p.z, radius: p.radius, color: p.color });
+      }
+    }
+    else if (type === '3d_create_cylinder') {
+      if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+        Stage3D.createMesh('cylinder', { x: p.x, y: p.y, z: p.z, radius: p.radius, h: p.h, color: p.color });
+      }
+    }
+    else if (type === '3d_create_cone') {
+      if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+        Stage3D.createMesh('cone', { x: p.x, y: p.y, z: p.z, radius: p.radius, h: p.h, color: p.color });
+      }
+    }
+    else if (type === '3d_create_plane') {
+      if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+        Stage3D.createMesh('plane', { x: p.x, y: p.y, z: p.z, w: p.w, h: p.h, color: p.color });
+      }
+    }
+    else if (type === '3d_clear_meshes') {
+      if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+        Stage3D.clearCreatedMeshes();
       }
     }
 
