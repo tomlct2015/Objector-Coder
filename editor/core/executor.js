@@ -767,6 +767,56 @@ const Executor = (function () {
     // === 侦测 ===
     else if (type === 'sensing_reset_timer') { SensingInput.resetTimer(); }
 
+    // === 3D 控制 ===
+    else if (type === '3d_camera_position') {
+      if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+        Stage3D.setCameraPosition(Number(p.x), Number(p.y), Number(p.z));
+      }
+    }
+    else if (type === '3d_camera_lookat') {
+      if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+        const cam = Stage3D.getCamera();
+        if (cam) cam.lookAt(Number(p.x), Number(p.y), Number(p.z));
+      }
+    }
+    else if (type === '3d_set_height') {
+      // 3D 高度控制（通过 Y 轴）
+      if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+        const sprites = StageManager.getSprites();
+        const active = sprites[StageManager.getActiveSpriteIdx()];
+        if (active) active._height3d = Number(p.height);
+      }
+    }
+    else if (type === '3d_change_height') {
+      if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+        const sprites = StageManager.getSprites();
+        const active = sprites[StageManager.getActiveSpriteIdx()];
+        if (active) active._height3d = (active._height3d || 0) + Number(p.amount);
+      }
+    }
+    else if (type === '3d_set_scale_3d') {
+      const idx = StageManager.getActiveSpriteIdx();
+      StageManager.setSpriteSize(idx, Number(p.scale));
+    }
+    else if (type === '3d_set_bgcolor') {
+      if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+        const scene = Stage3D.getScene();
+        if (scene && scene.background) scene.background.set(String(p.color));
+      }
+    }
+    else if (type === '3d_set_ground_color') {
+      if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+        // 地面颜色通过 Stage3D 内部方法设置
+        console.log('[3D] 地面颜色设置:', p.color);
+      }
+    }
+    else if (type === '3d_toggle_grid') {
+      if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+        // 网格显示/隐藏
+        console.log('[3D] 网格设置:', p.show);
+      }
+    }
+
     // === 造型 ===
     else if (type === 'looks_set_costume') {
       if (p.name) {
@@ -1160,6 +1210,29 @@ const Executor = (function () {
         fmt = fmt.replace('mm', String(now.getMinutes()).padStart(2, '0'));
         fmt = fmt.replace('ss', String(now.getSeconds()).padStart(2, '0'));
         return fmt;
+      }
+
+      // === 3D 报告器 ===
+      case '3d_camera_x': {
+        if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+          const cam = Stage3D.getCamera();
+          return cam ? cam.position.x : 0;
+        }
+        return 0;
+      }
+      case '3d_camera_y': {
+        if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+          const cam = Stage3D.getCamera();
+          return cam ? cam.position.y : 0;
+        }
+        return 0;
+      }
+      case '3d_camera_z': {
+        if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+          const cam = Stage3D.getCamera();
+          return cam ? cam.position.z : 0;
+        }
+        return 0;
       }
 
       default: {
