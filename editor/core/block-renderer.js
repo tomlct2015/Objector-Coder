@@ -345,7 +345,7 @@ const BlockRenderer = (function () {
         }
         cx += slotW;
       } else {
-        ctx.fillStyle = def.color;
+        ctx.fillStyle = '#ffffff';
         ctx.fillText(p.text, cx, cy);
         cx += ctx.measureText(p.text).width;
       }
