@@ -9,6 +9,8 @@ const Stage3D = (function () {
     var spriteMeshes = new Map();
     var spriteTextures = new Map();
     var createdMeshes = [];
+    var meshMap = new Map(); // id -> { id, type, mesh, ...props }
+    var _meshIdCounter = 0;
     var groundPlane, gridHelper;
     var _initialized = false;
     var W = 480, H = 360;
@@ -192,7 +194,7 @@ const Stage3D = (function () {
         renderer.render(scene, camera);
     }
 
-    /** 创建基础网格 */
+    /** 创建基础网格 - 返回包含 ID 的包装对象 */
     function createMesh(type, params) {
         params = params || {};
         var x = Number(params.x || 0);
@@ -236,8 +238,73 @@ const Stage3D = (function () {
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         scene.add(mesh);
+
+        var id = ++_meshIdCounter;
+        var wrapper = {
+            __is3DMesh: true,
+            id: id,
+            type: type,
+            mesh: mesh,
+            x: x, y: y, z: z,
+            w: w, h: h, d: d, radius: radius,
+            color: color,
+            scale: 1,
+            rotationY: 0,
+            visible: true
+        };
+        meshMap.set(id, wrapper);
         createdMeshes.push(mesh);
-        return mesh;
+        return wrapper;
+    }
+
+    /** 应用属性到 Three.js 网格 */
+    function applyMeshProperty(wrapper) {
+        var mesh = wrapper.mesh;
+        if (!mesh) return;
+        mesh.position.set(Number(wrapper.x), Number(wrapper.y), Number(wrapper.z));
+        var s = Number(wrapper.scale || 1);
+        mesh.scale.set(s, s, s);
+        mesh.rotation.y = Number(wrapper.rotationY || 0) * Math.PI / 180;
+        if (mesh.material && mesh.material.color && wrapper.color) {
+            mesh.material.color.set(String(wrapper.color));
+        }
+        mesh.visible = wrapper.visible !== false;
+    }
+
+    /** 获取网格属性 */
+    function getMeshProperty(id, attr) {
+        var wrapper = meshMap.get(Number(id));
+        if (!wrapper) return undefined;
+        switch (attr) {
+            case 'x': return wrapper.x;
+            case 'y': return wrapper.y;
+            case 'z': return wrapper.z;
+            case 'scale': return wrapper.scale;
+            case 'rotationY': return wrapper.rotationY;
+            case 'color': return wrapper.color;
+            case 'visible': return wrapper.visible;
+            case 'w': return wrapper.w;
+            case 'h': return wrapper.h;
+            case 'd': return wrapper.d;
+            case 'radius': return wrapper.radius;
+            case 'type': return wrapper.type;
+            default: return undefined;
+        }
+    }
+
+    /** 删除单个网格 */
+    function removeMesh(id) {
+        var wrapper = meshMap.get(Number(id));
+        if (wrapper) {
+            if (wrapper.mesh) {
+                scene.remove(wrapper.mesh);
+                if (wrapper.mesh.geometry) wrapper.mesh.geometry.dispose();
+                if (wrapper.mesh.material) wrapper.mesh.material.dispose();
+                var idx = createdMeshes.indexOf(wrapper.mesh);
+                if (idx >= 0) createdMeshes.splice(idx, 1);
+            }
+            meshMap.delete(Number(id));
+        }
     }
 
     /** 删除所有手动创建的网格 */
@@ -248,6 +315,7 @@ const Stage3D = (function () {
             if (m.material) m.material.dispose();
         });
         createdMeshes = [];
+        meshMap.clear();
     }
 
     /** 设置相机位置 */
@@ -299,6 +367,9 @@ const Stage3D = (function () {
         getRenderer: function () { return renderer; },
         createMesh: createMesh,
         clearCreatedMeshes: clearCreatedMeshes,
+        removeMesh: removeMesh,
+        setMeshProperty: applyMeshProperty,
+        getMeshProperty: getMeshProperty,
         setSkyColor: setSkyColor,
         setGroundColor: setGroundColor,
         setGridVisible: setGridVisible
