@@ -26,6 +26,7 @@
 const ExtensionManager = (function () {
   const _extensions = new Map(); // id -> extension definition
   const _customExecutors = new Map(); // blockType -> executor function
+  let _lastRegisteredId = null; // 最近一次 registerExtension 成功注册的扩展 ID
 
   /**
    * 注册一个扩展
@@ -85,6 +86,7 @@ const ExtensionManager = (function () {
     }
 
     _extensions.set(extDef.id, extDef);
+    _lastRegisteredId = extDef.id; // 记录最近注册的扩展 ID
     console.log(`ExtensionManager: 已注册扩展 "${extDef.name || extDef.id}"，包含 ${extDef.blocks.length} 个积木`);
     return true;
   }
@@ -134,14 +136,10 @@ const ExtensionManager = (function () {
     if (!content) return { ok: false, id: null };
 
     if (filePath.endsWith('.js')) {
-      const before = new Set(_extensions.keys());
+      _lastRegisteredId = null; // 重置
       const result = loadFromJS(content);
-      const after = new Set(_extensions.keys());
-      let id = null;
-      for (const k of after) {
-        if (!before.has(k)) { id = k; break; }
-      }
-      return { ok: result, id };
+      // registerExtension 内部会设置 _lastRegisteredId，无论新增还是更新都能正确捕获
+      return { ok: result, id: _lastRegisteredId };
     }
 
     // JSON 格式：先解析拿 id，再注册
