@@ -589,13 +589,15 @@ const EditorCanvas = (function () {
     setTimeout(() => { _justOpened = false; }, 100);
 
     slot.options.forEach(opt => {
+      const label = Array.isArray(opt) ? opt[0] : opt;
+      const value = Array.isArray(opt) ? opt[1] : opt;
       const item = document.createElement('div');
-      item.className = 'param-dropdown-item' + (opt === String(slot.value) ? ' active' : '');
-      item.textContent = opt;
+      item.className = 'param-dropdown-item' + (value === String(slot.value) ? ' active' : '');
+      item.textContent = label;
       item.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        block.params[slot.name] = opt;
+        block.params[slot.name] = value;
         closeDropdownMenu();
       });
       menu.appendChild(item);

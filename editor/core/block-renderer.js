@@ -310,9 +310,16 @@ const BlockRenderer = (function () {
     parts.forEach(p => {
       if (p.isParam) {
         ctx.font = PARAM_FONT;
-        const slotW = Math.max(PARAM_SLOT_W, ctx.measureText(String(p.value)).width + 16);
-        ctx.font = FONT;
         const paramDef = allParams.find(pr => pr.name === p.name);
+        var slotText = String(p.value);
+        if (paramDef && paramDef.type === 'dropdown') {
+          var opts = (typeof paramDef.getOptions === 'function') ? paramDef.getOptions() : (paramDef.options || []);
+          var matched = opts.find(function(o) { return Array.isArray(o) ? o[1] === p.value : o === p.value; });
+          if (matched) slotText = Array.isArray(matched) ? matched[0] : matched;
+          slotText += ' ▾';
+        }
+        const slotW = Math.max(PARAM_SLOT_W, ctx.measureText(slotText).width + 16);
+        ctx.font = FONT;
         // 用 save/restore 完全隔离每个槽的绘制
         ctx.save();
         ctx.beginPath();
@@ -351,11 +358,16 @@ const BlockRenderer = (function () {
         ctx.font = PARAM_FONT;
         var displayText = String(p.value);
         var paramDef2 = allParams.find(pr => pr.name === p.name);
-        if (paramDef2 && paramDef2.type === 'dropdown') displayText += ' ▾';
+        if (paramDef2 && paramDef2.type === 'dropdown') {
+          var opts = (typeof paramDef2.getOptions === 'function') ? paramDef2.getOptions() : (paramDef2.options || []);
+          var matched = opts.find(function(o) { return Array.isArray(o) ? o[1] === p.value : o === p.value; });
+          if (matched) displayText = Array.isArray(matched) ? matched[0] : matched;
+          displayText += ' ▾';
+        }
         else if (paramDef2 && paramDef2.type === 'block') displayText = '🧩 ' + displayText;
         ctx.fillStyle = '#ffffff';
         ctx.fillText(displayText, textX + 6, cy);
-        var slotW = Math.max(PARAM_SLOT_W, ctx.measureText(String(p.value)).width + 16);
+        var slotW = Math.max(PARAM_SLOT_W, ctx.measureText(displayText).width + 16);
         // 动态参数移除按钮
         var isExtra = (block._extraParams || []).some(ep => ep.name === p.name);
         if (isExtra) {
@@ -449,8 +461,15 @@ const BlockRenderer = (function () {
     _measureCtx.font = FONT;
     parts.forEach(p => {
       if (p.isParam) {
-        const slotW = Math.max(PARAM_SLOT_W, _measureCtx.measureText(String(p.value)).width + 16);
         const paramDef = allParams.find(pr => pr.name === p.name);
+        var hitText = String(p.value);
+        if (paramDef && paramDef.type === 'dropdown') {
+          var opts = (typeof paramDef.getOptions === 'function') ? paramDef.getOptions() : (paramDef.options || []);
+          var matched = opts.find(function(o) { return Array.isArray(o) ? o[1] === p.value : o === p.value; });
+          if (matched) hitText = Array.isArray(matched) ? matched[0] : matched;
+          hitText += ' ▾';
+        }
+        const slotW = Math.max(PARAM_SLOT_W, _measureCtx.measureText(hitText).width + 16);
         slots.push({
           name: p.name,
           x: block.x + offsetX,
