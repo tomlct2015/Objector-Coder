@@ -244,8 +244,15 @@
           '<div style="display:flex;gap:8px;align-items:center;margin-top:6px;">' +
             '<span class="recent-card-mode">' + (proj.mode === 'extension' ? i18n.t('app.extension') : i18n.t('app.normal')) + '</span>' +
             '<button class="pin-btn pinned" title="' + i18n.t('app.unpin') + '">✖</button>' +
+            '<button class="delete-btn" title="删除项目" style="background:none;border:none;cursor:pointer;padding:2px 6px;font-size:14px;color:#f38ba8;">🗑️</button>' +
           '</div>';
         card.querySelector('.pin-btn').onclick = (e) => { e.stopPropagation(); togglePinProject(proj.path); };
+        card.querySelector('.delete-btn').onclick = (e) => {
+          e.stopPropagation();
+          if (confirm('确定要删除项目 "' + (proj.name || '未命名') + '" 吗？')) {
+            deleteProject(proj.path);
+          }
+        };
         card.onclick = () => openProject(proj.path);
         container.appendChild(card);
       });
@@ -273,8 +280,15 @@
           '<div style="display:flex;gap:8px;align-items:center;margin-top:6px;">' +
             '<span class="recent-card-mode">' + (proj.mode === 'extension' ? i18n.t('app.extension') : i18n.t('app.normal')) + '</span>' +
             '<button class="pin-btn' + (isPinned ? ' pinned' : '') + '" title="' + (isPinned ? i18n.t('app.unpin') : i18n.t('app.pin')) + '">' + (isPinned ? '📌' : '📍') + '</button>' +
+            '<button class="delete-btn" title="删除项目" style="background:none;border:none;cursor:pointer;padding:2px 6px;font-size:14px;color:#f38ba8;">🗑️</button>' +
           '</div>';
         card.querySelector('.pin-btn').onclick = (e) => { e.stopPropagation(); togglePinProject(proj.path); };
+        card.querySelector('.delete-btn').onclick = (e) => {
+          e.stopPropagation();
+          if (confirm('确定要删除项目 "' + (proj.name || '未命名') + '" 吗？')) {
+            deleteProject(proj.path);
+          }
+        };
         card.onclick = () => openProject(proj.path);
         container.appendChild(card);
       });
@@ -330,12 +344,20 @@
         return;
       }
 
+      const currentUser = CommunityAPI.getUser();
       statusEl.textContent = '共 ' + (res.total || res.data.length) + ' 个公开项目';
       listEl.innerHTML = res.data.map(p => {
         const author = p.profiles || {};
+        const isOwn = currentUser && currentUser.id === p.author_id;
+        const deleteBtn = isOwn
+          ? '<button class="os-cloud-delete" data-id="' + p.id + '" title="删除作品" style="background:none;border:none;cursor:pointer;color:#f38ba8;font-size:14px;padding:2px 6px;opacity:0.7;flex-shrink:0">🗑️</button>'
+          : '';
         return '<div class="os-cloud-item" data-zip="' + (p.zip_url || '') + '" data-id="' + p.id + '" data-title="' + (p.title || '') + '">' +
-          '<div class="os-cloud-name">' + (p.title || 'Unnamed') + '</div>' +
-          '<div class="os-cloud-author">' + (author.username || '匿名') + ' · ❤️ ' + (p.likes_count || 0) + '</div>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div class="os-cloud-name">' + (p.title || 'Unnamed') + '</div>' +
+            '<div class="os-cloud-author">' + (author.username || '匿名') + ' · ❤️ ' + (p.likes_count || 0) + '</div>' +
+          '</div>' +
+          deleteBtn +
         '</div>';
       }).join('');
 
@@ -349,6 +371,21 @@
           }
           hideOpenSourceDialog();
           await importZipFromUrl(zipUrl, title);
+        };
+      });
+
+      // 绑定删除按钮
+      listEl.querySelectorAll('.os-cloud-delete').forEach(btn => {
+        btn.onclick = async (e) => {
+          e.stopPropagation();
+          const projectId = btn.dataset.id;
+          if (!confirm('确定要删除这个云端作品吗？此操作不可撤销。')) return;
+          const result = await CommunityAPI.deleteProject(projectId);
+          if (result.error) {
+            alert('删除失败，请重试');
+          } else {
+            btn.closest('.os-cloud-item').remove();
+          }
         };
       });
     }
@@ -551,6 +588,32 @@
       if (list.length > 10) list = list.slice(0, 10);
       localStorage.setItem('recent-projects', JSON.stringify(list));
       renderRecentProjects();
+    }
+
+    // 删除项目
+    function deleteProject(folderPath) {
+      // 删除 vfs: 前缀的所有相关键
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('vfs:' + folderPath + '/') || key.startsWith('vfs:' + folderPath + '/')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      // 从最近项目列表移除
+      let recentList = [];
+      try { recentList = JSON.parse(localStorage.getItem('recent-projects') || '[]'); } catch {}
+      recentList = recentList.filter(p => p.path !== folderPath);
+      localStorage.setItem('recent-projects', JSON.stringify(recentList));
+      // 从固定项目列表移除
+      let pinnedList = [];
+      try { pinnedList = JSON.parse(localStorage.getItem('pinned-projects') || '[]'); } catch {}
+      pinnedList = pinnedList.filter(p => p.path !== folderPath);
+      localStorage.setItem('pinned-projects', JSON.stringify(pinnedList));
+      // 重新渲染
+      renderRecentProjects();
+      renderPinnedProjects();
     }
 
     // 显示模式弹窗

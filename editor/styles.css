@@ -177,7 +177,7 @@ body { font-family: 'Segoe UI','Microsoft YaHei',sans-serif; background:var(--bg
 .os-tab.active { color:var(--accent); border-bottom:2px solid var(--accent); }
 .os-panel { min-height:120px; }
 .os-cloud-list { max-height:220px; overflow-y:auto; border:1px solid var(--border); border-radius:6px; }
-.os-cloud-item { padding:12px 16px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .1s; }
+.os-cloud-item { padding:12px 16px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .1s; display:flex; align-items:center; gap:8px; }
 .os-cloud-item:last-child { border-bottom:none; }
 .os-cloud-item:hover { background:var(--bg-hover); }
 .os-cloud-name { font-size:13px; font-weight:600; color:var(--text-primary); }
