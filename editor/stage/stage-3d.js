@@ -82,6 +82,7 @@ const Stage3D = (function () {
         var gGeo = new THREE.PlaneGeometry(SCENE_SIZE * 2, SCENE_SIZE * 2);
         var gMat = new THREE.MeshStandardMaterial({ color: 0x88cc88, roughness: 0.8 });
         groundPlane = new THREE.Mesh(gGeo, gMat);
+        groundPlane._isGround = true;
         groundPlane.rotation.x = -Math.PI / 2;
         groundPlane.receiveShadow = true;
         scene.add(groundPlane);
@@ -365,6 +366,7 @@ const Stage3D = (function () {
         getScene: function () { return scene; },
         getCamera: function () { return camera; },
         getRenderer: function () { return renderer; },
+        getMeshMap: function () { return meshMap; },
         createMesh: createMesh,
         clearCreatedMeshes: clearCreatedMeshes,
         removeMesh: removeMesh,
