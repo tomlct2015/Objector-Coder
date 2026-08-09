@@ -124,10 +124,16 @@ const CommunityUI = (function () {
   function renderProjectCard(project) {
     const author = project.profiles || {};
     const thumbUrl = project.thumbnail_url || makeThumbPlaceholder('🎮');
+    const currentUser = API.getUser();
+    const isAuthor = currentUser && currentUser.id === project.author_id;
+    const deleteBtn = isAuthor
+      ? `<button class="card-delete-btn" data-project-id="${project.id}" title="删除作品" onclick="event.preventDefault();event.stopPropagation();">🗑️</button>`
+      : '';
     return `
-      <a href="project-detail.html?id=${project.id}" class="card project-card">
+      <a href="project-detail.html?id=${project.id}" class="card project-card" data-project-id="${project.id}">
         <div class="card-thumb">
           <img src="${thumbUrl}" alt="" loading="lazy" onerror="CommunityUI.onThumbError(this,'🎮')" />
+          ${deleteBtn}
         </div>
         <div class="card-body">
           <div class="card-title">${API.escapeHtml(project.title)}</div>
