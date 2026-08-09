@@ -295,12 +295,13 @@ const CommunityAPI = (function () {
   async function publishProject(titleOrData, descriptionOrZip, zipBlob, thumbnailBlob) {
     if (!_user) return { error: 'Not logged in' };
 
-    let title, description, jsonData, isPublic;
+    let title, description, jsonData, isPublic, renderMode;
     if (typeof titleOrData === 'object' && titleOrData !== null) {
       title = titleOrData.title;
       description = titleOrData.description || '';
       jsonData = titleOrData.json_data || null;
       isPublic = titleOrData.is_public !== undefined ? titleOrData.is_public : true;
+      renderMode = titleOrData.render_mode || '2d';
       zipBlob = descriptionOrZip;
     } else {
       title = titleOrData;
@@ -342,6 +343,7 @@ const CommunityAPI = (function () {
       zip_url: zipUrl,
       thumbnail_url: thumbUrl,
       json_data: jsonData,
+      render_mode: renderMode || '2d',
       is_public: isPublic !== undefined ? isPublic : true,
     }).select().single();
 
@@ -533,9 +535,39 @@ const CommunityAPI = (function () {
     return { data };
   }
 
+  /** 从扩展文件内容中提取积木数量 */
+  function _countBlocksFromContent(fileContent) {
+    if (!fileContent) return 0;
+    var text = '';
+    if (typeof fileContent === 'string') {
+      text = fileContent;
+    } else if (fileContent instanceof Blob) {
+      // Blob 无法同步读取，返回 0
+      return 0;
+    } else if (typeof fileContent === 'object') {
+      text = JSON.stringify(fileContent);
+    } else {
+      text = String(fileContent);
+    }
+    // JSON 格式：解析 blocks 数组
+    try {
+      var parsed = JSON.parse(text);
+      if (parsed && Array.isArray(parsed.blocks)) {
+        return parsed.blocks.length;
+      }
+    } catch (e) {
+      // JS 格式：计算 blocks 数组中的对象数量
+      // 匹配 { type: '...', label: '...' } 模式的积木定义
+      var blockMatches = text.match(/\{\s*type\s*:\s*['"]/g);
+      if (blockMatches) return blockMatches.length;
+    }
+    return 0;
+  }
+
   async function publishExtension(name, extId, description, version, fileContent) {
     if (!_user) return { error: 'Not logged in' };
 
+    var blockCount = _countBlocksFromContent(fileContent);
     let fileUrl = null;
     if (fileContent) {
       // fileContent 可以是 Blob, string 或带 name 属性的对象
@@ -585,6 +617,7 @@ const CommunityAPI = (function () {
       author_id: _user.id, name, ext_id: extId,
       description: description || '', version: version || '1.0.0',
       file_url: fileUrl,
+      block_count: blockCount,
     }, { onConflict: 'ext_id' }).select().single();
     return { data, error };
   }
@@ -593,6 +626,8 @@ const CommunityAPI = (function () {
     if (!_user) return { error: 'Not logged in' };
 
     if (fileContent) {
+      var newBlockCount = _countBlocksFromContent(fileContent);
+      updates.block_count = newBlockCount;
       let blob, fileExt, contentType;
       if (typeof fileContent === 'string') {
         blob = new Blob([fileContent], { type: 'application/json' });
