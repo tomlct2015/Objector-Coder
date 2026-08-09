@@ -766,6 +766,7 @@
           const projectPrefix = projectPath + '/';
           const zip = new JSZip();
           let mainJsonData = null;
+          let projectRenderMode = '2d';
 
           for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
@@ -801,6 +802,15 @@
             }
           }
 
+          // 读取 project.json 获取渲染模式
+          try {
+            const cfgStr = localStorage.getItem('vfs:' + projectPath + '/project.json');
+            if (cfgStr) {
+              const cfg = JSON.parse(cfgStr);
+              if (cfg.renderMode) projectRenderMode = cfg.renderMode;
+            }
+          } catch(e) {}
+
           const zipBlob = new Blob([await zip.generateAsync({ type: 'uint8array' })], { type: 'application/zip' });
 
           if (formData.projectAction === 'update' && formData.projectExistingId) {
@@ -808,6 +818,7 @@
               title: formData.title,
               description: formData.description,
               json_data: mainJsonData,
+              render_mode: projectRenderMode,
             }, zipBlob);
             projectId = formData.projectExistingId;
             if (projResult.error) {
@@ -820,6 +831,7 @@
               title: formData.title,
               description: formData.description,
               json_data: mainJsonData,
+              render_mode: projectRenderMode,
               is_public: true
             }, zipBlob);
             projectId = projResult.data?.id || projResult.data?.[0]?.id;
@@ -1092,6 +1104,33 @@
   });
 
   // ============================================================
+  // 渲染模式热切换：从 2D 切换到 3D（用于社区预览）
+  // ============================================================
+  function switchTo3D() {
+    if (typeof Stage3D === 'undefined') return false;
+    // 停止 2D 渲染循环
+    StageCanvas.stop();
+    // 替换 canvas 元素（2D context 无法转为 WebGL）
+    var oldCanvas = document.getElementById('stage-canvas');
+    if (!oldCanvas) return false;
+    var newCanvas = document.createElement('canvas');
+    newCanvas.id = 'stage-canvas';
+    newCanvas.width = 480;
+    newCanvas.height = 360;
+    oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
+    // 初始化 3D 舞台
+    var success = Stage3D.init(newCanvas);
+    if (success) {
+      // 重新绑定侦测输入
+      if (typeof SensingInput !== 'undefined') SensingInput.init(newCanvas);
+      console.log('[switchTo3D] 已切换到 3D 模式');
+    } else {
+      console.warn('[switchTo3D] Stage3D 初始化失败');
+    }
+    return success;
+  }
+
+  // ============================================================
   // 社区作品在线预览：从社区 API 获取项目并加载到编辑器
   // ============================================================
   async function loadProjectFromCommunity(projectId) {
@@ -1178,6 +1217,17 @@
               }
             }
 
+            // 读取 project.json 检查渲染模式，如需切换到 3D
+            try {
+              const cfgStr = await window.api.readFile(previewPath + '/project.json');
+              if (cfgStr) {
+                const cfg = JSON.parse(cfgStr);
+                if (cfg.renderMode === '3d') {
+                  switchTo3D();
+                }
+              }
+            } catch(e) { /* ignore */ }
+
             document.getElementById('status-text').textContent = (i18n.isEnglish() ? 'Preview loaded: ' : '预览已加载: ') + project.title;
             await loadProject(previewPath, project.mode || 'normal');
             return;
@@ -1193,8 +1243,13 @@
         const config = {
           name: project.title || 'Preview',
           mode: project.mode || 'normal',
+          renderMode: project.render_mode || '2d',
           sprites: []
         };
+        // 如需 3D 模式，先切换舞台
+        if (config.renderMode === '3d') {
+          switchTo3D();
+        }
         await window.api.writeFile(previewPath + '/project.json', JSON.stringify(config, null, 2));
         // 写入积木数据
         await window.api.writeFile(previewPath + '/scripts/main.json', project.json_data);
