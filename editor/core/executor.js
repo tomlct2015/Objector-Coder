@@ -1273,6 +1273,38 @@ const Executor = (function () {
         return undefined;
       }
 
+      // === 3D 创建网格 (reporter - 返回对象引用) ===
+      case '3d_create_box': {
+        if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+          return Stage3D.createMesh('box', { x: p.x, y: p.y, z: p.z, w: p.w, h: p.h, d: p.d, color: p.color });
+        }
+        return undefined;
+      }
+      case '3d_create_sphere': {
+        if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+          return Stage3D.createMesh('sphere', { x: p.x, y: p.y, z: p.z, radius: p.radius, color: p.color });
+        }
+        return undefined;
+      }
+      case '3d_create_cylinder': {
+        if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+          return Stage3D.createMesh('cylinder', { x: p.x, y: p.y, z: p.z, radius: p.radius, h: p.h, color: p.color });
+        }
+        return undefined;
+      }
+      case '3d_create_cone': {
+        if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+          return Stage3D.createMesh('cone', { x: p.x, y: p.y, z: p.z, radius: p.radius, h: p.h, color: p.color });
+        }
+        return undefined;
+      }
+      case '3d_create_plane': {
+        if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
+          return Stage3D.createMesh('plane', { x: p.x, y: p.y, z: p.z, w: p.w, h: p.h, color: p.color });
+        }
+        return undefined;
+      }
+
       default: {
         // 检查扩展自定义执行器
         const customExec = ExtensionManager.getExecutor(type);
