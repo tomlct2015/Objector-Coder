@@ -94,10 +94,30 @@
       }
 
       grid.innerHTML = res.data.map(p => CommunityUI.renderProjectCard(p)).join('');
+      bindDeleteButtons();
       CommunityUI.renderPagination('pagination', currentPage, res.total || res.data.length, (page) => {
         currentPage = page;
         loadProjects();
         window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+
+    // 绑定删除按钮点击事件
+    function bindDeleteButtons() {
+      document.querySelectorAll('.card-delete-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const projectId = btn.dataset.projectId;
+          if (!confirm('确定要删除这个作品吗？此操作不可撤销。')) return;
+          const result = await CommunityAPI.deleteProject(projectId);
+          if (result.error) {
+            CommunityUI.showToast('删除失败', 'error');
+          } else {
+            CommunityUI.showToast('已删除', 'success');
+            btn.closest('.card').remove();
+          }
+        });
       });
     }
 

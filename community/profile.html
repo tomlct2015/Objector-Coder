@@ -375,6 +375,22 @@
         if (res.data && res.data.length > 0) {
           content.innerHTML = '<div class="card-grid"></div>';
           CommunityUI.fillCards(content.querySelector('.card-grid'), res.data.map(p => CommunityUI.renderProjectCard(p)));
+          // 绑定删除按钮
+          content.querySelectorAll('.card-delete-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const projectId = btn.dataset.projectId;
+              if (!confirm('确定要删除这个作品吗？此操作不可撤销。')) return;
+              const result = await CommunityAPI.deleteProject(projectId);
+              if (result.error) {
+                CommunityUI.showToast('删除失败', 'error');
+              } else {
+                CommunityUI.showToast('已删除', 'success');
+                btn.closest('.card').remove();
+              }
+            });
+          });
         } else {
           content.innerHTML = '<div class="empty-state"><p>暂无作品</p></div>';
         }
