@@ -808,35 +808,43 @@ const Executor = (function () {
         Stage3D.setGridVisible(p.show === 'show');
       }
     }
-    // === 3D 创建网格 ===
+    // === 3D 创建网格 (reporter) ===
     else if (type === '3d_create_box') {
       if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
-        Stage3D.createMesh('box', { x: p.x, y: p.y, z: p.z, w: p.w, h: p.h, d: p.d, color: p.color });
+        return Stage3D.createMesh('box', { x: p.x, y: p.y, z: p.z, w: p.w, h: p.h, d: p.d, color: p.color });
       }
     }
     else if (type === '3d_create_sphere') {
       if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
-        Stage3D.createMesh('sphere', { x: p.x, y: p.y, z: p.z, radius: p.radius, color: p.color });
+        return Stage3D.createMesh('sphere', { x: p.x, y: p.y, z: p.z, radius: p.radius, color: p.color });
       }
     }
     else if (type === '3d_create_cylinder') {
       if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
-        Stage3D.createMesh('cylinder', { x: p.x, y: p.y, z: p.z, radius: p.radius, h: p.h, color: p.color });
+        return Stage3D.createMesh('cylinder', { x: p.x, y: p.y, z: p.z, radius: p.radius, h: p.h, color: p.color });
       }
     }
     else if (type === '3d_create_cone') {
       if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
-        Stage3D.createMesh('cone', { x: p.x, y: p.y, z: p.z, radius: p.radius, h: p.h, color: p.color });
+        return Stage3D.createMesh('cone', { x: p.x, y: p.y, z: p.z, radius: p.radius, h: p.h, color: p.color });
       }
     }
     else if (type === '3d_create_plane') {
       if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
-        Stage3D.createMesh('plane', { x: p.x, y: p.y, z: p.z, w: p.w, h: p.h, color: p.color });
+        return Stage3D.createMesh('plane', { x: p.x, y: p.y, z: p.z, w: p.w, h: p.h, color: p.color });
       }
     }
     else if (type === '3d_clear_meshes') {
       if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized()) {
         Stage3D.clearCreatedMeshes();
+      }
+    }
+    // === 3D 网格属性 ===
+    else if (type === '3d_mesh_set_attr') {
+      const obj = resolveObj(p.obj, scope);
+      if (obj && obj.__is3DMesh) {
+        obj[p.attr] = p.val;
+        Stage3D.setMeshProperty(obj);
       }
     }
 
@@ -1257,6 +1265,13 @@ const Executor = (function () {
         }
         return 0;
       }
+      case '3d_mesh_get_attr': {
+        const obj = resolveObj(p.obj, scope);
+        if (obj && obj.__is3DMesh) {
+          return Stage3D.getMeshProperty(obj.id, p.attr);
+        }
+        return undefined;
+      }
 
       default: {
         // 检查扩展自定义执行器
@@ -1293,7 +1308,7 @@ const Executor = (function () {
 
   /** 解析对象引用：支持对象实例、'self'、变量名 */
   function resolveObj(val, scope) {
-    if (val && typeof val === 'object' && val.__className) return val;
+    if (val && typeof val === 'object' && (val.__className || val.__is3DMesh)) return val;
     const name = String(val);
     if (name === 'self') return scope.self || null;
     if (scope[name] !== undefined && typeof scope[name] === 'object') return scope[name];
