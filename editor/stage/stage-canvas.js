@@ -3,6 +3,7 @@
  */
 const StageCanvas = (function () {
   let canvas, ctx;
+  let _rafId = null;
   const W = 480, H = 360;
 
   function init() {
@@ -11,6 +12,11 @@ const StageCanvas = (function () {
     canvas.width = W;
     canvas.height = H;
     renderLoop();
+  }
+
+  function stop() {
+    if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
+    ctx = null; canvas = null;
   }
 
   function renderLoop() {
@@ -24,7 +30,7 @@ const StageCanvas = (function () {
       drawSprite(sprite);
     });
 
-    requestAnimationFrame(renderLoop);
+    _rafId = requestAnimationFrame(renderLoop);
   }
 
   function drawSprite(s) {
@@ -115,5 +121,5 @@ const StageCanvas = (function () {
     ctx.closePath();
   }
 
-  return { init };
+  return { init, stop };
 })();
