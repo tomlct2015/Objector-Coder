@@ -139,6 +139,23 @@
       return label;
     },
   });
+  // 新建类：运行时动态定义类（类似 func_set_define 的类版本）
+  BlockRegistry.register({
+    type: 'class_new', category: 'oop', color: C,
+    label: '新建类 {name} 定义为 {code}', labelKey: 'blocks.oop.class_new',
+    shape: 'stack',
+    ports: { flowIn: true, flowOut: true },
+    params: [
+      { name: 'name', type: 'string', default: '新类' },
+      { name: 'code', type: 'block' },
+    ],
+    getLabel: function(block) {
+      var L = i18n.L;
+      let label = L('新建类 {name}', 'New class {name}');
+      label += L(' 定义为 {code}', ' defined as {code}');
+      return label;
+    },
+  });
   BlockRegistry.register({
     type: 'class_self', category: 'oop', color: C,
     label: 'self', labelKey: 'blocks.oop.class_self', shape: 'reporter',
