@@ -33,8 +33,8 @@ const HtmlExporter = (function () {
   <canvas id="stage" width="480" height="360"></canvas>
   <div id="output"></div>
   <div class="controls">
-    <button class="run" onclick="startRun()">鈻?杩愯</button>
-    <button class="stop" onclick="stopRun()">鈴?鍋滄</button>
+    <button class="run" onclick="startRun()">▶运行</button>
+    <button class="stop" onclick="stopRun()">■终止</button>
   </div>
 
 <script>
