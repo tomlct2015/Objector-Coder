@@ -64,15 +64,18 @@ function _renderLoop() { render(); if (running) _rafId = requestAnimationFrame(_
 function _startRenderLoop() { if (!_rafId) _rafId = requestAnimationFrame(_renderLoop); }
 function _stopRenderLoop() { if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; } }
 
+// 保存初始状态（用于重置）
+let _initSprites = JSON.parse(JSON.stringify(sprites));
+
 // 初始化精灵
-sprites.forEach(s => {
+function _initSprite(s) {
   s.x = s.x || 0; s.y = s.y || 0;
-  s.direction = s.direction || 90;
+  s.direction = s.direction != null ? s.direction : 90;
   s.size = s.size || 100;
   s.visible = s.visible !== false;
   s.sayText = ''; s.sayTimer = null;
   s.vx = 0; s.vy = 0;
-  s.rotationStyle = 'allAround';
+  s.rotationStyle = s.rotationStyle || 'allAround';
   s._posHistory = [];
   s.image = null;
   if (s.costumePath) {
@@ -80,7 +83,8 @@ sprites.forEach(s => {
     img.onload = () => { s.image = img; };
     img.src = s.costumePath;
   }
-});
+}
+sprites.forEach(_initSprite);
 
 // 鼠标追踪
 canvas.addEventListener('mousemove', e => {
@@ -165,30 +169,38 @@ function render() {
   sprites.forEach(s => {
     if (!s.visible) return;
     ctx.save();
-    ctx.translate(s.x + STAGE_W/2, s.y + STAGE_H/2);
+    ctx.translate(STAGE_W/2 + s.x, STAGE_H/2 - s.y);
     if (s.rotationStyle === 'allAround') ctx.rotate((s.direction - 90) * Math.PI / 180);
-    else if (s.rotationStyle === 'leftRight' && s.direction > 180) ctx.scale(-1, 1);
-    const sz = s.size / 100;
-    ctx.scale(sz, sz);
+    else if (s.rotationStyle === 'leftRight') { if (s.direction > 180) ctx.scale(-1, 1); }
+    var sc = s.size / 100;
+    ctx.scale(sc, sc);
     if (s.image) {
-      ctx.drawImage(s.image, -30, -30, 60, 60);
+      var iw = s.image.width, ih = s.image.height;
+      var maxD = 64;
+      var dw = iw, dh = ih;
+      if (iw > maxD || ih > maxD) { var r = Math.min(maxD/iw, maxD/ih); dw = iw*r; dh = ih*r; }
+      ctx.drawImage(s.image, -dw/2, -dh/2, dw, dh);
     } else {
-      ctx.fillStyle = s.color || '#89b4fa';
-      ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0, -18); ctx.lineTo(14, 14); ctx.lineTo(-14, 14);
+      ctx.closePath();
+      ctx.fillStyle = s.color || '#4C97FF'; ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
       ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(6, -10); ctx.lineTo(-6, -10); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.arc(-4, -4, 3, 0, Math.PI*2); ctx.arc(4, -4, 3, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#333';
+      ctx.beginPath(); ctx.arc(-3, -4, 1.5, 0, Math.PI*2); ctx.arc(5, -4, 1.5, 0, Math.PI*2); ctx.fill();
     }
     ctx.restore();
     if (s.sayText) {
-      const bx = s.x + STAGE_W/2 + 25, by = s.y + STAGE_H/2 - 30;
+      var bx = STAGE_W/2 + s.x + 25, by = STAGE_H/2 - s.y - 30;
       ctx.fillStyle = '#fff'; ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
       ctx.font = '12px sans-serif';
-      const tw = ctx.measureText(s.sayText).width;
+      var tw = ctx.measureText(s.sayText).width;
       ctx.beginPath(); ctx.roundRect(bx, by, tw+12, 22, 6); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#333'; ctx.fillText(s.sayText, bx+6, by+15);
     }
   });
-  if (running) requestAnimationFrame(render);
 }
 
 // 执行引擎
@@ -688,6 +700,22 @@ async function startRun() {
   // 注册广播接收者
   broadcastListeners = Object.values(blocks).filter(b => b.type === 'event_receive');
 
+  // 重置精灵到初始状态
+  var initCopy = JSON.parse(JSON.stringify(_initSprites));
+  sprites.forEach(function(s, i) {
+    var init = initCopy[i];
+    if (init) {
+      s.x = init.x; s.y = init.y;
+      s.direction = init.direction != null ? init.direction : 90;
+      s.size = init.size || 100;
+      s.visible = init.visible !== false;
+      s.rotationStyle = init.rotationStyle || 'allAround';
+    }
+    s.sayText = ''; s.sayTimer = null;
+    s.vx = 0; s.vy = 0;
+    s._posHistory = [];
+  });
+
   render();
   _startRenderLoop();
   const starts = Object.values(blocks).filter(b => b.type === 'event_start');
@@ -763,14 +791,17 @@ function stopRun() {
         var s = sprites[si];
         var spriteData = {
           name: s.name, x: s.x, y: s.y, direction: s.direction,
-          size: s.size, visible: s.visible, color: s.color || '#89b4fa',
+          size: s.size, visible: s.visible, color: s.color || '#4C97FF',
+          rotationStyle: s.rotationStyle || 'allAround',
         };
-        if (s.image) {
+        // 获取造型图片（通过 costumeImage getter）
+        var costumeImg = s.costumeImage;
+        if (costumeImg) {
           try {
             var tmpCanvas = document.createElement('canvas');
-            tmpCanvas.width = 60; tmpCanvas.height = 60;
+            tmpCanvas.width = costumeImg.width; tmpCanvas.height = costumeImg.height;
             var tmpCtx = tmpCanvas.getContext('2d');
-            tmpCtx.drawImage(s.image, 0, 0, 60, 60);
+            tmpCtx.drawImage(costumeImg, 0, 0);
             spriteData.costumePath = tmpCanvas.toDataURL('image/png');
           } catch (e) {}
         }
