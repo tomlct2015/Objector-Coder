@@ -58,6 +58,12 @@ let broadcastListeners = [];
 let output = [];
 let turboMode = 0;
 
+// \u6e32\u67d3\u5faa\u73af
+let _rafId = null;
+function _renderLoop() { render(); if (running) _rafId = requestAnimationFrame(_renderLoop); }
+function _startRenderLoop() { if (!_rafId) _rafId = requestAnimationFrame(_renderLoop); }
+function _stopRenderLoop() { if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; } }
+
 // 初始化精灵
 sprites.forEach(s => {
   s.x = s.x || 0; s.y = s.y || 0;
@@ -683,8 +689,7 @@ async function startRun() {
   broadcastListeners = Object.values(blocks).filter(b => b.type === 'event_receive');
 
   render();
-
-  // 运行 event_start
+  _startRenderLoop();
   const starts = Object.values(blocks).filter(b => b.type === 'event_start');
   for (const s of starts) { if (stopRequested) break; await executeChain(s, {}); }
 
@@ -709,6 +714,8 @@ function stopRun() {
     if (keyHandler._up) document.removeEventListener('keyup', keyHandler._up);
     keyHandler = null;
   }
+  _stopRenderLoop();
+  render();
 }
 </script>
 
