@@ -4,9 +4,10 @@
 const HtmlExporter = (function () {
 
   /** 生成可运行的 HTML */
-  function generateHTML(projectName, blocksData, spritesData) {
+  function generateHTML(projectName, blocksData, spritesData, extensionExecutors) {
     const blocks = JSON.stringify(blocksData);
     const sprites = JSON.stringify(spritesData || []);
+    const extExecJSON = JSON.stringify(extensionExecutors || {});
 
     return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -42,6 +43,8 @@ const HtmlExporter = (function () {
 const STAGE_W = 480, STAGE_H = 360;
 const canvas = document.getElementById('stage');
 const ctx = canvas.getContext('2d');
+// 绘图扩展兼容：提供 stage-canvas ID 别名
+canvas.id = 'stage-canvas';
 const outputEl = document.getElementById('output');
 
 let running = false, stopRequested = false;
@@ -58,7 +61,10 @@ let broadcastListeners = [];
 let output = [];
 let turboMode = 0;
 
-// \u6e32\u67d3\u5faa\u73af
+// 扩展执行器
+const ExtensionExecutors = new Map(Object.entries(${extExecJSON}).map(([k,v]) => [k, new Function('return ' + v)()]));
+
+// 渲染循环
 let _rafId = null;
 function _renderLoop() { render(); if (running) _rafId = requestAnimationFrame(_renderLoop); }
 function _startRenderLoop() { if (!_rafId) _rafId = requestAnimationFrame(_renderLoop); }
@@ -416,6 +422,8 @@ function evaluateReporter(block, scope) {
         const customExec = ExtensionExecutors.get(block.type);
         if (customExec) { p._block = block; return customExec(p, scope); }
       }
+      // 3D 积木降级（无 Three.js 时返回虚拟对象）
+      if (block.type && block.type.startsWith('3d_create_')) return { __is3DMesh: true, id: '_no3d', type: block.type, x:0, y:0, z:0, scale:1, rotationY:0, color:'', visible:true };
       return p[Object.keys(p)[0]] || 0;
     }
   }
@@ -655,6 +663,11 @@ async function executeBlock(block, scope) {
       log('警告: 对象没有方法 "'+p.method+'"');
     } else { log('警告: 找不到对象 "'+p.obj+'"'); }
   }
+  // 扩展 stack 积木
+  if (typeof ExtensionExecutors !== 'undefined') {
+    const extExec = ExtensionExecutors.get(type);
+    if (extExec) { const result = extExec(p, scope); if (result && typeof result.then === 'function') await result; return; }
+  }
   await delay(1);
 }
 
@@ -808,12 +821,28 @@ function stopRun() {
         spritesData.push(spriteData);
       }
     } catch(e) {
-      console.warn('[HTML\u5bfc\u51fa] \u83b7\u53d6\u7cbe\u7075\u5931\u8d25:', e.message);
+      console.warn('[HTML导出] 获取精灵失败:', e.message);
     }
-
-    console.log('[HTML\u5bfc\u51fa] \u751f\u6210HTML...');
-    var html = generateHTML(projectName, blocksData, spritesData);
-    console.log('[HTML\u5bfc\u51fa] HTML\u957f\u5ea6:', html.length);
+    
+    // 收集扩展执行器
+    var extExecs = {};
+    try {
+      if (typeof ExtensionManager !== 'undefined' && ExtensionManager.getExecutors) {
+        var execMap = ExtensionManager.getExecutors();
+        execMap.forEach(function(fn, type) {
+          try {
+            extExecs[type] = fn.toString();
+          } catch(e) {}
+        });
+        console.log('[HTML导出] 扩展执行器:', Object.keys(extExecs).length, '个');
+      }
+    } catch(e) {
+      console.warn('[HTML导出] 获取扩展执行器失败:', e.message);
+    }
+    
+    console.log('[HTML导出] 生成HTML...');
+    var html = generateHTML(projectName, blocksData, spritesData, extExecs);
+    console.log('[HTML导出] HTML长度:', html.length);
 
     if (window.api && window.api.saveFileDialog && !window.api._isWebShim) {
       console.log('[HTML\u5bfc\u51fa] Electron\u6a21\u5f0f');

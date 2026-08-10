@@ -178,6 +178,13 @@ const ExtensionManager = (function () {
   }
 
   /**
+   * 获取所有自定义执行器（用于导出）
+   */
+  function getExecutors() {
+    return _customExecutors;
+  }
+
+  /**
    * 获取所有已加载的扩展
    */
   function getExtensions() {
@@ -202,6 +209,7 @@ const ExtensionManager = (function () {
     loadFromFile,
     loadFromProject,
     getExecutor,
+    getExecutors,
     getExtensions,
     unregisterExtension,
   };
