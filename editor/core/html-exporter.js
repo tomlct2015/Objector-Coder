@@ -899,7 +899,13 @@ async function startRun() {
   if (!_use3D) render();
   _startRenderLoop();
   const starts = Object.values(blocks).filter(b => b.type === 'event_start');
-  for (const s of starts) { if (stopRequested) break; await executeChain(s, {}); }
+  console.log('[Runtime] 开始执行，event_start 数量:', starts.length, '总积木数:', Object.keys(blocks).length);
+  try {
+    for (const s of starts) { if (stopRequested) break; await executeChain(s, {}); }
+  } catch(e) {
+    console.error('[Runtime] 执行出错:', e);
+    log('[错误] ' + e.message);
+  }
 
   // 保持运行
   const hasEvents = keyBlocks.length > 0 || timerBlocks.length > 0 || broadcastListeners.length > 0;
