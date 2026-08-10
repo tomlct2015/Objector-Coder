@@ -719,13 +719,13 @@ function stopRun() {
 
   /** 导出 HTML 文件 */
   async function exportProject() {
-    if (!EditorState.projectPath) {
-      alert(i18n.t('status.openProjectFirst'));
-      return;
-    }
-
     const projectName = EditorState.projectName || 'Objector';
     const blocksData = EditorState.blocks || {};
+    // 检查是否有积木
+    if (!blocksData || Object.keys(blocksData).length === 0) {
+      alert(i18n.isEnglish() ? 'No blocks to export' : '\u6ca1\u6709\u79ef\u6728\u53ef\u4ee5\u5bfc\u51fa');
+      return;
+    }
 
     // 获取精灵数据（包含贴图 base64）
     const spritesData = [];
