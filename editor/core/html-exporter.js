@@ -28,6 +28,7 @@ const HtmlExporter = (function () {
     .controls .stop { background:#3a1a1a; color:#f38ba8; border-color:#5a2d2d; }
     .controls .stop:hover { background:#5a2d2d; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"><\/script>
 </head>
 <body>
   <h1>${projectName}</h1>
@@ -42,9 +43,6 @@ const HtmlExporter = (function () {
 // ===== Objector Runtime =====
 const STAGE_W = 480, STAGE_H = 360;
 const canvas = document.getElementById('stage');
-const ctx = canvas.getContext('2d');
-// 绘图扩展兼容：提供 stage-canvas ID 别名
-canvas.id = 'stage-canvas';
 const outputEl = document.getElementById('output');
 
 let running = false, stopRequested = false;
@@ -61,12 +59,152 @@ let broadcastListeners = [];
 let output = [];
 let turboMode = 0;
 
+// 3D 模式检测
+var _is3D = Object.values(blocks).some(b => b.type && b.type.startsWith('3d_'));
+var _use3D = _is3D && typeof THREE !== 'undefined';
+var ctx = _use3D ? null : canvas.getContext('2d');
+canvas.id = 'stage-canvas';
+
 // 扩展执行器
 const ExtensionExecutors = new Map(Object.entries(${extExecJSON}).map(([k,v]) => [k, new Function('return ' + v)()]));
 
+// 3D 舞台模块
+var Stage3D = (function() {
+  var scene, camera, renderer3d, _init=false;
+  var groundPlane, gridHelper;
+  var meshMap = new Map(), _meshId = 0;
+  var createdMeshes = [];
+  var spriteMeshes = new Map(), spriteTextures = new Map();
+  var W=480, H=360, SC=50;
+  function init(cv) {
+    if(typeof THREE==='undefined'||!cv) return false;
+    cv.width=W; cv.height=H; cv.style.width=W+'px'; cv.style.height=H+'px';
+    try {
+      scene=new THREE.Scene(); scene.background=new THREE.Color(0x87ceeb);
+      camera=new THREE.PerspectiveCamera(60,W/H,0.1,1000);
+      camera.position.set(0,25,35); camera.lookAt(0,0,0);
+      renderer3d=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+      renderer3d.setSize(W,H,false); renderer3d.shadowMap.enabled=true;
+      scene.add(new THREE.AmbientLight(0xffffff,0.7));
+      var dl=new THREE.DirectionalLight(0xffffff,0.8);
+      dl.position.set(10,20,10); dl.castShadow=true; scene.add(dl);
+      var gg=new THREE.PlaneGeometry(SC*2,SC*2);
+      var gm=new THREE.MeshStandardMaterial({color:0x88cc88,roughness:0.8});
+      groundPlane=new THREE.Mesh(gg,gm); groundPlane.rotation.x=-Math.PI/2;
+      groundPlane.receiveShadow=true; scene.add(groundPlane);
+      gridHelper=new THREE.GridHelper(SC*2,20,0x444444,0x666666);
+      gridHelper.position.y=0.01; gridHelper.material.opacity=0.25;
+      gridHelper.material.transparent=true; scene.add(gridHelper);
+      _init=true; return true;
+    } catch(e) { console.error('[Stage3D]',e.message); return false; }
+  }
+  function conv(x,y) { var s=SC/240; return {x:x*s,y:1,z:-y*s}; }
+  function spriteMesh(sp,idx) {
+    var mesh=spriteMeshes.get(idx);
+    var cost=sp.costumePath||'';
+    var last=spriteTextures.get(idx);
+    if(mesh&&cost!==last) {
+      if(mesh.material.map) mesh.material.map.dispose();
+      mesh.material.dispose(); scene.remove(mesh); mesh=null;
+    }
+    if(!mesh) {
+      var geo, mat;
+      if(sp.image) {
+        var tex=new THREE.Texture(sp.image); tex.needsUpdate=true;
+        var asp=sp.image.width/sp.image.height;
+        geo=new THREE.PlaneGeometry(4*asp,4);
+        mat=new THREE.MeshBasicMaterial({map:tex,transparent:true,side:THREE.DoubleSide});
+      } else {
+        geo=new THREE.PlaneGeometry(4,4);
+        mat=new THREE.MeshBasicMaterial({color:new THREE.Color(sp.color||'#4a90d9'),side:THREE.DoubleSide});
+      }
+      mesh=new THREE.Mesh(geo,mat); mesh.castShadow=true; scene.add(mesh);
+      spriteMeshes.set(idx,mesh); spriteTextures.set(idx,cost);
+    }
+    return mesh;
+  }
+  function updateSprites() {
+    var ids=new Set();
+    sprites.forEach(function(sp,i) {
+      ids.add(i);
+      if(!sp.visible) { var m=spriteMeshes.get(i); if(m) m.visible=false; return; }
+      var mesh=spriteMesh(sp,i);
+      var pos=conv(sp.x,sp.y);
+      mesh.position.set(pos.x,pos.y+(sp._height3d||0),pos.z);
+      var sc=(sp.size||100)/100; mesh.scale.set(sc,sc,sc);
+      if(sp.rotationStyle==='allAround') mesh.rotation.y=(90-sp.direction)*Math.PI/180;
+      else if(sp.rotationStyle==='leftRight') mesh.rotation.y=sp.direction>180?Math.PI:0;
+      mesh.visible=true;
+    });
+    spriteMeshes.forEach(function(mesh,id) {
+      if(!ids.has(id)) {
+        scene.remove(mesh);
+        if(mesh.geometry) mesh.geometry.dispose();
+        if(mesh.material) { if(mesh.material.map) mesh.material.map.dispose(); mesh.material.dispose(); }
+        spriteMeshes.delete(id); spriteTextures.delete(id);
+      }
+    });
+  }
+  function render3d() { if(_init&&renderer3d) renderer3d.render(scene,camera); }
+  function createMesh(type,p) {
+    p=p||{}; var x=+p.x||0,y=+p.y||0,z=+p.z||0,color=p.color||'#FF6B35';
+    var w=+p.w||4,h=+p.h||4,d=+p.d||4,radius=+p.radius||2;
+    var geo,mat;
+    switch(type) {
+      case 'sphere': geo=new THREE.SphereGeometry(radius,16,16); break;
+      case 'cylinder': geo=new THREE.CylinderGeometry(radius,radius,h,16); break;
+      case 'cone': geo=new THREE.ConeGeometry(radius,h,16); break;
+      case 'plane': geo=new THREE.PlaneGeometry(w,h);
+        mat=new THREE.MeshStandardMaterial({color:color,side:THREE.DoubleSide}); break;
+      default: geo=new THREE.BoxGeometry(w,h,d); type='box';
+    }
+    if(!mat) mat=new THREE.MeshStandardMaterial({color:color});
+    var mesh=new THREE.Mesh(geo,mat);
+    mesh.position.set(x,y,z); mesh.castShadow=true; mesh.receiveShadow=true;
+    scene.add(mesh);
+    var id=++_meshId;
+    var wr={__is3DMesh:true,id:id,type:type,mesh:mesh,x:x,y:y,z:z,w:w,h:h,d:d,radius:radius,color:color,scale:1,rotationY:0,visible:true};
+    meshMap.set(id,wr); createdMeshes.push(mesh);
+    return wr;
+  }
+  function setProp(w) {
+    if(!w||!w.mesh) return;
+    w.mesh.position.set(+w.x,+w.y,+w.z);
+    var s=+(w.scale||1); w.mesh.scale.set(s,s,s);
+    w.mesh.rotation.y=+(w.rotationY||0)*Math.PI/180;
+    if(w.mesh.material&&w.mesh.material.color&&w.color) w.mesh.material.color.set(String(w.color));
+    w.mesh.visible=w.visible!==false;
+  }
+  function getProp(id,a) {
+    var w=meshMap.get(+id); if(!w) return undefined;
+    return w[a];
+  }
+  function clearMeshes() {
+    createdMeshes.forEach(function(m) {
+      scene.remove(m); if(m.geometry) m.geometry.dispose(); if(m.material) m.material.dispose();
+    });
+    createdMeshes=[]; meshMap.clear();
+  }
+  return {
+    init:init, isInitialized:function(){return _init;},
+    getCamera:function(){return camera;},
+    createMesh:createMesh, setMeshProperty:setProp, getMeshProperty:getProp,
+    clearCreatedMeshes:clearMeshes,
+    setCameraPosition:function(x,y,z){if(camera){camera.position.set(x,y,z);camera.lookAt(0,0,0);}},
+    setSkyColor:function(c){if(scene&&scene.background)scene.background.set(c);},
+    setGroundColor:function(c){if(groundPlane&&groundPlane.material)groundPlane.material.color.set(c);},
+    setGridVisible:function(s){if(gridHelper)gridHelper.visible=!!s;},
+    updateSprites:updateSprites, render3d:render3d
+  };
+})();
+
 // 渲染循环
 let _rafId = null;
-function _renderLoop() { render(); if (running) _rafId = requestAnimationFrame(_renderLoop); }
+function _renderLoop() {
+  if (_use3D) { Stage3D.updateSprites(); Stage3D.render3d(); }
+  else { render(); }
+  if (running) _rafId = requestAnimationFrame(_renderLoop);
+}
 function _startRenderLoop() { if (!_rafId) _rafId = requestAnimationFrame(_renderLoop); }
 function _stopRenderLoop() { if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; } }
 
@@ -169,6 +307,7 @@ function mapKey(key) {
 
 // 渲染
 function render() {
+  if (_use3D || !ctx) return;
   ctx.clearRect(0, 0, STAGE_W, STAGE_H);
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, STAGE_W, STAGE_H);
@@ -417,13 +556,21 @@ function evaluateReporter(block, scope) {
       return undefined;
     }
     default: {
+      // 3D reporter 积木
+      if (block.type === '3d_camera_x') return _use3D && Stage3D.isInitialized() && Stage3D.getCamera() ? Stage3D.getCamera().position.x : 0;
+      if (block.type === '3d_camera_y') return _use3D && Stage3D.isInitialized() && Stage3D.getCamera() ? Stage3D.getCamera().position.y : 0;
+      if (block.type === '3d_camera_z') return _use3D && Stage3D.isInitialized() && Stage3D.getCamera() ? Stage3D.getCamera().position.z : 0;
+      if (block.type === '3d_mesh_get_attr') { var _o=resolveObj(p.obj,scope); if(_o&&_o.__is3DMesh) return Stage3D.getMeshProperty(_o.id,p.attr); return undefined; }
+      if (block.type === '3d_create_box') return _use3D && Stage3D.isInitialized() ? Stage3D.createMesh('box',{x:p.x,y:p.y,z:p.z,w:p.w,h:p.h,d:p.d,color:p.color}) : {__is3DMesh:true,id:0};
+      if (block.type === '3d_create_sphere') return _use3D && Stage3D.isInitialized() ? Stage3D.createMesh('sphere',{x:p.x,y:p.y,z:p.z,radius:p.radius,color:p.color}) : {__is3DMesh:true,id:0};
+      if (block.type === '3d_create_cylinder') return _use3D && Stage3D.isInitialized() ? Stage3D.createMesh('cylinder',{x:p.x,y:p.y,z:p.z,radius:p.radius,h:p.h,color:p.color}) : {__is3DMesh:true,id:0};
+      if (block.type === '3d_create_cone') return _use3D && Stage3D.isInitialized() ? Stage3D.createMesh('cone',{x:p.x,y:p.y,z:p.z,radius:p.radius,h:p.h,color:p.color}) : {__is3DMesh:true,id:0};
+      if (block.type === '3d_create_plane') return _use3D && Stage3D.isInitialized() ? Stage3D.createMesh('plane',{x:p.x,y:p.y,z:p.z,w:p.w,h:p.h,color:p.color}) : {__is3DMesh:true,id:0};
       // 检查扩展自定义执行器（reporter 类型）
       if (typeof ExtensionExecutors !== 'undefined') {
         const customExec = ExtensionExecutors.get(block.type);
         if (customExec) { p._block = block; return customExec(p, scope); }
       }
-      // 3D 积木降级（无 Three.js 时返回虚拟对象）
-      if (block.type && block.type.startsWith('3d_create_')) return { __is3DMesh: true, id: '_no3d', type: block.type, x:0, y:0, z:0, scale:1, rotationY:0, color:'', visible:true };
       return p[Object.keys(p)[0]] || 0;
     }
   }
@@ -663,6 +810,20 @@ async function executeBlock(block, scope) {
       log('警告: 对象没有方法 "'+p.method+'"');
     } else { log('警告: 找不到对象 "'+p.obj+'"'); }
   }
+  else if (type==='3d_camera_position') { if(_use3D&&Stage3D.isInitialized()) Stage3D.setCameraPosition(+p.x,+p.y,+p.z); }
+  else if (type==='3d_camera_lookat') { if(_use3D&&Stage3D.isInitialized()){var _c=Stage3D.getCamera();if(_c)_c.lookAt(+p.x,+p.y,+p.z);} }
+  else if (type==='3d_set_bgcolor') { if(_use3D&&Stage3D.isInitialized()) Stage3D.setSkyColor(String(p.color)); }
+  else if (type==='3d_set_ground_color') { if(_use3D&&Stage3D.isInitialized()) Stage3D.setGroundColor(String(p.color)); }
+  else if (type==='3d_toggle_grid') { if(_use3D&&Stage3D.isInitialized()) Stage3D.setGridVisible(p.show==='show'); }
+  else if (type==='3d_create_box') { /* reporter */ }
+  else if (type==='3d_create_sphere') { /* reporter */ }
+  else if (type==='3d_create_cylinder') { /* reporter */ }
+  else if (type==='3d_create_cone') { /* reporter */ }
+  else if (type==='3d_create_plane') { /* reporter */ }
+  else if (type==='3d_clear_meshes') { if(_use3D&&Stage3D.isInitialized()) Stage3D.clearCreatedMeshes(); }
+  else if (type==='3d_mesh_set_attr') { var _mo=resolveObj(p.obj,scope); if(_mo&&_mo.__is3DMesh){_mo[p.attr]=p.val;Stage3D.setMeshProperty(_mo);} }
+  else if (type==='3d_set_height') { var _hs=getActiveSprite(); if(_hs) _hs._height3d=+p.height; }
+  else if (type==='3d_change_height') { var _hc=getActiveSprite(); if(_hc) _hc._height3d=(_hc._height3d||0)+(+p.amount); }
   // 扩展 stack 积木
   if (typeof ExtensionExecutors !== 'undefined') {
     const extExec = ExtensionExecutors.get(type);
@@ -729,7 +890,13 @@ async function startRun() {
     s._posHistory = [];
   });
 
-  render();
+  // 3D 模式初始化
+  if (_use3D) {
+    _use3D = Stage3D.init(canvas);
+    if (!_use3D) console.warn('[Stage3D] 初始化失败，降级为 2D 模式');
+  }
+
+  if (!_use3D) render();
   _startRenderLoop();
   const starts = Object.values(blocks).filter(b => b.type === 'event_start');
   for (const s of starts) { if (stopRequested) break; await executeChain(s, {}); }
