@@ -719,68 +719,77 @@ function stopRun() {
 
   /** 导出 HTML 文件 */
   async function exportProject() {
+    console.log('[HTML\u5bfc\u51fa] \u5f00\u59cb\u5bfc\u51fa...');
     const projectName = EditorState.projectName || 'Objector';
     const blocksData = EditorState.blocks || {};
-    // 检查是否有积木
+    console.log('[HTML\u5bfc\u51fa] \u9879\u76ee\u540d:', projectName, '\u79ef\u6728\u6570:', Object.keys(blocksData).length);
+    // \u68c0\u67e5\u662f\u5426\u6709\u79ef\u6728
     if (!blocksData || Object.keys(blocksData).length === 0) {
       alert(i18n.isEnglish() ? 'No blocks to export' : '\u6ca1\u6709\u79ef\u6728\u53ef\u4ee5\u5bfc\u51fa');
       return;
     }
 
-    // 获取精灵数据（包含贴图 base64）
-    const spritesData = [];
-    const sprites = StageManager.getSprites();
-    for (const s of sprites) {
-      const spriteData = {
-        name: s.name,
-        x: s.x, y: s.y,
-        direction: s.direction,
-        size: s.size,
-        visible: s.visible,
-        color: s.color || '#89b4fa',
-      };
-      // 如果有贴图，转为 base64
-      if (s.image) {
-        try {
-          const tmpCanvas = document.createElement('canvas');
-          tmpCanvas.width = 60; tmpCanvas.height = 60;
-          const tmpCtx = tmpCanvas.getContext('2d');
-          tmpCtx.drawImage(s.image, 0, 0, 60, 60);
-          spriteData.costumePath = tmpCanvas.toDataURL('image/png');
-        } catch (e) {}
+    // \u83b7\u53d6\u7cbe\u7075\u6570\u636e
+    var spritesData = [];
+    try {
+      var sprites = StageManager.getSprites();
+      console.log('[HTML\u5bfc\u51fa] \u7cbe\u7075\u6570:', sprites.length);
+      for (var si = 0; si < sprites.length; si++) {
+        var s = sprites[si];
+        var spriteData = {
+          name: s.name, x: s.x, y: s.y, direction: s.direction,
+          size: s.size, visible: s.visible, color: s.color || '#89b4fa',
+        };
+        if (s.image) {
+          try {
+            var tmpCanvas = document.createElement('canvas');
+            tmpCanvas.width = 60; tmpCanvas.height = 60;
+            var tmpCtx = tmpCanvas.getContext('2d');
+            tmpCtx.drawImage(s.image, 0, 0, 60, 60);
+            spriteData.costumePath = tmpCanvas.toDataURL('image/png');
+          } catch (e) {}
+        }
+        spritesData.push(spriteData);
       }
-      spritesData.push(spriteData);
+    } catch(e) {
+      console.warn('[HTML\u5bfc\u51fa] \u83b7\u53d6\u7cbe\u7075\u5931\u8d25:', e.message);
     }
 
-    const html = generateHTML(projectName, blocksData, spritesData);
+    console.log('[HTML\u5bfc\u51fa] \u751f\u6210HTML...');
+    var html = generateHTML(projectName, blocksData, spritesData);
+    console.log('[HTML\u5bfc\u51fa] HTML\u957f\u5ea6:', html.length);
 
-    // Electron 环境：使用 IPC 保存对话框
     if (window.api && window.api.saveFileDialog) {
-      const filePath = await window.api.saveFileDialog(
+      console.log('[HTML\u5bfc\u51fa] Electron\u6a21\u5f0f');
+      var filePath = await window.api.saveFileDialog(
         projectName + '.html',
         [{ name: 'HTML \u6587\u4ef6', extensions: ['html', 'htm'] }]
       );
       if (!filePath) return;
-      const result = await window.api.writeFile(filePath, html);
+      var result = await window.api.writeFile(filePath, html);
       if (result && result.error) {
         alert(i18n.isEnglish() ? 'Export failed: ' + result.error : '\u5bfc\u51fa\u5931\u8d25: ' + result.error);
         return;
       }
-      document.getElementById('status-text').textContent = (i18n.isEnglish() ? 'Exported HTML: ' : '\u5df2\u5bfc\u51fa HTML: ') + filePath.split(/[\\/]/).pop();
+      document.getElementById('status-text').textContent = (i18n.isEnglish() ? 'Exported: ' : '\u5df2\u5bfc\u51fa: ') + filePath.split(/[\\/]/).pop();
     } else {
-      // \u7f51\u9875\u7248\uff1a\u4f7f\u7528 Blob \u4e0b\u8f7d
-      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      console.log('[HTML\u5bfc\u51fa] \u7f51\u9875\u6a21\u5f0f, \u4f7f\u7528Blob\u4e0b\u8f7d');
+      var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
       a.href = url;
       a.download = projectName + '.html';
+      a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      document.getElementById('status-text').textContent = (i18n.isEnglish() ? 'Exported HTML: ' : '\u5df2\u5bfc\u51fa HTML: ') + projectName + '.html';
+      setTimeout(function() {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 1000);
+      console.log('[HTML\u5bfc\u51fa] \u4e0b\u8f7d\u89e6\u53d1\u5b8c\u6210');
+      document.getElementById('status-text').textContent = (i18n.isEnglish() ? 'Exported: ' : '\u5df2\u5bfc\u51fa: ') + projectName + '.html';
     }
-    setTimeout(() => {
+    setTimeout(function() {
       document.getElementById('status-text').textContent = i18n.t('status.ready');
     }, 3000);
   }
