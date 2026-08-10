@@ -759,7 +759,7 @@ function stopRun() {
     var html = generateHTML(projectName, blocksData, spritesData);
     console.log('[HTML\u5bfc\u51fa] HTML\u957f\u5ea6:', html.length);
 
-    if (window.api && window.api.saveFileDialog) {
+    if (window.api && window.api.saveFileDialog && !window.api._isWebShim) {
       console.log('[HTML\u5bfc\u51fa] Electron\u6a21\u5f0f');
       var filePath = await window.api.saveFileDialog(
         projectName + '.html',
