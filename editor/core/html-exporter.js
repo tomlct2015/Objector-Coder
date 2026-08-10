@@ -754,20 +754,32 @@ function stopRun() {
 
     const html = generateHTML(projectName, blocksData, spritesData);
 
-    // 保存文件对话框
-    const filePath = await window.api.saveFileDialog(
-      projectName + '.html',
-      [{ name: 'HTML 文件', extensions: ['html', 'htm'] }]
-    );
-    if (!filePath) return;
-
-    const result = await window.api.writeFile(filePath, html);
-    if (result && result.error) {
-      alert(i18n.isEnglish() ? 'Export failed: ' + result.error : '导出失败: ' + result.error);
-      return;
+    // Electron 环境：使用 IPC 保存对话框
+    if (window.api && window.api.saveFileDialog) {
+      const filePath = await window.api.saveFileDialog(
+        projectName + '.html',
+        [{ name: 'HTML \u6587\u4ef6', extensions: ['html', 'htm'] }]
+      );
+      if (!filePath) return;
+      const result = await window.api.writeFile(filePath, html);
+      if (result && result.error) {
+        alert(i18n.isEnglish() ? 'Export failed: ' + result.error : '\u5bfc\u51fa\u5931\u8d25: ' + result.error);
+        return;
+      }
+      document.getElementById('status-text').textContent = (i18n.isEnglish() ? 'Exported HTML: ' : '\u5df2\u5bfc\u51fa HTML: ') + filePath.split(/[\\/]/).pop();
+    } else {
+      // \u7f51\u9875\u7248\uff1a\u4f7f\u7528 Blob \u4e0b\u8f7d
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = projectName + '.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      document.getElementById('status-text').textContent = (i18n.isEnglish() ? 'Exported HTML: ' : '\u5df2\u5bfc\u51fa HTML: ') + projectName + '.html';
     }
-
-    document.getElementById('status-text').textContent = (i18n.isEnglish() ? 'Exported HTML: ' : '已导出 HTML: ') + filePath.split(/[\\/]/).pop();
     setTimeout(() => {
       document.getElementById('status-text').textContent = i18n.t('status.ready');
     }, 3000);
