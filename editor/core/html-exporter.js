@@ -4,10 +4,11 @@
 const HtmlExporter = (function () {
 
   /** 生成可运行的 HTML */
-  function generateHTML(projectName, blocksData, spritesData, extensionExecutors) {
+  function generateHTML(projectName, blocksData, spritesData, extensionExecutors, extensionJsSources) {
     const blocks = JSON.stringify(blocksData);
     const sprites = JSON.stringify(spritesData || []);
     const extExecJSON = JSON.stringify(extensionExecutors || {});
+    const extJsCode = (extensionJsSources || []).join('\n');
 
     return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -67,6 +68,25 @@ canvas.id = 'stage-canvas';
 
 // 扩展执行器
 const ExtensionExecutors = new Map(Object.entries(${extExecJSON}).map(([k,v]) => [k, new Function('return ' + v)()]));
+
+// 扩展 JS 源码（重新执行以注册执行器及其辅助函数）
+${extJsCode ? `
+(function() {
+  // 提供 ExtensionManager 桩，让扩展 JS 重新注册执行器
+  var ExtensionManager = {
+    registerExtension: function(def) {
+      if (def.executors) {
+        Object.entries(def.executors).forEach(function(entry) {
+          ExtensionExecutors.set(entry[0], entry[1]);
+        });
+      }
+    }
+  };
+  try {
+${extJsCode.split('\n').map(line => '    ' + line).join('\n')}
+  } catch(e) { console.error('[扩展JS执行]', e); }
+})();
+` : ''}
 
 // 3D 舞台模块
 var Stage3D = (function() {
@@ -188,6 +208,9 @@ var Stage3D = (function() {
   return {
     init:init, isInitialized:function(){return _init;},
     getCamera:function(){return camera;},
+    getScene:function(){return scene;},
+    getRenderer:function(){return renderer3d;},
+    getMeshMap:function(){return meshMap;},
     createMesh:createMesh, setMeshProperty:setProp, getMeshProperty:getProp,
     clearCreatedMeshes:clearMeshes,
     setCameraPosition:function(x,y,z){if(camera){camera.position.set(x,y,z);camera.lookAt(0,0,0);}},
@@ -1013,8 +1036,19 @@ function stopRun() {
       console.warn('[HTML导出] 获取扩展执行器失败:', e.message);
     }
     
+    // 收集扩展 JS 源码
+    var extJsSrcs = [];
+    try {
+      if (typeof ExtensionManager !== 'undefined' && ExtensionManager.getJsSources) {
+        extJsSrcs = ExtensionManager.getJsSources();
+        console.log('[HTML导出] 扩展JS源码:', extJsSrcs.length, '份');
+      }
+    } catch(e) {
+      console.warn('[HTML导出] 获取扩展JS源码失败:', e.message);
+    }
+    
     console.log('[HTML导出] 生成HTML...');
-    var html = generateHTML(projectName, blocksData, spritesData, extExecs);
+    var html = generateHTML(projectName, blocksData, spritesData, extExecs, extJsSrcs);
     console.log('[HTML导出] HTML长度:', html.length);
 
     if (window.api && window.api.saveFileDialog && !window.api._isWebShim) {

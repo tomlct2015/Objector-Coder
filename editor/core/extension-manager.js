@@ -26,6 +26,7 @@
 const ExtensionManager = (function () {
   const _extensions = new Map(); // id -> extension definition
   const _customExecutors = new Map(); // blockType -> executor function
+  const _jsSources = []; // 原始 JS 源码（用于导出）
   let _lastRegisteredId = null; // 最近一次 registerExtension 成功注册的扩展 ID
 
   /**
@@ -114,12 +115,12 @@ const ExtensionManager = (function () {
    */
   function loadFromJS(jsContent) {
     try {
-      // 将 JS 内容注入 script 标签执行
+      _jsSources.push(jsContent); // 存储原始源码
       const script = document.createElement('script');
       script.textContent = jsContent;
       document.head.appendChild(script);
       document.head.removeChild(script);
-      return true; // registerExtension 内部会打印日志
+      return true;
     } catch (err) {
       console.error('ExtensionManager: JS 执行失败:', err);
       alert((i18n.isEnglish() ? 'Extension JS execution error: ' : '扩展 JS 文件执行出错：') + err.message);
@@ -136,9 +137,8 @@ const ExtensionManager = (function () {
     if (!content) return { ok: false, id: null };
 
     if (filePath.endsWith('.js')) {
-      _lastRegisteredId = null; // 重置
+      _lastRegisteredId = null;
       const result = loadFromJS(content);
-      // registerExtension 内部会设置 _lastRegisteredId，无论新增还是更新都能正确捕获
       return { ok: result, id: _lastRegisteredId };
     }
 
@@ -185,6 +185,13 @@ const ExtensionManager = (function () {
   }
 
   /**
+   * 获取所有扩展的原始 JS 源码（用于导出）
+   */
+  function getJsSources() {
+    return _jsSources.slice();
+  }
+
+  /**
    * 获取所有已加载的扩展
    */
   function getExtensions() {
@@ -210,6 +217,7 @@ const ExtensionManager = (function () {
     loadFromProject,
     getExecutor,
     getExecutors,
+    getJsSources,
     getExtensions,
     unregisterExtension,
   };
