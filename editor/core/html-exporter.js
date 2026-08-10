@@ -33,8 +33,8 @@ const HtmlExporter = (function () {
   <canvas id="stage" width="480" height="360"></canvas>
   <div id="output"></div>
   <div class="controls">
-    <button class="run" onclick="startRun()">▶运行</button>
-    <button class="stop" onclick="stopRun()">■终止</button>
+    <button class="run" onclick="startRun()">▶ 运行</button>
+    <button class="stop" onclick="stopRun()">⏹ 停止</button>
   </div>
 
 <script>
@@ -545,7 +545,7 @@ async function executeBlock(block, scope) {
   else if (type==='io_print_line') log(p.text+'\\n');
   else if (type==='io_clear_output') { output=[]; outputEl.textContent=''; }
   else if (type==='io_alert') alert(String(p.msg));
-  else if (type==='io_log') console.log('[Objector]',p.text); log('[日志] '+p.text);
+  else if (type==='io_log') { console.log('[Objector]',p.text); log('[日志] '+p.text); }
   else if (type==='io_input') { log('询问: '+p.q); window.__answer=prompt(String(p.q))||''; log('回答: '+window.__answer); }
   else if (type==='io_save_data') { globalVars['__data_'+p.key]=p.val; }
   else if (type==='sensing_reset_timer') window.__timerStart=Date.now();
