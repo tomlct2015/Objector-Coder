@@ -381,6 +381,7 @@
   // ============ 注册 window.api ============
 
   window.api = {
+    _isWebShim: true,
     readFile, writeFile, deleteFile,
     ensureDir, listDir, readDirRecursive,
     readFileBinary, copyFile, renameFolder,
