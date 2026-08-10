@@ -93,6 +93,7 @@ const blockCountEl = document.getElementById('block-count');
 
 let running = false, stopRequested = false;
 let globalVars = {};
+let dynamicFunctions = {};
 let sprites = [];
 let blocks = {};
 let timers = [];
@@ -399,13 +400,18 @@ async function executeChain(block, scope) {
     cur = cur.flowOut ? blocks[cur.flowOut] : null;
   }
 }
-function resolveParams(block, scope) {
+async function resolveParams(block, scope) {
   const result = {};
+  const BLOCK_TYPE_PARAMS = ['block'];
   if (block.params) {
     for (const [k, v] of Object.entries(block.params)) {
       const connId = block.paramConnections && block.paramConnections[k];
       if (connId && blocks[connId]) {
-        result[k] = evaluateReporter(blocks[connId], scope);
+        if (BLOCK_TYPE_PARAMS.includes(k)) {
+          result[k] = { __blockRef: connId };
+        } else {
+          result[k] = await evaluateReporter(blocks[connId], scope);
+        }
       } else {
         result[k] = v;
       }
@@ -413,8 +419,8 @@ function resolveParams(block, scope) {
   }
   return result;
 }
-function evaluateReporter(block, scope) {
-  const p = resolveParams(block, scope);
+async function evaluateReporter(block, scope) {
+  const p = await resolveParams(block, scope);
   switch(block.type) {
     case 'op_add': return Number(p.a) + Number(p.b);
     case 'op_sub': return Number(p.a) - Number(p.b);
@@ -452,7 +458,15 @@ function evaluateReporter(block, scope) {
     case 'op_pi': return Math.PI;
     case 'op_e': return Math.E;
     case 'op_math': { const n=Number(p.n); const fn=p.fn; if(fn==='abs')return Math.abs(n); if(fn==='floor')return Math.floor(n); if(fn==='ceil')return Math.ceil(n); if(fn==='round')return Math.round(n); if(fn==='sqrt')return Math.sqrt(n); if(fn==='sin')return Math.sin(n); if(fn==='cos')return Math.cos(n); if(fn==='tan')return Math.tan(n); if(fn==='log')return Math.log(n); if(fn==='sign')return Math.sign(n); return n; }
-    case 'var_get': return getVar(p.name, scope);
+    case 'var_get': {
+      if (dynamicFunctions[p.name]) {
+        const df = dynamicFunctions[p.name];
+        return { __blockRef: df.blockRef, __isFunction: true, __dynamicFn: p.name };
+      }
+      const fn = findFunction(p.name);
+      if (fn) return { __blockRef: fn.id, __isFunction: true };
+      return getVar(p.name, scope);
+    }
     case 'func_param_get': return getVar(p.name, scope);
     case 'get_x': return getActiveSprite()?.x || 0;
     case 'get_y': return getActiveSprite()?.y || 0;
@@ -479,23 +493,47 @@ function evaluateReporter(block, scope) {
     case 'direction_to_mouse': return getDirectionToPoint(0, mouseX, mouseY);
     case 'is_at_edge': return isTouchingEdge(0);
     case 'looks_get_size': return getActiveSprite()?.size || 100;
-    case 'class_get_attr': { const obj = p.obj === 'self' ? (scope.self || scope) : globalVars[p.obj]; return obj ? obj[p.attr] : undefined; }
+    case 'class_get_attr': { const obj = resolveObj(p.obj, scope); return obj ? obj[p.attr] : undefined; }
     case 'class_self': return scope.self || null;
+    case 'class_param_get': return getVar(p.name, scope);
     case 'io_load_data': return globalVars['__data_' + p.key] || '';
+    // 元编程：积木本身作为值
+    case 'control_code_block': {
+      return { __blockRef: block.id, __closure: { ...scope } };
+    }
+    case 'control_run_return_block': {
+      const bv = p.block;
+      if (bv && bv.__blockRef) {
+        const tb = blocks[bv.__blockRef];
+        if (tb && tb.__closure) {
+          const sub = getSubTop(tb, 'body');
+          if (sub) {
+            await executeChain(sub, { ...tb.__closure, ...scope });
+            return scope.__return;
+          }
+        } else if (tb) {
+          await executeChain(tb, scope);
+          return scope.__return;
+        }
+      }
+      return undefined;
+    }
     default: return p[Object.keys(p)[0]] || 0;
   }
 }
-function resolveBool(val, block, paramName, scope) {
+async function resolveBool(val, block, paramName, scope) {
   if (block && paramName) {
     const connId = block.paramConnections && block.paramConnections[paramName];
-    if (connId && blocks[connId]) return !!evaluateReporter(blocks[connId], scope);
+    if (connId && blocks[connId]) return !!(await evaluateReporter(blocks[connId], scope));
   }
   return !!val;
 }
 function getVar(name, scope) { if (scope[name]!==undefined) return scope[name]; return globalVars[name]; }
 function setVar(name, val, scope) { if (scope[name]!==undefined) scope[name]=val; else if(scope.__local) scope[name]=val; else globalVars[name]=val; }
 function resolveListArray(val, scope) { if (Array.isArray(val)) return val; const v=getVar(String(val),scope); return Array.isArray(v)?v:null; }
+function resolveObj(val, scope) { if (val && typeof val === 'object' && val.__className) return val; const name=String(val); if(name==='self') return scope.self||null; if(scope[name]!==undefined && typeof scope[name]==='object') return scope[name]; const g=globalVars[name]; if(g && typeof g==='object') return g; return null; }
 function getSubTop(block, subName) { const subId = block.subBlocks && block.subBlocks[subName]; return subId ? blocks[subId] : null; }
+async function collectCallArgs(block, scope) { if (!block._extraParams || block._extraParams.length === 0) return []; const result = []; for (const ep of block._extraParams) { const connId = block.paramConnections && block.paramConnections[ep.name]; if (connId && blocks[connId]) { result.push(await evaluateReporter(blocks[connId], scope)); continue; } result.push(block.params[ep.name] || ''); } return result; }
 function findFunction(name) { return Object.values(blocks).find(b => b.type === 'func_define' && b.params.name === name); }
 function findBlockByLabel(label) {
   return Object.values(blocks).find(b => {
@@ -506,7 +544,7 @@ function findBlockByLabel(label) {
 }
 
 async function executeBlock(block, scope) {
-  const p = resolveParams(block, scope);
+  const p = await resolveParams(block, scope);
   const type = block.type;
   if (type==='event_start') {}
   else if (type==='event_broadcast') { const msg=String(p.msg); broadcastListeners.forEach(rb=>{ if(String(rb.params?.msg||'')===msg) executeChain(rb,{}).catch(e=>log('广播错误:'+e.message)); }); }
@@ -552,13 +590,15 @@ async function executeBlock(block, scope) {
   else if (type==='wait') await delay(Number(p.sec)*1000);
   else if (type==='repeat') { const n=Number(p.times); for(let i=0;i<n&&!stopRequested;i++){const sub=getSubTop(block,'body');if(sub){const r=await executeChain(sub,{...scope,__i:i});if(r==='__RETURN__')return r;}} }
   else if (type==='forever') { while(!stopRequested){const sub=getSubTop(block,'body');if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__')return r;}await delay(16);} }
-  else if (type==='if_then') { if(resolveBool(p.cond,block,'cond',scope)){const sub=getSubTop(block,'body');if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__')return r;}} }
-  else if (type==='if_else') { if(resolveBool(p.cond,block,'cond',scope)){const sub=getSubTop(block,'then');if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__')return r;}}else{const sub=getSubTop(block,'else');if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__')return r;}} }
-  else if (type==='repeat_until') { while(!stopRequested&&!resolveBool(p.cond,block,'cond',scope)){const sub=getSubTop(block,'body');if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__')return r;}await delay(16);} }
+  else if (type==='if_then') { if(await resolveBool(p.cond,block,'cond',scope)){const sub=getSubTop(block,'body');if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__')return r;}} }
+  else if (type==='if_else') { if(await resolveBool(p.cond,block,'cond',scope)){const sub=getSubTop(block,'then');if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__')return r;}}else{const sub=getSubTop(block,'else');if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__')return r;}} }
+  else if (type==='repeat_until') { while(!stopRequested&&!(await resolveBool(p.cond,block,'cond',scope))){const sub=getSubTop(block,'body');if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__')return r;}await delay(16);} }
   else if (type==='stop_all') return '__STOP__';
   else if (type==='control_label_run') { const sub=getSubTop(block,'body'); if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__')return r;} }
   else if (type==='control_turbo') { turboMode++; try{const sub=getSubTop(block,'body');if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__'){turboMode--;return r;}}}finally{turboMode--;} }
   else if (type==='control_goto_label') { const targetLabel=String(p.label); const target=findBlockByLabel(targetLabel); if(target){const nextBlock=target.flowOut?blocks[target.flowOut]:null; if(nextBlock){const r=await executeChain(nextBlock,scope);if(r==='__RETURN__'||r==='__STOP__')return r;} return '__STOP__';} else { log('警告: 找不到代码标签 "'+targetLabel+'"'); } }
+  else if (type==='control_run_block') { const bv=p.block; if(bv&&bv.__blockRef){const tb=blocks[bv.__blockRef]; if(tb){if(tb.__closure){const sub=getSubTop(tb,'body');if(sub){const r=await executeChain(sub,tb.__closure);if(r==='__RETURN__')return r;}}else{const r=await executeChain(tb,scope);if(r==='__RETURN__'||r==='__STOP__')return r;}}} }
+  else if (type==='control_code_block') { const sub=getSubTop(block,'body'); if(sub){const r=await executeChain(sub,scope);if(r==='__RETURN__')return r;} }
   else if (type==='scope_local') { const localScope={...scope,__local:true}; const sub=getSubTop(block,'body'); if(sub){const r=await executeChain(sub,localScope);if(r==='__RETURN__')return r;} }
   // Variables
   else if (type==='var_set') setVar(p.name, p.val, scope);
@@ -577,7 +617,31 @@ async function executeBlock(block, scope) {
   else if (type==='sensing_reset_timer') window.__timerStart=Date.now();
   // Functions
   else if (type==='func_define') { /* registered */ }
-  else if (type==='func_call') { const fn=findFunction(p.name); if(fn){const callArgs=(block._extraParams||[]).map(ep=>{const connId=block.paramConnections&&block.paramConnections[ep.name];if(connId&&blocks[connId])return evaluateReporter(blocks[connId],scope);return block.params[ep.name]||'';});const fnScope={};const defParamNames=(fn._extraParams||[]).map(ep=>String(fn.params[ep.name]||'').trim()).filter(Boolean);defParamNames.forEach((name,i)=>{fnScope[name]=callArgs[i]!==undefined?callArgs[i]:'';});const next=fn.flowOut?blocks[fn.flowOut]:null;if(next){const r=await executeChain(next,fnScope);if(r==='__RETURN__')return fnScope.__return;}} }
+  else if (type==='func_set_define') {
+    const name=String(p.name).trim();
+    const codeVal=p.code;
+    if(name&&codeVal&&codeVal.__blockRef){
+      const paramNames=(block._extraParams||[]).map(ep=>String(block.params[ep.name]||'').trim()).filter(Boolean);
+      dynamicFunctions[name]={blockRef:codeVal.__blockRef,closure:codeVal.__closure||null,paramNames:paramNames};
+    }
+  }
+  else if (type==='func_call') {
+    const dynFn=dynamicFunctions[p.name];
+    if(dynFn){
+      const callArgs=await collectCallArgs(block,scope);
+      const fnScope={};
+      dynFn.paramNames.forEach((name,i)=>{fnScope[name]=callArgs[i]!==undefined?callArgs[i]:'';});
+      const tb=blocks[dynFn.blockRef];
+      if(tb){
+        const subTop=dynFn.closure?getSubTop(tb,'body'):(tb.type==='control_code_block'?getSubTop(tb,'body'):tb);
+        const execScope=dynFn.closure?{...dynFn.closure,...fnScope}:{...scope,...fnScope};
+        if(subTop){const r=await executeChain(subTop,execScope);if(r==='__RETURN__')return execScope.__return;}
+      }
+    } else {
+      const fn=findFunction(p.name);
+      if(fn){const callArgs=await collectCallArgs(block,scope);const fnScope={};const defParamNames=(fn._extraParams||[]).map(ep=>String(fn.params[ep.name]||'').trim()).filter(Boolean);defParamNames.forEach((name,i)=>{fnScope[name]=callArgs[i]!==undefined?callArgs[i]:'';});const next=fn.flowOut?blocks[fn.flowOut]:null;if(next){const r=await executeChain(next,fnScope);if(r==='__RETURN__')return fnScope.__return;}}
+    }
+  }
   else if (type==='func_return') { scope.__return=p.val; return '__RETURN__'; }
   // Lists
   else if (type==='list_push') { const arr=resolveListArray(p.list,scope); if(Array.isArray(arr))arr.push(p.val); }
@@ -591,9 +655,10 @@ async function executeBlock(block, scope) {
   // OOP
   else if (type==='class_define') {}
   else if (type==='class_set_attr') { const obj=scope.self||scope; obj[p.attr]=p.val; }
-  else if (type==='class_create') { const className=String(p.cls); const cls=classes[className]; if(cls){const instance={__className:className}; if(cls.initBlock){const next=cls.initBlock.flowOut?blocks[cls.initBlock.flowOut]:null;const fnScope={self:instance};const argsStr=String(p.args||'');const argNames=(cls.initBlock.params?.args||'').split(',').map(s=>s.trim()).filter(Boolean);const argValues=argsStr.split(',').map(s=>s.trim());argNames.forEach((name,i)=>{fnScope[name]=argValues[i]||'';});if(next) await executeChain(next,fnScope);} globalVars['__obj_'+className+'_'+Date.now()]=instance; return instance;} else { log('警告: 找不到类 "'+className+'"');} }
-  else if (type==='class_call_method') { const objName=String(p.obj);const methodName=String(p.method);const obj=scope[objName]||globalVars[objName]; if(obj&&obj.__className){const cls=classes[obj.__className];if(cls&&cls.methods[methodName]){const methodBlock=cls.methods[methodName];const next=methodBlock.flowOut?blocks[methodBlock.flowOut]:null;const fnScope={self:obj};const argsStr=String(p.args||'');const argNames=(methodBlock.params?.args||'').split(',').map(s=>s.trim()).filter(Boolean);const argValues=argsStr.split(',').map(s=>s.trim());argNames.forEach((name,i)=>{fnScope[name]=argValues[i]||'';});const subTop=getSubTop(methodBlock,'body');if(subTop){await executeChain(subTop,fnScope);}return fnScope.__return;}log('警告: 对象 "'+objName+'" 没有方法 "'+methodName+'"');}else{log('警告: 找不到对象 "'+objName+'"');} }
-  else if (type==='class_call_method_reporter') { const objName=String(p.obj);const methodName=String(p.method);const obj=scope[objName]||globalVars[objName]; if(obj&&obj.__className){const cls=classes[obj.__className];if(cls&&cls.methods[methodName]){const methodBlock=cls.methods[methodName];const fnScope={self:obj};const argsStr=String(p.args||'');const argNames=(methodBlock.params?.args||'').split(',').map(s=>s.trim()).filter(Boolean);const argValues=argsStr.split(',').map(s=>s.trim());argNames.forEach((name,i)=>{fnScope[name]=argValues[i]||'';});const subTop=getSubTop(methodBlock,'body');if(subTop){await executeChain(subTop,fnScope);}return fnScope.__return;}} return undefined; }
+    else if (type==='class_set_attr_external') { const obj=resolveObj(p.obj,scope); if(obj) obj[p.attr]=p.val; else log('警告: 找不到对象 "'+p.obj+'"'); }
+  else if (type==='class_create') { const className=String(p.cls); const cls=classes[className]; if(cls){const instance={__className:className}; if(cls.initBlock){const initBlock=cls.initBlock;const subTop=getSubTop(initBlock,'body');const fnScope={self:instance};const paramNames=(initBlock._extraParams||[]).map(ep=>String(initBlock.params[ep.name]||'').trim()).filter(Boolean);const callArgs=await collectCallArgs(block,scope);paramNames.forEach((name,i)=>{fnScope[name]=callArgs[i]!==undefined?callArgs[i]:'';});if(subTop) await executeChain(subTop,fnScope);} globalVars['__obj_'+className+'_'+Date.now()]=instance; return instance;} else { log('警告: 找不到类 "'+className+'"');} }
+  else if (type==='class_call_method') { const obj=resolveObj(p.obj,scope); if(obj&&obj.__className){const cls=classes[obj.__className];if(cls&&cls.methods[p.method]){const methodBlock=cls.methods[p.method];const fnScope={self:obj};const paramNames=(methodBlock._extraParams||[]).map(ep=>String(methodBlock.params[ep.name]||'').trim()).filter(Boolean);const callArgs=await collectCallArgs(block,scope);paramNames.forEach((name,i)=>{fnScope[name]=callArgs[i]!==undefined?callArgs[i]:'';});const subTop=getSubTop(methodBlock,'body');if(subTop){await executeChain(subTop,fnScope);}return fnScope.__return;}log('警告: 对象没有方法 "'+p.method+'"');}else{log('警告: 找不到对象 "'+p.obj+'"');} }
+  else if (type==='class_call_method_reporter') { const obj=resolveObj(p.obj,scope); if(obj&&obj.__className){const cls=classes[obj.__className];if(cls&&cls.methods[p.method]){const methodBlock=cls.methods[p.method];const fnScope={self:obj};const paramNames=(methodBlock._extraParams||[]).map(ep=>String(methodBlock.params[ep.name]||'').trim()).filter(Boolean);const callArgs=await collectCallArgs(block,scope);paramNames.forEach((name,i)=>{fnScope[name]=callArgs[i]!==undefined?callArgs[i]:'';});const subTop=getSubTop(methodBlock,'body');if(subTop){await executeChain(subTop,fnScope);}return fnScope.__return;}} return undefined; }
   // Clone
   else if (type==='clone_self') { const s=getActiveSprite(); if(s){sprites.push({...s,x:s.x+20,y:s.y+20,_posHistory:[],image:s.image});} }
   else if (type==='delete_clone') { if(sprites.length>1) sprites.pop(); }

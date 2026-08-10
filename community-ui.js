@@ -5,34 +5,102 @@
 const CommunityUI = (function () {
   const API = CommunityAPI;
 
+  // 全局配置 marked：单个换行也产生 <br>（GFM 行为）
+  if (typeof marked !== 'undefined') {
+    if (marked.use) { marked.use({ breaks: true, gfm: true }); }
+    else if (marked.setOptions) { marked.setOptions({ breaks: true, gfm: true }); }
+  }
+
+  /**
+   * 安全的 Markdown 解析封装（始终启用 breaks 模式）
+   * 兼容 marked v4/v5/v12+ 各种版本
+   */
+  function parseMarkdown(text) {
+    if (!text) return '';
+    if (typeof marked === 'undefined') return API.escapeHtml(text).replace(/\n/g, '<br>');
+    try {
+      // v12+: marked.parse(text, options)
+      if (typeof marked.parse === 'function') {
+        return marked.parse(text, { breaks: true, gfm: true });
+      }
+      // older: marked(text, options)
+      if (typeof marked === 'function') {
+        return marked(text, { breaks: true, gfm: true });
+      }
+    } catch (e) {
+      console.warn('[parseMarkdown] marked error:', e.message);
+    }
+    return API.escapeHtml(text).replace(/\n/g, '<br>');
+  }
+
+  // ============================================================
+  // Image Helpers - 安全的 SVG 头像生成 & 图片错误兗底
+  // ============================================================
+
+  /** 生成安全的 SVG 头像 data URI（兼容 emoji 和中文） */
+  function makeAvatarSvgUrl(initial, size) {
+    size = size || 40;
+    var r = size / 2;
+    var fs = Math.round(size * 0.4);
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + size + '" height="' + size + '">' +
+      '<rect fill="#252545" width="' + size + '" height="' + size + '" rx="' + r + '"/>' +
+      '<text fill="#89b4fa" font-size="' + fs + '" x="50%" y="55%" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif">' +
+      (initial || '?') + '</text></svg>';
+    return 'data:image/svg+xml,' + encodeURIComponent(svg);
+  }
+
+  /** 生成安全的 SVG 缩略图占位符（兼容 emoji） */
+  function makeThumbPlaceholder(icon) {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">' +
+      '<rect fill="#252545" width="400" height="300"/>' +
+      '<text fill="#89b4fa" font-size="48" x="50%" y="50%" text-anchor="middle" dominant-baseline="middle">' +
+      (icon || '?') + '</text></svg>';
+    return 'data:image/svg+xml,' + encodeURIComponent(svg);
+  }
+
+  /** 图片 onerror 处理：加载失败时替换为 base64 SVG 头像 */
+  function onImgError(el, initial) {
+    el.onerror = null;
+    el.src = makeAvatarSvgUrl(initial || '?', 40);
+  }
+
+  function onThumbError(el, icon) {
+    el.onerror = null;
+    el.src = makeThumbPlaceholder(icon || '⚡');
+  }
+
   // ============================================================
   // Navigation 导航栏
   // ============================================================
 
-  function renderNav(containerId) {
+  function renderNav(containerId, basePath) {
     const container = document.getElementById(containerId || 'nav');
     if (!container) return;
+    const base = basePath || '';
     const user = API.getUser();
     const profile = API.getProfile();
 
     container.innerHTML = `
       <div class="nav-inner">
-        <a href="index.html" class="nav-logo">⚡ Objector 社区</a>
+        <a href="${base}index.html" class="nav-logo">⚡ Objector 社区</a>
         <div class="nav-links">
-          <a href="index.html" class="nav-link ${isPage('index') ? 'active' : ''}">首页</a>
-          <a href="projects.html" class="nav-link ${isPage('projects') || isPage('project-detail') ? 'active' : ''}">作品</a>
-          <a href="posts.html" class="nav-link ${isPage('posts') || isPage('post-detail') || isPage('post-new') ? 'active' : ''}">讨论</a>
-          <a href="extensions.html" class="nav-link ${isPage('extensions') || isPage('extension-detail') ? 'active' : ''}">扩展</a>
+          <a href="${base}index.html" class="nav-link ${isPage('community/index') || (!isPage('projects') && !isPage('posts') && !isPage('extensions') && !isPage('learn') && isPage('index')) ? 'active' : ''}">首页</a>
+          <a href="${base}projects.html" class="nav-link ${isPage('projects') || isPage('project-detail') ? 'active' : ''}">作品</a>
+          <a href="${base}posts.html" class="nav-link ${isPage('posts') || (isPage('post-detail') && !isPage('learn')) || isPage('post-new') ? 'active' : ''}">讨论</a>
+          <a href="${base}extensions.html" class="nav-link ${isPage('extensions') || isPage('extension-detail') ? 'active' : ''}">扩展</a>
+          <a href="${base}learn/index.html" class="nav-link ${isPage('learn') ? 'active' : ''}">📖 学习</a>
+          <a href="${base}search-users.html" class="nav-link ${isPage('search-users') ? 'active' : ''}">🔍 查找用户</a>
         </div>
         <div class="nav-actions">
+          <a href="${base}../editor/index.html" class="nav-btn nav-btn-accent">🚀 去创作</a>
           ${user ? `
-            <span class="nav-user" onclick="window.location.href='profile.html?id=${user.id}'">
+            <span class="nav-user" onclick="window.location.href='${base}profile.html?id=${user.id}'">
               <span class="nav-avatar">${(profile?.username || 'U')[0].toUpperCase()}</span>
               <span class="nav-username">${API.escapeHtml(profile?.username || 'User')}</span>
             </span>
             <button class="nav-btn nav-btn-ghost" id="btn-logout">退出</button>
           ` : `
-            <a href="login.html" class="nav-btn nav-btn-primary">登录 / 注册</a>
+            <a href="${base}login.html" class="nav-btn nav-btn-primary">登录 / 注册</a>
           `}
         </div>
       </div>
@@ -55,12 +123,17 @@ const CommunityUI = (function () {
 
   function renderProjectCard(project) {
     const author = project.profiles || {};
+    const thumbUrl = project.thumbnail_url || makeThumbPlaceholder('🎮');
+    const currentUser = API.getUser();
+    const isAuthor = currentUser && currentUser.id === project.author_id;
+    const deleteBtn = isAuthor
+      ? `<button class="card-delete-btn" data-project-id="${project.id}" title="删除作品" onclick="event.preventDefault();event.stopPropagation();">🗑️</button>`
+      : '';
     return `
-      <a href="project-detail.html?id=${project.id}" class="card project-card">
+      <a href="project-detail.html?id=${project.id}" class="card project-card" data-project-id="${project.id}">
         <div class="card-thumb">
-          ${project.thumbnail_url
-            ? `<img src="${project.thumbnail_url}" alt="" loading="lazy" />`
-            : '<div class="card-thumb-placeholder">🎮</div>'}
+          <img src="${thumbUrl}" alt="" loading="lazy" onerror="CommunityUI.onThumbError(this,'🎮')" />
+          ${deleteBtn}
         </div>
         <div class="card-body">
           <div class="card-title">${API.escapeHtml(project.title)}</div>
@@ -101,6 +174,30 @@ const CommunityUI = (function () {
     `;
   }
 
+  function renderArticleCard(post, linkBase) {
+    const author = post.profiles || {};
+    const base = linkBase || '';
+    return `
+      <a href="${base}article.html?id=${post.id}" class="card article-card">
+        <div class="card-body">
+          <div class="card-top-row">
+            <span class="card-category" style="background:#cba6f7">📖 学习</span>
+            <span class="card-time">${API.formatTime(post.created_at)}</span>
+          </div>
+          <div class="card-title">${API.escapeHtml(post.title)}</div>
+          <div class="card-preview">${API.escapeHtml((post.content || '').slice(0, 150))}${(post.content || '').length > 150 ? '...' : ''}</div>
+          <div class="card-meta">
+            <span class="card-author">${API.escapeHtml(author.username || '匿名')}</span>
+            <span class="card-stats">
+              <span>❤ ${post.likes_count || 0}</span>
+              <span>💬 ${post.comments_count || 0}</span>
+            </span>
+          </div>
+        </div>
+      </a>
+    `;
+  }
+
   function renderExtensionCard(ext) {
     const author = ext.profiles || {};
     return `
@@ -121,6 +218,28 @@ const CommunityUI = (function () {
   }
 
   // ============================================================
+  // User Card 用户卡片
+  // ============================================================
+
+  function renderUserCard(profile) {
+    const initial = (profile.username || '?')[0].toUpperCase();
+    const avatar = profile.avatar_url || makeAvatarSvgUrl(initial, 60);
+    const bio = profile.bio ? API.escapeHtml(profile.bio.slice(0, 60)) + (profile.bio.length > 60 ? '...' : '') : '<span style="color:var(--muted,#6c7086)">暂无简介</span>';
+    return `
+      <a href="profile.html?id=${profile.id}" class="card user-card">
+        <div class="user-card-inner">
+          <img src="${avatar}" class="user-card-avatar" alt="${API.escapeHtml(profile.username)}" onerror="CommunityUI.onImgError(this,'${initial}')" />
+          <div class="user-card-info">
+            <div class="user-card-name">${API.escapeHtml(profile.username)}</div>
+            <div class="user-card-bio">${bio}</div>
+            <div class="user-card-joined">加入于 ${new Date(profile.created_at).toLocaleDateString()}</div>
+          </div>
+        </div>
+      </a>
+    `;
+  }
+
+  // ============================================================
   // Comments 评论
   // ============================================================
 
@@ -128,18 +247,25 @@ const CommunityUI = (function () {
     if (!comments || comments.length === 0) {
       return '<div class="empty-hint">暂无评论</div>';
     }
-    return comments.map(c => {
-      const author = c.profiles || {};
-      return `
-        <div class="comment-item">
-          <div class="comment-header">
-            <a href="profile.html?id=${c.author_id}" class="comment-author">${API.escapeHtml(author.username || '匿名')}</a>
-            <span class="comment-time">${API.formatTime(c.created_at)}</span>
-          </div>
-          <div class="comment-content">${API.escapeHtml(c.content)}</div>
+    return comments.map(c => renderCommentItem(c)).join('');
+  }
+
+  function renderCommentItem(c) {
+    const author = c.profiles || {};
+    const initial = (author.username || '?')[0].toUpperCase();
+    const avatar = author.avatar_url || makeAvatarSvgUrl(initial, 40);
+    return `
+      <div class="comment-item">
+        <div class="comment-header">
+          <a href="profile.html?id=${c.author_id}" class="comment-author">
+            <img src="${avatar}" class="comment-avatar" alt="${API.escapeHtml(author.username || '匿名')}" onerror="CommunityUI.onImgError(this,'${initial}')" />
+            <span>${API.escapeHtml(author.username || '匿名')}</span>
+          </a>
+          <span class="comment-time">${API.formatTime(c.created_at)}</span>
         </div>
-      `;
-    }).join('');
+        <div class="comment-content">${API.escapeHtml(c.content)}</div>
+      </div>
+    `;
   }
 
   function renderCommentForm(targetType, targetId, onAdded) {
@@ -184,19 +310,54 @@ const CommunityUI = (function () {
   // Pagination 分页
   // ============================================================
 
-  function renderPagination(currentPage, totalCount, pageSize) {
+  function renderPagination(containerOrCurrentPage, currentPageOrTotal, pageSizeOrCallback, callback) {
+    // 支持两种调用方式:
+    // 旧: renderPagination(currentPage, totalCount, pageSize) => 返回 HTML 字符串
+    // 新: renderPagination('container-id', currentPage, total, callback)
+    let container, currentPage, totalCount, onPageChange;
+
+    if (typeof containerOrCurrentPage === 'string' && document.getElementById(containerOrCurrentPage)) {
+      // 新方式: renderPagination('container-id', currentPage, total, callback)
+      container = document.getElementById(containerOrCurrentPage);
+      currentPage = currentPageOrTotal;
+      totalCount = pageSizeOrCallback;
+      onPageChange = callback;
+    } else {
+      // 旧方式: renderPagination(currentPage, totalCount, pageSize) => 返回 HTML
+      return _renderPaginationHtml(containerOrCurrentPage, currentPageOrTotal, pageSizeOrCallback);
+    }
+
+    if (!container) return;
+    const pageSize = CommunityAPI.PAGE_SIZE || 12;
+    const html = _renderPaginationHtml(currentPage, totalCount, pageSize);
+    container.innerHTML = html;
+
+    if (onPageChange) {
+      container.querySelectorAll('.page-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const page = parseInt(btn.dataset.page);
+          if (page && page !== currentPage) {
+            onPageChange(page);
+          }
+        });
+      });
+    }
+  }
+
+  function _renderPaginationHtml(currentPage, totalCount, pageSize) {
     const totalPages = Math.ceil(totalCount / pageSize);
     if (totalPages <= 1) return '';
 
     let html = '<div class="pagination">';
     if (currentPage > 1) {
-      html += `<a href="?page=${currentPage - 1}${extraParams()}" class="page-btn">&laquo; 上一页</a>`;
+      html += `<a href="#" class="page-btn" data-page="${currentPage - 1}">&laquo; 上一页</a>`;
     }
     for (let i = 1; i <= totalPages && i <= 10; i++) {
-      html += `<a href="?page=${i}${extraParams()}" class="page-btn ${i === currentPage ? 'active' : ''}">${i}</a>`;
+      html += `<a href="#" class="page-btn ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</a>`;
     }
     if (currentPage < totalPages) {
-      html += `<a href="?page=${currentPage + 1}${extraParams()}" class="page-btn">下一页 &raquo;</a>`;
+      html += `<a href="#" class="page-btn" data-page="${currentPage + 1}">下一页 &raquo;</a>`;
     }
     html += '</div>';
     return html;
@@ -258,6 +419,50 @@ const CommunityUI = (function () {
   }
 
   // ============================================================
+  // Fill Cards with Load More 卡片加载更多
+  // ============================================================
+
+  /**
+   * 渲染卡片列表，超过 pageSize 时隐藏多余卡片并显示“加载更多”按钮
+   * @param {HTMLElement} container - 卡片容器（需有 card-grid 或 card-list 类）
+   * @param {string[]} cardsHtml - 卡片 HTML 字符串数组
+   * @param {number} [pageSize=5] - 每次显示的卡片数
+   */
+  function fillCards(container, cardsHtml, pageSize) {
+    var size = pageSize || 5;
+    if (!cardsHtml || cardsHtml.length === 0) return;
+    var shown = Math.min(size, cardsHtml.length);
+    var html = '';
+    for (var i = 0; i < cardsHtml.length; i++) {
+      html += '<div class="card-wrapper' + (i >= shown ? ' card-hidden' : '') + '">' + cardsHtml[i] + '</div>';
+    }
+    if (cardsHtml.length > shown) {
+      html += '<div class="load-more-wrap"><button class="btn btn-outline load-more-btn">点击加载更多 (' + shown + '/' + cardsHtml.length + ')</button></div>';
+    }
+    container.innerHTML = html;
+
+    // 绑定加载更多
+    var btn = container.querySelector('.load-more-btn');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        var wrappers = container.querySelectorAll('.card-wrapper.card-hidden');
+        var revealed = 0;
+        for (var j = 0; j < wrappers.length && revealed < size; j++) {
+          wrappers[j].classList.remove('card-hidden');
+          revealed++;
+        }
+        var remaining = container.querySelectorAll('.card-wrapper.card-hidden').length;
+        var totalVisible = container.querySelectorAll('.card-wrapper:not(.card-hidden)').length;
+        if (remaining === 0) {
+          btn.parentElement.style.display = 'none';
+        } else {
+          btn.textContent = '点击加载更多 (' + totalVisible + '/' + cardsHtml.length + ')';
+        }
+      });
+    }
+  }
+
+  // ============================================================
   // Loading 加载状态
   // ============================================================
 
@@ -282,8 +487,11 @@ const CommunityUI = (function () {
   }
 
   return {
-    renderNav, renderProjectCard, renderPostCard, renderExtensionCard,
-    renderCommentList, renderCommentForm, bindCommentForm,
+    renderNav, renderProjectCard, renderPostCard, renderArticleCard, renderExtensionCard, renderUserCard,
+    renderCommentList, renderCommentItem, renderCommentForm, bindCommentForm,
     renderPagination, renderLikeButton, renderEmpty, renderLoading, showToast,
+    fillCards,
+    makeAvatarSvgUrl, makeThumbPlaceholder, onImgError, onThumbError,
+    parseMarkdown,
   };
 })();

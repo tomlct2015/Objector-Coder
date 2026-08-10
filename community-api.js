@@ -64,8 +64,42 @@ const CommunityAPI = (function () {
     if (!error) {
       _user = data.user;
       await loadProfile();
+      await recordLogin();
     }
     return { data, error };
+  }
+
+  /** 发送 OTP 验证码到邮箱（无密码登录） */
+  async function sendLoginOtp(email) {
+    if (!_supabase) return { error: 'Not initialized' };
+    const { data, error } = await _supabase.auth.signInWithOtp({ email });
+    return { data, error };
+  }
+
+  /** 验证 OTP 验证码完成登录 */
+  async function verifyLoginOtp(email, token) {
+    if (!_supabase) return { error: 'Not initialized' };
+    const { data, error } = await _supabase.auth.verifyOtp({ email, token, type: 'email' });
+    if (!error && data.user) {
+      _user = data.user;
+      await loadProfile();
+      await recordLogin();
+    }
+    return { data, error };
+  }
+
+  /** 记录登录日志（触发登录通知邮件） */
+  async function recordLogin() {
+    if (!_supabase || !_user) return;
+    try {
+      await _supabase.from('login_logs').insert({
+        user_id: _user.id,
+        login_at: new Date().toISOString(),
+        user_agent: navigator.userAgent || 'unknown',
+      });
+    } catch (e) {
+      console.warn('[LoginLog] record failed:', e.message);
+    }
   }
 
   async function signOut() {
@@ -73,6 +107,30 @@ const CommunityAPI = (function () {
     await _supabase.auth.signOut();
     _user = null;
     _profile = null;
+  }
+
+  /** 注销账户（删除用户及其所有数据） */
+  async function deleteAccount(password) {
+    if (!_supabase || !_user) return { error: 'Not logged in' };
+    // 先重新验证密码以确保是本人操作
+    const { error: authError } = await _supabase.auth.signInWithPassword({
+      email: _user.email, password
+    });
+    if (authError) return { error: authError.message || '密码验证失败' };
+    // 删除用户所有相关数据（通过 RPC 调用服务端删除）
+    try {
+      const { data, error } = await _supabase.rpc('delete_user_account', { target_user_id: _user.id });
+      if (error) return { error: error.message };
+      // 删除 auth.users 中的用户（调用 Supabase 内置方法）
+      await _supabase.auth.admin.deleteUser(_user.id).catch(() => {});
+      // 本地登出
+      await _supabase.auth.signOut();
+      _user = null;
+      _profile = null;
+      return { data: { success: true } };
+    } catch (e) {
+      return { error: e.message };
+    }
   }
 
   async function getCurrentUser() {
@@ -162,6 +220,46 @@ const CommunityAPI = (function () {
     return { data, error };
   }
 
+  /** 上传头像图片到 Storage 并更新 profile */
+  async function uploadAvatar(file) {
+    if (!_user) return { error: 'Not logged in' };
+    if (!file) return { error: 'No file provided' };
+    // 验证文件类型
+    if (!file.type.startsWith('image/')) return { error: 'Only image files are allowed' };
+    // 限制大小 2MB
+    if (file.size > 2 * 1024 * 1024) return { error: 'Image must be smaller than 2MB' };
+
+    // 生成文件路径
+    const ext = file.name.split('.').pop() || 'png';
+    const filePath = `${_user.id}/avatar_${Date.now()}.${ext}`;
+
+    // 上传到 avatars bucket
+    const { error: uploadErr } = await _supabase.storage.from('avatars').upload(filePath, file, {
+      contentType: file.type,
+      upsert: true,
+      cacheControl: '0'
+    });
+    if (uploadErr) {
+      console.error('[uploadAvatar] upload failed:', uploadErr.message);
+      return { error: 'Upload failed: ' + uploadErr.message };
+    }
+
+    // 获取公开 URL
+    const { data: urlData } = _supabase.storage.from('avatars').getPublicUrl(filePath);
+    const avatarUrl = urlData.publicUrl;
+
+    // 更新 profile
+    const { data, error } = await _supabase
+      .from('profiles')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', _user.id)
+      .select()
+      .single();
+    if (error) return { error: error.message };
+    _profile = data;
+    return { data: { avatar_url: avatarUrl } };
+  }
+
   // ============================================================
   // Projects 作品
   // ============================================================
@@ -197,12 +295,13 @@ const CommunityAPI = (function () {
   async function publishProject(titleOrData, descriptionOrZip, zipBlob, thumbnailBlob) {
     if (!_user) return { error: 'Not logged in' };
 
-    let title, description, jsonData, isPublic;
+    let title, description, jsonData, isPublic, renderMode;
     if (typeof titleOrData === 'object' && titleOrData !== null) {
       title = titleOrData.title;
       description = titleOrData.description || '';
       jsonData = titleOrData.json_data || null;
       isPublic = titleOrData.is_public !== undefined ? titleOrData.is_public : true;
+      renderMode = titleOrData.render_mode || '2d';
       zipBlob = descriptionOrZip;
     } else {
       title = titleOrData;
@@ -244,6 +343,7 @@ const CommunityAPI = (function () {
       zip_url: zipUrl,
       thumbnail_url: thumbUrl,
       json_data: jsonData,
+      render_mode: renderMode || '2d',
       is_public: isPublic !== undefined ? isPublic : true,
     }).select().single();
 
@@ -253,6 +353,53 @@ const CommunityAPI = (function () {
   async function deleteProject(id) {
     if (!_user) return { error: 'Not logged in' };
     return await _supabase.from('projects').delete().eq('id', id).eq('author_id', _user.id);
+  }
+
+  async function updateProject(id, updates, zipBlob, thumbBlob) {
+    if (!_user) return { error: 'Not logged in' };
+
+    // 如果有新 ZIP，先上传
+    if (zipBlob) {
+      const zipPath = `${_user.id}/${id}_${Date.now()}.zip`;
+      const { error: zipErr } = await _supabase.storage.from('projects').upload(zipPath, zipBlob, {
+        contentType: 'application/zip', upsert: true
+      });
+      if (!zipErr) {
+        const { data: urlData } = _supabase.storage.from('projects').getPublicUrl(zipPath);
+        updates.zip_url = urlData.publicUrl;
+      }
+    }
+
+    // 如果有新封面，上传
+    if (thumbBlob) {
+      const ext = thumbBlob.name ? thumbBlob.name.split('.').pop() : 'png';
+      const thumbPath = `${_user.id}/${id}_thumb_${Date.now()}.${ext}`;
+      const { error: thumbErr } = await _supabase.storage.from('projects').upload(thumbPath, thumbBlob, {
+        contentType: thumbBlob.type || 'image/png', upsert: true
+      });
+      if (!thumbErr) {
+        const { data: urlData } = _supabase.storage.from('projects').getPublicUrl(thumbPath);
+        updates.thumbnail_url = urlData.publicUrl;
+      } else {
+        console.error('[updateProject] thumbnail upload failed:', thumbErr.message);
+        return { error: '封面上传失败: ' + thumbErr.message };
+      }
+    }
+
+    const { data, error } = await _supabase
+      .from('projects').update(updates).eq('id', id).eq('author_id', _user.id).select().single();
+    return { data, error };
+  }
+
+  async function getUserProjectByTitle(userId, title) {
+    if (!_supabase) return null;
+    const { data } = await _supabase
+      .from('projects')
+      .select('id, title, description')
+      .eq('author_id', userId)
+      .eq('title', title)
+      .limit(1);
+    return (data && data.length > 0) ? data[0] : null;
   }
 
   async function incrementDownloads(id) {
@@ -271,6 +418,8 @@ const CommunityAPI = (function () {
 
   async function getPosts(page = 1, category = '', sort = 'newest', search = '') {
     if (!_supabase) return { data: [], count: 0 };
+    // 'all' 表示不筛选分类
+    if (category === 'all') category = '';
     let query = _supabase
       .from('posts')
       .select('*, profiles(username, avatar_url)', { count: 'exact' });
@@ -386,26 +535,140 @@ const CommunityAPI = (function () {
     return { data };
   }
 
-  async function publishExtension(name, extId, description, version, fileBlob) {
+  /** 从扩展文件内容中提取积木数量 */
+  function _countBlocksFromContent(fileContent) {
+    if (!fileContent) return 0;
+    var text = '';
+    if (typeof fileContent === 'string') {
+      text = fileContent;
+    } else if (fileContent instanceof Blob) {
+      // Blob 无法同步读取，返回 0
+      return 0;
+    } else if (typeof fileContent === 'object') {
+      text = JSON.stringify(fileContent);
+    } else {
+      text = String(fileContent);
+    }
+    // JSON 格式：解析 blocks 数组
+    try {
+      var parsed = JSON.parse(text);
+      if (parsed && Array.isArray(parsed.blocks)) {
+        return parsed.blocks.length;
+      }
+    } catch (e) {
+      // JS 格式：计算 blocks 数组中的对象数量
+      // 匹配 { type: '...', label: '...' } 模式的积木定义
+      var blockMatches = text.match(/\{\s*type\s*:\s*['"]/g);
+      if (blockMatches) return blockMatches.length;
+    }
+    return 0;
+  }
+
+  async function publishExtension(name, extId, description, version, fileContent) {
     if (!_user) return { error: 'Not logged in' };
 
+    var blockCount = _countBlocksFromContent(fileContent);
     let fileUrl = null;
-    if (fileBlob) {
-      const ext = fileBlob.name.endsWith('.js') ? '.js' : '.json';
-      const filePath = `${_user.id}/${extId}_${Date.now()}${ext}`;
-      const { error } = await _supabase.storage.from('extensions').upload(filePath, fileBlob, { upsert: false });
-      if (!error) {
-        const { data: urlData } = _supabase.storage.from('extensions').getPublicUrl(filePath);
-        fileUrl = urlData.publicUrl;
+    if (fileContent) {
+      // fileContent 可以是 Blob, string 或带 name 属性的对象
+      let blob, fileExt, contentType;
+      if (typeof fileContent === 'string') {
+        blob = new Blob([fileContent], { type: 'application/json' });
+        fileExt = '.json';
+        contentType = 'application/json';
+      } else if (fileContent instanceof Blob) {
+        blob = fileContent;
+        const isJs = fileContent.name && fileContent.name.endsWith('.js');
+        fileExt = isJs ? '.js' : '.json';
+        contentType = isJs ? 'application/javascript' : 'application/json';
+      } else {
+        blob = new Blob([typeof fileContent === 'object' ? JSON.stringify(fileContent) : String(fileContent)], { type: 'application/json' });
+        fileExt = '.json';
+        contentType = 'application/json';
       }
+      // 对 extId 做 ASCII 安全化处理（Supabase Storage key 不允许非 ASCII 字符）
+      const safeExtId = String(extId).replace(/[^a-zA-Z0-9_\-]/g, function(ch) {
+        return '_u' + ch.charCodeAt(0).toString(16) + '_';
+      });
+      const filePath = `${_user.id}/${safeExtId}_${Date.now()}${fileExt}`;
+
+      // 确保 bucket 存在
+      try {
+        await _supabase.storage.from('extensions').list('', { limit: 1 });
+      } catch (bucketErr) {
+        console.warn('[publishExtension] bucket 检查失败，尝试创建:', bucketErr.message);
+      }
+
+      const { error } = await _supabase.storage.from('extensions').upload(filePath, blob, {
+        contentType,
+        upsert: false,
+        cacheControl: '0',
+      });
+      if (error) {
+        console.error('[publishExtension] 上传失败:', error.message);
+        return { error: { message: '文件上传失败: ' + error.message + '。请检查 Supabase storage bucket "extensions" 是否已创建。' } };
+      }
+      const { data: urlData } = _supabase.storage.from('extensions').getPublicUrl(filePath);
+      fileUrl = urlData.publicUrl;
     }
 
-    const { data, error } = await _supabase.from('extensions').insert({
+    // 使用 upsert 避免 ext_id 重复键错误（自动覆盖同 ext_id 的记录）
+    const { data, error } = await _supabase.from('extensions').upsert({
       author_id: _user.id, name, ext_id: extId,
       description: description || '', version: version || '1.0.0',
       file_url: fileUrl,
-    }).select().single();
+      block_count: blockCount,
+    }, { onConflict: 'ext_id' }).select().single();
     return { data, error };
+  }
+
+  async function updateExtension(id, updates, fileContent) {
+    if (!_user) return { error: 'Not logged in' };
+
+    if (fileContent) {
+      var newBlockCount = _countBlocksFromContent(fileContent);
+      updates.block_count = newBlockCount;
+      let blob, fileExt, contentType;
+      if (typeof fileContent === 'string') {
+        blob = new Blob([fileContent], { type: 'application/json' });
+        fileExt = '.json';
+        contentType = 'application/json';
+      } else if (fileContent instanceof Blob) {
+        blob = fileContent;
+        const isJs = fileContent.name && fileContent.name.endsWith('.js');
+        fileExt = isJs ? '.js' : '.json';
+        contentType = isJs ? 'application/javascript' : 'application/json';
+      } else {
+        blob = new Blob([JSON.stringify(fileContent)], { type: 'application/json' });
+        fileExt = '.json';
+        contentType = 'application/json';
+      }
+      const filePath = `${_user.id}/${id}_${Date.now()}${fileExt}`;
+      const { error } = await _supabase.storage.from('extensions').upload(filePath, blob, {
+        contentType,
+        upsert: true,
+        cacheControl: '0',
+      });
+      if (!error) {
+        const { data: urlData } = _supabase.storage.from('extensions').getPublicUrl(filePath);
+        updates.file_url = urlData.publicUrl;
+      }
+    }
+
+    const { data, error } = await _supabase
+      .from('extensions').update(updates).eq('id', id).eq('author_id', _user.id).select().single();
+    return { data, error };
+  }
+
+  async function getUserExtensionByName(userId, name) {
+    if (!_supabase) return null;
+    const { data } = await _supabase
+      .from('extensions')
+      .select('id, name, ext_id, description, version')
+      .eq('author_id', userId)
+      .eq('name', name)
+      .limit(1);
+    return (data && data.length > 0) ? data[0] : null;
   }
 
   async function deleteExtension(id) {
@@ -545,7 +808,7 @@ const CommunityAPI = (function () {
     if (!_supabase) return { data: [] };
     const { data } = await _supabase
       .from('projects')
-      .select('*')
+      .select('*, profiles(username, avatar_url)')
       .eq('author_id', userId)
       .eq('is_public', true)
       .order('created_at', { ascending: false });
@@ -556,7 +819,7 @@ const CommunityAPI = (function () {
     if (!_supabase) return { data: [] };
     const { data } = await _supabase
       .from('posts')
-      .select('*')
+      .select('*, profiles(username, avatar_url)')
       .eq('author_id', userId)
       .order('created_at', { ascending: false });
     return { data: data || [] };
@@ -566,7 +829,7 @@ const CommunityAPI = (function () {
     if (!_supabase) return { data: [] };
     const { data } = await _supabase
       .from('extensions')
-      .select('*')
+      .select('*, profiles(username, avatar_url)')
       .eq('author_id', userId)
       .order('created_at', { ascending: false });
     return { data: data || [] };
@@ -574,7 +837,7 @@ const CommunityAPI = (function () {
 
   async function getUserFavorites(userId, targetType) {
     if (!_supabase) return { data: [] };
-    let query = _supabase.from('favorites').select('*, projects(*), posts(*), extensions(*)').eq('user_id', userId);
+    let query = _supabase.from('favorites').select('*, projects(*, profiles!projects_author_id_fkey(username, avatar_url)), posts(*, profiles!posts_author_id_fkey(username, avatar_url)), extensions(*, profiles!extensions_author_id_fkey(username, avatar_url))').eq('user_id', userId);
     if (targetType) query = query.eq('target_type', targetType);
     const { data } = await query;
     return { data: data || [] };
@@ -588,6 +851,98 @@ const CommunityAPI = (function () {
       .eq('id', userId)
       .single();
     return { data };
+  }
+
+  // ============================================================
+  // Search Users - 搜索用户
+  // ============================================================
+
+  /** 按用户名模糊搜索用户，最多返回 20 条 */
+  async function searchProfiles(keyword) {
+    if (!_supabase) return { data: [] };
+    const kw = (keyword || '').trim();
+    if (!kw) return { data: [] };
+    const { data, error } = await _supabase
+      .from('profiles')
+      .select('id, username, avatar_url, bio, created_at')
+      .ilike('username', '%' + kw.replace(/%/g, '\\%') + '%')
+      .limit(20);
+    if (error) { console.error('[searchProfiles]', error.message); return { data: [], error }; }
+    return { data: data || [] };
+  }
+
+  /** 获取最近注册的用户列表 */
+  async function getRecentProfiles(limit) {
+    if (!_supabase) return { data: [] };
+    const { data, error } = await _supabase
+      .from('profiles')
+      .select('id, username, avatar_url, bio, created_at')
+      .order('created_at', { ascending: false })
+      .limit(limit || 6);
+    if (error) { console.error('[getRecentProfiles]', error.message); return { data: [], error }; }
+    return { data: data || [] };
+  }
+
+  // ============================================================
+  // Binding Codes - Software Account Binding
+  // ============================================================
+
+  /** Generate a random 6-digit binding code for the current user */
+  async function generateBindingCode() {
+    if (!_user) return { error: 'Not logged in' };
+    if (!_supabase) return { error: 'Not initialized' };
+
+    // Delete old codes from this user
+    await _supabase.from('binding_codes').delete().eq('user_id', _user.id);
+
+    // Generate 6-digit code
+    var code = String(Math.floor(100000 + Math.random() * 900000));
+
+    // Expires in 5 minutes
+    var expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+    var profile = _profile || await loadProfile();
+    var username = profile ? profile.username : (_user.email || 'Unknown');
+
+    const { data, error } = await _supabase.from('binding_codes').insert({
+      user_id: _user.id,
+      code: code,
+      expires_at: expiresAt,
+      username: username,
+    }).select().single();
+
+    if (error) return { error };
+    return { data: { code: code, expires_at: expiresAt, username: username } };
+  }
+
+  /** Verify a binding code and return user info if valid */
+  async function verifyBindingCode(code) {
+    if (!_supabase) return { error: 'Not initialized' };
+    if (!code || code.length !== 6) return { error: 'Invalid code format' };
+
+    const { data, error } = await _supabase
+      .from('binding_codes')
+      .select('*, profiles(username, avatar_url)')
+      .eq('code', code)
+      .single();
+
+    if (error || !data) return { error: 'Code not found or invalid' };
+
+    // Check expiry
+    if (new Date(data.expires_at) < new Date()) {
+      return { error: 'Code expired' };
+    }
+
+    // Delete the used code
+    await _supabase.from('binding_codes').delete().eq('id', data.id);
+
+    return {
+      data: {
+        user_id: data.user_id,
+        username: data.profiles ? data.profiles.username : (data.username || 'Unknown'),
+        email: data.user_id,
+      }
+    };
   }
 
   // ============================================================
@@ -625,16 +980,19 @@ const CommunityAPI = (function () {
 
   return {
     init, isConfigured, restoreSession,
-    signUp, signIn, signOut, getCurrentUser, loadProfile, getProfile, getUser, updateProfile,
-    getProjects, getProject, getProjectById: getProject, publishProject, deleteProject, incrementDownloads,
+    signUp, signIn, signOut, getCurrentUser, loadProfile, getProfile, getUser, updateProfile, uploadAvatar,
+    getProjects, getProject, getProjectById: getProject, publishProject, deleteProject, updateProject, getUserProjectByTitle, incrementDownloads,
     getPosts, getPost, getPostById: getPost, createPost, updatePost, deletePost,
     getComments, addComment, deleteComment,
-    getExtensions, getExtension, getExtensionById: getExtension, publishExtension, deleteExtension,
+    getExtensions, getExtension, getExtensionById: getExtension, publishExtension, deleteExtension, updateExtension, getUserExtensionByName,
     toggleLike, likeTarget, unlikeTarget, isLiked,
     toggleFavorite, toggleFollow, followUser, unfollowUser, isFollowing, getFollowers, getFollowing,
     getFavorites,
-    getUserProjects, getUserPosts, getUserExtensions, getUserFavorites, getProfileById,
+    getUserProjects, getUserPosts, getUserExtensions, getUserFavorites, getProfileById, searchProfiles, getRecentProfiles,
     formatTime, escapeHtml, getParams,
+    generateBindingCode, verifyBindingCode,
+    sendLoginOtp, verifyLoginOtp, recordLogin,
+    deleteAccount,
     PAGE_SIZE,
   };
 })();

@@ -83,7 +83,8 @@
             ${ext.description ? `<div class="detail-desc markdown-body">${CommunityUI.parseMarkdown(ext.description)}</div>` : ''}
             <div class="detail-actions">
               ${user ? `<button class="btn btn-outline" id="btn-like">${ext.user_liked ? '❤️ 已点赞' : '🤍 点赞'}</button>` : ''}
-              ${ext.file_url ? `<button class="btn btn-primary" id="btn-download">⬇️ 下载扩展</button>` : `<span class="btn btn-outline" style="opacity:0.5;cursor:not-allowed;">❗ 无可下载文件</span>`}
+              ${ext.file_url ? `<button class="btn btn-primary" id="btn-install">📦 安装到编辑器</button>` : `<span class="btn btn-outline" style="opacity:0.5;cursor:not-allowed;">❗ 无可下载文件</span>`}
+              ${ext.file_url ? `<button class="btn btn-outline" id="btn-download">⬇️ 下载文件</button>` : ''}
               ${isAuthor ? `<button class="btn btn-danger btn-sm" id="btn-delete">删除</button>` : ''}
             </div>
           </div>
@@ -115,18 +116,18 @@
             const serverType = resp.headers.get('content-type') || '';
             let mimeType = respBlob.type || serverType;
             let fileName;
-            // 从 URL 提取文件名
-            const urlParts = ext.file_url.split('/');
-            const rawName = urlParts[urlParts.length - 1] || '';
-            // URL 无明确后缀时，通过内容判断
+            // 使用 ext_id 生成安全的 ASCII 文件名，避免中文问题
+            const safeName = (ext.ext_id || ext.name).replace(/[^a-zA-Z0-9_\-]/g, function(ch) {
+              return '_u' + ch.charCodeAt(0).toString(16) + '_';
+            });
             const text = await respBlob.text();
             try {
               JSON.parse(text);
               mimeType = 'application/json';
-              fileName = ext.name + '.json';
+              fileName = safeName + '.json';
             } catch (_) {
               mimeType = 'application/javascript';
-              fileName = ext.name + '.js';
+              fileName = safeName + '.js';
             }
             const blob = new Blob([text], { type: mimeType });
             const a = document.createElement('a');
@@ -136,17 +137,17 @@
             URL.revokeObjectURL(a.href);
             CommunityUI.showToast('下载完成 (' + fileName + ')', 'success');
             btnDownload.disabled = false;
-            btnDownload.textContent = '⬇️ 下载扩展';
+            btnDownload.textContent = '⬇️ 下载文件';
             return;
           } catch (e) {
             window.open(ext.file_url, '_blank');
           }
           btnDownload.disabled = false;
-          btnDownload.textContent = '⬇️ 下载扩展';
+          btnDownload.textContent = '⬇️ 下载文件';
         });
       }
 
-      // 安装按钮
+      // 安装按钮：下载扩展并保存到项目 extensions 目录
       const btnInstall = document.getElementById('btn-install');
       if (btnInstall) {
         btnInstall.addEventListener('click', async () => {
@@ -155,24 +156,54 @@
             return;
           }
           try {
-            CommunityUI.showToast('正在下载并安装...', 'info');
+            btnInstall.disabled = true;
+            btnInstall.textContent = '安装中...';
             const response = await fetch(ext.file_url);
             if (!response.ok) throw new Error('HTTP ' + response.status);
             const text = await response.text();
-            const key = 'extension:' + (ext.ext_id || ext.name);
-            // 尝试 JSON 解析，失败则作为纯 JS 存储
-            let stored;
+            const extIdSafe = ext.ext_id || ext.name.replace(/[^a-zA-Z0-9_\-]/g, '_');
+            // 判断文件格式
+            let isJs = false;
             try {
-              const jsonData = JSON.parse(text);
-              stored = JSON.stringify(jsonData);
-            } catch (jsonErr) {
-              // 非 JSON（如 .js 文件），直接存储原始文本
-              stored = text;
+              JSON.parse(text);
+            } catch (_) {
+              isJs = true;
             }
-            localStorage.setItem(key, stored);
-            CommunityUI.showToast('安装成功！请在编辑器中查看', 'success');
+            const fileName = extIdSafe + (isJs ? '.js' : '.json');
+            // 保存到 localStorage（编辑器可识别的格式）
+            const key = 'extension:' + extIdSafe;
+            localStorage.setItem(key, text);
+            // 尝试保存到当前编辑器项目的 extensions 目录
+            let savedToProject = false;
+            if (typeof window.api !== 'undefined' && window.api.readFile) {
+              try {
+                // 查找当前打开的项目
+                for (let i = 0; i < localStorage.length; i++) {
+                  const k = localStorage.key(i);
+                  if (k.startsWith('vfs:') && k.endsWith('/project.json')) {
+                    const projPath = k.slice(4).replace('/project.json', '');
+                    const extDir = projPath + '/extensions';
+                    await window.api.ensureDir(extDir);
+                    await window.api.writeFile(extDir + '/' + fileName, text);
+                    savedToProject = true;
+                    break;
+                  }
+                }
+              } catch (e) {
+                console.warn('[install] 保存到项目失败:', e.message);
+              }
+            }
+            if (savedToProject) {
+              CommunityUI.showToast('安装成功！已保存到编辑器项目的 extensions 目录', 'success');
+            } else {
+              CommunityUI.showToast('安装成功！打开编辑器后加载扩展即可使用', 'success');
+            }
+            btnInstall.disabled = false;
+            btnInstall.textContent = '📦 安装到编辑器';
           } catch (e) {
             CommunityUI.showToast('安装失败: ' + e.message, 'error');
+            btnInstall.disabled = false;
+            btnInstall.textContent = '📦 安装到编辑器';
           }
         });
       }

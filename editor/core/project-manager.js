@@ -89,9 +89,9 @@ const ProjectManager = (function () {
     }
     // 同步当前精灵的积木
     if (typeof StageManager !== 'undefined') {
-      StageManager.getSpriteData(); // 触发同步
+      StageManager.getSpriteData();
     }
-    // 保存所有精灵的合并积木到 scripts/main.json（兼容旧版）
+    // 保存所有精灵的合并积木
     let allBlocks = {};
     if (typeof StageManager !== 'undefined' && StageManager.getAllBlocks) {
       allBlocks = StageManager.getAllBlocks();

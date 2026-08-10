@@ -160,6 +160,31 @@ body { font-family: 'Segoe UI','Microsoft YaHei',sans-serif; background:var(--bg
 .pin-btn.pinned { color:var(--accent); border-color:var(--accent); }
 #no-projects { text-align:center; padding:48px; color:var(--text-muted); }
 
+/* Context Menu */
+.ctx-menu {
+  position:fixed;
+  z-index:9999;
+  background:var(--bg-secondary, #181825);
+  border:1px solid var(--border, #313244);
+  border-radius:8px;
+  padding:4px 0;
+  min-width:160px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.4);
+  user-select:none;
+}
+.ctx-menu.hidden { display:none; }
+.ctx-item {
+  padding:8px 16px;
+  font-size:13px;
+  cursor:pointer;
+  transition:background .1s;
+  color:var(--text-primary, #cdd6f4);
+}
+.ctx-item:hover { background:var(--bg-hover, #313244); }
+.ctx-divider { height:1px; background:var(--border, #313244); margin:4px 0; }
+.ctx-danger { color:#f38ba8; }
+.ctx-danger:hover { background:rgba(243,139,168,0.15); }
+
 /* Mode Dialog */
 .mode-dialog-box { max-width:500px; }
 .mode-cards { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:24px 0; }
@@ -168,20 +193,6 @@ body { font-family: 'Segoe UI','Microsoft YaHei',sans-serif; background:var(--bg
 .mode-icon { font-size:36px; margin-bottom:12px; }
 .mode-card h3 { color:var(--text-primary); margin-bottom:8px; font-size:14px; }
 .mode-card p { font-size:12px; color:var(--text-secondary); margin:0; }
-
-/* Open Source Dialog */
-.open-source-box { max-width:520px; text-align:left; }
-.os-tabs { display:flex; gap:8px; margin:16px 0; border-bottom:1px solid var(--border); padding-bottom:8px; }
-.os-tab { background:transparent; border:none; color:var(--text-secondary); font-size:13px; padding:8px 14px; border-radius:6px 6px 0 0; cursor:pointer; transition:all .15s; }
-.os-tab:hover { color:var(--text-primary); background:var(--bg-hover); }
-.os-tab.active { color:var(--accent); border-bottom:2px solid var(--accent); }
-.os-panel { min-height:120px; }
-.os-cloud-list { max-height:220px; overflow-y:auto; border:1px solid var(--border); border-radius:6px; }
-.os-cloud-item { padding:12px 16px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .1s; display:flex; align-items:center; gap:8px; }
-.os-cloud-item:last-child { border-bottom:none; }
-.os-cloud-item:hover { background:var(--bg-hover); }
-.os-cloud-name { font-size:13px; font-weight:600; color:var(--text-primary); }
-.os-cloud-author { font-size:11px; color:var(--text-secondary); margin-top:4px; }
 
 /* File Editor Panel */
 #files-content { flex:1; display:flex; flex-direction:column; }
@@ -303,6 +314,37 @@ body { font-family: 'Segoe UI','Microsoft YaHei',sans-serif; background:var(--bg
   gap: 8px;
   justify-content: flex-end;
   margin-top: 16px;
+}
+
+/* User Dropdown Menu */
+.user-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 160px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 0;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  z-index: 1000;
+}
+.user-menu.hidden { display: none; }
+.user-menu-item {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  text-align: left;
+  font-size: 13px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.user-menu-item:hover {
+  background: var(--bg-hover, rgba(255,255,255,0.08));
 }
 
 /* Goto Label Dialog */

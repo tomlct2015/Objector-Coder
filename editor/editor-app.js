@@ -1021,8 +1021,19 @@
     document.getElementById('btn-view-code')?.addEventListener('click', showAllCodeDialog);
 
     // 导出 HTML 按钮
-    document.getElementById('btn-export-html')?.addEventListener('click', () => {
-      HtmlExporter.exportProject();
+    document.getElementById('btn-export-html')?.addEventListener('click', async () => {
+      try {
+        console.log('[导出HTML] 按钮被点击');
+        if (typeof HtmlExporter === 'undefined') {
+          alert('HtmlExporter 未加载！');
+          return;
+        }
+        await HtmlExporter.exportProject();
+        console.log('[导出HTML] 完成');
+      } catch(e) {
+        console.error('[导出HTML] 错误:', e);
+        alert('导出失败: ' + e.message);
+      }
     });
 
     // 窗口控制按钮

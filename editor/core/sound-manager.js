@@ -161,7 +161,6 @@ const SoundManager = (function () {
     return Object.keys(_sounds);
   }
 
-  /** 检查声音是否正在播放 */
   function isPlaying(name) {
     return !!_playing[name];
   }

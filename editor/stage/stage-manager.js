@@ -19,18 +19,12 @@ const StageManager = (function () {
   function getActiveSpriteIdx() { return _activeIdx; }
   function getActiveSprite() { return _sprites[_activeIdx] || _sprites[0]; }
 
-  /** 通过名称获取精灵 */
   function getSpriteByName(name) {
     return _sprites.find(s => s.name === name) || null;
   }
-
-  /** 通过名称获取精灵索引 */
   function getSpriteIndexByName(name) {
-    const idx = _sprites.findIndex(s => s.name === name);
-    return idx >= 0 ? idx : -1;
+    return _sprites.findIndex(s => s.name === name);
   }
-
-  /** 克隆精灵（复制所有属性） */
   function cloneSprite(idx) {
     const src = getSprite(idx);
     if (!src) return null;
@@ -52,14 +46,13 @@ const StageManager = (function () {
   function setActiveSprite(idx) {
     if (idx >= 0 && idx < _sprites.length) {
       if (!_isExecuting) {
-        // 保存当前精灵的积木到 sprite.blocks
+        // 编辑器模式：保存/加载积木
         if (typeof EditorState !== 'undefined' && _sprites[_activeIdx]) {
           _sprites[_activeIdx].blocks = EditorState.blocks || {};
         }
       }
       _activeIdx = idx;
       if (!_isExecuting) {
-        // 加载新精灵的积木到 EditorState.blocks
         if (typeof EditorState !== 'undefined') {
           EditorState.blocks = _sprites[_activeIdx].blocks || {};
         }
@@ -72,17 +65,16 @@ const StageManager = (function () {
 
   function addSprite(name) {
     const s = new Sprite(name, 0, 0);
-    s.blocks = {}; // 新精灵空积木
+    s.blocks = {};
     _sprites.push(s);
     renderSpriteList();
     return s;
   }
 
   function removeSprite(idx) {
-    if (_sprites.length <= 1) return; // 至少保留一个
+    if (_sprites.length <= 1) return;
     _sprites.splice(idx, 1);
     if (_activeIdx >= _sprites.length) _activeIdx = _sprites.length - 1;
-    // 同步当前积木
     if (typeof EditorState !== 'undefined') {
       EditorState.blocks = _sprites[_activeIdx].blocks || {};
     }
@@ -114,7 +106,7 @@ const StageManager = (function () {
       }
 
       div.addEventListener('click', () => {
-        setActiveSprite(i);  // 使用 setActiveSprite 以同步积木
+        setActiveSprite(i);
       });
       div.addEventListener('dblclick', async () => {
         const newName = await showCustomPrompt('重命名精灵:', s.name);
@@ -392,7 +384,6 @@ const StageManager = (function () {
 
   /** 导出精灵数据用于序列化保存（含积木脚本） */
   function getSpriteData() {
-    // 先同步当前精灵的积木
     if (typeof EditorState !== 'undefined' && _sprites[_activeIdx]) {
       _sprites[_activeIdx].blocks = EditorState.blocks || {};
     }
@@ -417,7 +408,6 @@ const StageManager = (function () {
 
   /** 获取所有精灵的积木合并（运行时用） */
   function getAllBlocks() {
-    // 先同步当前精灵
     if (typeof EditorState !== 'undefined' && _sprites[_activeIdx]) {
       _sprites[_activeIdx].blocks = EditorState.blocks || {};
     }
@@ -447,13 +437,10 @@ const StageManager = (function () {
       s.sayText = sd.sayText || '';
       s.vx = sd.vx || 0;
       s.vy = sd.vy || 0;
-      // 恢复精灵的积木脚本
       s.blocks = sd.blocks || {};
-      // 加载贴图：优先使用 costumeName（从 CostumeManager 获取）
       if (sd.costumeName && typeof CostumeManager !== 'undefined' && CostumeManager.hasCostume(sd.costumeName)) {
         s.setCostume(sd.costumeName);
       } else if (sd.costumePath) {
-        // 兼容旧版：从路径加载
         let fullPath = sd.costumePath;
         if (!sd.costumePath.startsWith('/') && !sd.costumePath.match(/^[a-zA-Z]:[\\/]/)) {
           fullPath = projectPath + '/' + sd.costumePath;
@@ -463,7 +450,6 @@ const StageManager = (function () {
       _sprites.push(s);
     });
     _activeIdx = 0;
-    // 将第一个精灵的积木同步到 EditorState.blocks
     if (typeof EditorState !== 'undefined' && _sprites[0]) {
       EditorState.blocks = _sprites[0].blocks || {};
     }

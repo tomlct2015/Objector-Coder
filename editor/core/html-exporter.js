@@ -717,7 +717,25 @@ function stopRun() {
 </html>`;
   }
 
-  /** 导出 HTML 文件 */
+  /** Blob \u4e0b\u8f7d\u8f85\u52a9\u51fd\u6570 */
+  function blobDownload(projectName, html) {
+    var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = projectName + '.html';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 1000);
+    console.log('[HTML\u5bfc\u51fa] \u4e0b\u8f7d\u89e6\u53d1\u5b8c\u6210');
+    document.getElementById('status-text').textContent = (i18n.isEnglish() ? 'Exported: ' : '\u5df2\u5bfc\u51fa: ') + projectName + '.html';
+  }
+  
+  /** \u5bfc\u51fa HTML \u6587\u4ef6 */
   async function exportProject() {
     console.log('[HTML\u5bfc\u51fa] \u5f00\u59cb\u5bfc\u51fa...');
     const projectName = EditorState.projectName || 'Objector';
@@ -765,29 +783,21 @@ function stopRun() {
         projectName + '.html',
         [{ name: 'HTML \u6587\u4ef6', extensions: ['html', 'htm'] }]
       );
-      if (!filePath) return;
-      var result = await window.api.writeFile(filePath, html);
-      if (result && result.error) {
-        alert(i18n.isEnglish() ? 'Export failed: ' + result.error : '\u5bfc\u51fa\u5931\u8d25: ' + result.error);
-        return;
+      if (filePath) {
+        var result = await window.api.writeFile(filePath, html);
+        if (result && result.error) {
+          alert(i18n.isEnglish() ? 'Export failed: ' + result.error : '\u5bfc\u51fa\u5931\u8d25: ' + result.error);
+          return;
+        }
+        document.getElementById('status-text').textContent = (i18n.isEnglish() ? 'Exported: ' : '\u5df2\u5bfc\u51fa: ') + filePath.split(/[\\/]/).pop();
+      } else {
+        // saveFileDialog 返回 null（用户取消或 shim 不支持），降级为 Blob 下载
+        console.log('[HTML\u5bfc\u51fa] saveFileDialog\u8fd4\u56denull, \u964d\u7ea7\u4e3aBlob\u4e0b\u8f7d');
+        blobDownload(projectName, html);
       }
-      document.getElementById('status-text').textContent = (i18n.isEnglish() ? 'Exported: ' : '\u5df2\u5bfc\u51fa: ') + filePath.split(/[\\/]/).pop();
     } else {
       console.log('[HTML\u5bfc\u51fa] \u7f51\u9875\u6a21\u5f0f, \u4f7f\u7528Blob\u4e0b\u8f7d');
-      var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = projectName + '.html';
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(function() {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 1000);
-      console.log('[HTML\u5bfc\u51fa] \u4e0b\u8f7d\u89e6\u53d1\u5b8c\u6210');
-      document.getElementById('status-text').textContent = (i18n.isEnglish() ? 'Exported: ' : '\u5df2\u5bfc\u51fa: ') + projectName + '.html';
+      blobDownload(projectName, html);
     }
     setTimeout(function() {
       document.getElementById('status-text').textContent = i18n.t('status.ready');
