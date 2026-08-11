@@ -68,13 +68,16 @@ canvas.id = 'stage-canvas';
 
 // 扩展执行器
 const ExtensionExecutors = new Map(Object.entries(${extExecJSON}).map(([k,v]) => [k, new Function('return ' + v)()]));
+console.log('[扩展] 初始执行器数:', ExtensionExecutors.size, Array.from(ExtensionExecutors.keys()).join(', '));
 
 // 扩展 JS 源码（重新执行以注册执行器及其辅助函数）
 ${extJsCode ? `
 (function() {
+  console.log('[扩展JS] 开始重新执行扩展源码...');
   // 提供 ExtensionManager 桩，让扩展 JS 重新注册执行器
   var ExtensionManager = {
     registerExtension: function(def) {
+      console.log('[扩展JS] 注册扩展:', def.name || def.id, '积木数:', def.blocks ? def.blocks.length : 0, '执行器数:', def.executors ? Object.keys(def.executors).length : 0);
       if (def.executors) {
         Object.entries(def.executors).forEach(function(entry) {
           ExtensionExecutors.set(entry[0], entry[1]);
@@ -84,9 +87,10 @@ ${extJsCode ? `
   };
   try {
 ${extJsCode.split('\n').map(line => '    ' + line).join('\n')}
-  } catch(e) { console.error('[扩展JS执行]', e); }
+    console.log('[扩展JS] 执行完成，当前执行器总数:', ExtensionExecutors.size);
+  } catch(e) { console.error('[扩展JS执行出错]', e); }
 })();
-` : ''}
+` : 'console.log("[扩展JS] 无扩展JS源码需要执行");'}
 
 // 3D 舞台模块
 var Stage3D = (function() {
@@ -850,7 +854,7 @@ async function executeBlock(block, scope) {
   // 扩展 stack 积木
   if (typeof ExtensionExecutors !== 'undefined') {
     const extExec = ExtensionExecutors.get(type);
-    if (extExec) { const result = extExec(p, scope); if (result && typeof result.then === 'function') await result; return; }
+    if (extExec) { console.log('[扩展执行]', type); const result = extExec(p, scope); if (result && typeof result.then === 'function') await result; return; }
   }
   await delay(1);
 }
