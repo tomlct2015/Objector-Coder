@@ -157,21 +157,36 @@ const Executor = (function () {
     }
 
     // 找到所有 event_start 积木并并发执行（每个精灵独立运行）
+    // 不等待完成：forever 循环的积木不会返回，需与 JS 脚本和事件循环并行
     const starts = Object.values(EditorState.blocks).filter(b => b.type === 'event_start');
-    await Promise.all(starts.map(start => {
+    const startPromises = starts.map(start => {
       if (_stopRequested) return Promise.resolve();
       const si = _blockSpriteIdx[start.id];
       if (si !== undefined) StageManager.setActiveSprite(si);
-      return executeChain(start, {});
-    }));
+      return executeChain(start, {}).catch(err => log('event_start 错误: ' + err.message));
+    });
 
-    // event_start 完成后，执行 JS 脚本回调（高级模式）
+    // event_start 全部完成后执行 JS 脚本回调（高级模式）
+    let _jsCallbackRan = false;
+    startPromises.length > 0 && Promise.all(startPromises).then(() => {
+      if (_postStartCallback && !_stopRequested && !_jsCallbackRan) {
+        _jsCallbackRan = true;
+        _postStartCallback().catch(e => log('JS 脚本错误: ' + e.message));
+      }
+    });
+
+    // 短延迟后执行 JS 脚本（不阻塞事件循环，与积木并行运行）
     if (_postStartCallback && !_stopRequested) {
-      try { await _postStartCallback(); } catch (e) { log('JS 脚本错误: ' + e.message); }
+      await new Promise(r => setTimeout(r, 50));
+      if (!_jsCallbackRan) {
+        _jsCallbackRan = true;
+        try { await _postStartCallback(); } catch (e) { log('JS 脚本错误: ' + e.message); }
+      }
     }
 
-    // 如果有按键事件/定时器/广播接收者/精灵点击，保持运行
-    const hasPersistentEvents = keyBlocks.length > 0 || timerBlocks.length > 0 || receiveBlocks.length > 0 || spriteClickBlocks.length > 0;
+    // 如果有按键事件/定时器/广播接收者/精灵点击/JS脚本/forever循环，保持运行
+    const hasJS = !!_postStartCallback;
+    const hasPersistentEvents = keyBlocks.length > 0 || timerBlocks.length > 0 || receiveBlocks.length > 0 || spriteClickBlocks.length > 0 || starts.length > 0 || hasJS;
     if (hasPersistentEvents && !_stopRequested) {
       document.getElementById('status-text').textContent = i18n.isEnglish() ? 'Running (waiting for event...)' : '运行中（等待事件...）';
       while (!_stopRequested) {

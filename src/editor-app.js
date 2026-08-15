@@ -1258,6 +1258,7 @@ window.EditorApp = (function () {
       'ext-docs': () => window.api && window.api.openExtensionDocs(),
       'view-code': () => showAllCodeDialog(),
       'blocks-guide': () => window.open('https://tomlct2015.github.io/Objector-Coder/blocks-guide/', '_blank'),
+      'advanced-guide': () => window.open('https://tomlct2015.github.io/Objector-Coder/how-to-use-advanced-editor/', '_blank'),
     };
 
     // 菜单栏下拉交互
