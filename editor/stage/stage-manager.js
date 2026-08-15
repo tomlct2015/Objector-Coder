@@ -456,6 +456,77 @@ const StageManager = (function () {
     renderSpriteList();
   }
 
+  // ============================================================
+  // SceneGraph 适配层（高级模式）
+  // ============================================================
+
+  /** 从 SceneGraph 同步 Sprite2D 节点到 _sprites */
+  function syncFromSceneGraph() {
+    if (typeof SceneGraph === 'undefined') return;
+    const spriteNodes = SceneGraph.getSprites();
+
+    // 保留现有精灵的积木数据
+    const existingBlocks = {};
+    _sprites.forEach((s, i) => {
+      existingBlocks[s.name] = s.blocks || {};
+    });
+
+    _sprites = [];
+    spriteNodes.forEach((node, idx) => {
+      const p = node.properties;
+      const s = new Sprite(node.name, p.x || 0, p.y || 0);
+      s.direction = p.direction || 90;
+      s.size = p.size || 100;
+      s.visible = node.visible !== false;
+      s.rotationStyle = p.rotationStyle || 'allAround';
+      s.color = p.color || '#4C97FF';
+      s.costumeName = p.costumeName || '';
+      s.blocks = existingBlocks[node.name] || node.blocks || {};
+      // 存储节点ID关联
+      s._sceneNodeId = node.id;
+      if (p.costumeName && typeof CostumeManager !== 'undefined' && CostumeManager.hasCostume(p.costumeName)) {
+        s.setCostume(p.costumeName);
+      }
+      _sprites.push(s);
+      node.spriteRef = idx;
+    });
+
+    if (_activeIdx >= _sprites.length) _activeIdx = Math.max(0, _sprites.length - 1);
+    if (typeof EditorState !== 'undefined' && _sprites[_activeIdx]) {
+      EditorState.blocks = _sprites[_activeIdx].blocks || {};
+    }
+    renderSpriteList();
+  }
+
+  /** 将 _sprites 变更同步回 SceneGraph */
+  function syncToSceneGraph() {
+    if (typeof SceneGraph === 'undefined') return;
+    _sprites.forEach(sprite => {
+      if (!sprite._sceneNodeId) return;
+      const node = SceneGraph.getNode(sprite._sceneNodeId);
+      if (!node) return;
+      node.name = sprite.name;
+      node.visible = sprite.visible;
+      node.properties.x = sprite.x;
+      node.properties.y = sprite.y;
+      node.properties.direction = sprite.direction;
+      node.properties.size = sprite.size;
+      node.properties.color = sprite.color;
+      node.properties.rotationStyle = sprite.rotationStyle;
+      node.properties.costumeName = sprite.costumeName || '';
+      node.blocks = sprite.blocks || {};
+    });
+  }
+
+  /** 高级模式添加精灵（同时更新 SceneGraph） */
+  function addSpriteAdvanced(name, parentId) {
+    if (typeof SceneGraph === 'undefined') return addSprite(name);
+    const nodeId = SceneGraph.addNode('Sprite2D', name || '精灵', parentId);
+    if (!nodeId) return null;
+    syncFromSceneGraph();
+    return nodeId;
+  }
+
   return {
     init, getSprites, getSprite, getSpriteByName, getSpriteIndexByName,
     getActiveSprite, getActiveSpriteIdx, setActiveSprite,
@@ -472,6 +543,8 @@ const StageManager = (function () {
     orbitAround, clampToStage, wrapAround, goBack,
     getSpeed, getDistanceToPoint, getDirectionToPoint,
     getSpriteData, restoreSprites, getAllBlocks, getSpriteCount, setExecuting,
+    // SceneGraph 适配
+    syncFromSceneGraph, syncToSceneGraph, addSpriteAdvanced,
     STAGE_W, STAGE_H,
   };
 })();

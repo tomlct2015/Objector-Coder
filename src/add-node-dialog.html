@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>添加节点</title>
+  <style>
+    :root {
+      --bg-primary: #1e1e2e;
+      --bg-secondary: #181825;
+      --bg-surface: #313244;
+      --bg-hover: #45475a;
+      --text-primary: #cdd6f4;
+      --text-secondary: #a6adc8;
+      --text-muted: #6c7086;
+      --border: #45475a;
+      --accent: #89b4fa;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    /* 标题栏 */
+    .dialog-titlebar {
+      height: 32px;
+      background: var(--bg-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      -webkit-app-region: drag;
+    }
+    .dialog-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      padding-left: 12px;
+    }
+    .dialog-close {
+      width: 46px;
+      height: 32px;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 14px;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
+    }
+    .dialog-close:hover { background: #f38ba8; color: #fff; }
+    /* 搜索框 */
+    .search-wrap {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .search-input {
+      width: 100%;
+      padding: 8px 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 13px;
+      outline: none;
+    }
+    .search-input:focus { border-color: var(--accent); }
+    .search-input::placeholder { color: var(--text-muted); }
+    /* 节点类型网格 */
+    .type-grid {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 8px;
+      align-content: start;
+    }
+    .type-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 14px 8px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .type-card:hover {
+      border-color: var(--accent);
+      background: var(--bg-hover);
+      transform: translateY(-1px);
+    }
+    .type-card-icon { font-size: 28px; }
+    .type-card-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .type-card-desc { font-size: 10px; color: var(--text-muted); line-height: 1.3; }
+    .type-empty {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: var(--text-muted);
+      padding: 40px 0;
+      font-size: 13px;
+    }
+    /* 底部提示 */
+    .dialog-footer {
+      padding: 8px 16px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="dialog-titlebar">
+    <span class="dialog-title">🧩 添加节点</span>
+    <button class="dialog-close" id="btn-close">&times;</button>
+  </div>
+  <div class="search-wrap">
+    <input type="text" class="search-input" id="search" placeholder="搜索节点类型..." autofocus />
+  </div>
+  <div class="type-grid" id="grid"></div>
+  <div class="dialog-footer">点击选择节点类型 · Esc 取消</div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+    let _allTypes = [];
+
+    // 接收主进程传来的节点类型数据
+    ipcRenderer.on('add-node-types', (_e, types) => {
+      _allTypes = types || [];
+      renderGrid('');
+    });
+
+    // 搜索过滤
+    document.getElementById('search').addEventListener('input', (e) => {
+      renderGrid(e.target.value);
+    });
+
+    // 关闭按钮
+    document.getElementById('btn-close').addEventListener('click', () => {
+      ipcRenderer.send('add-node-cancel');
+      window.close();
+    });
+
+    // Esc 关闭
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        ipcRenderer.send('add-node-cancel');
+        window.close();
+      }
+      // Enter 选择第一个
+      if (e.key === 'Enter') {
+        const firstCard = document.querySelector('.type-card');
+        if (firstCard) firstCard.click();
+      }
+    });
+
+    function renderGrid(filter) {
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+
+      const lower = (filter || '').toLowerCase();
+      const filtered = _allTypes.filter(t => {
+        if (!lower) return true;
+        return t.type.toLowerCase().includes(lower) ||
+               (t.desc || '').toLowerCase().includes(lower);
+      });
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '<div class="type-empty">没有匹配的节点类型</div>';
+        return;
+      }
+
+      filtered.forEach(t => {
+        const card = document.createElement('div');
+        card.className = 'type-card';
+        card.innerHTML = `
+          <div class="type-card-icon">${t.icon || '❓'}</div>
+          <div class="type-card-name">${t.type}</div>
+          <div class="type-card-desc">${t.desc || ''}</div>
+        `;
+        card.addEventListener('click', () => {
+          ipcRenderer.send('add-node-select', t.type);
+          window.close();
+        });
+        // 双击直接选择
+        card.addEventListener('dblclick', () => {
+          ipcRenderer.send('add-node-select', t.type);
+          window.close();
+        });
+        grid.appendChild(card);
+      });
+    }
+
+    // 自动聚焦搜索框
+    setTimeout(() => document.getElementById('search').focus(), 100);
+  </script>
+</body>
+</html>

@@ -17,9 +17,13 @@ const Executor = (function () {
   let _spriteClickHandler = null;  // 精灵点击事件处理器
   let _savedBlocks = null;  // 保存编辑器状态的积木（运行时用全部精灵积木替换）
   let _blockSpriteIdx = {};  // blockId → spriteIdx 映射（并发执行时恢复精灵上下文）
+  let _postStartCallback = null;  // event_start 完成后调用的回调（用于执行 JS 脚本）
 
   function getOutput() { return _output; }
   function clearOutput() { _output = []; }
+
+  /** 注册 event_start 完成后的回调（高级模式 JS 脚本在此执行） */
+  function setPostStartCallback(cb) { _postStartCallback = cb; }
 
   function log(msg) {
     _output.push(String(msg));
@@ -161,6 +165,11 @@ const Executor = (function () {
       return executeChain(start, {});
     }));
 
+    // event_start 完成后，执行 JS 脚本回调（高级模式）
+    if (_postStartCallback && !_stopRequested) {
+      try { await _postStartCallback(); } catch (e) { log('JS 脚本错误: ' + e.message); }
+    }
+
     // 如果有按键事件/定时器/广播接收者/精灵点击，保持运行
     const hasPersistentEvents = keyBlocks.length > 0 || timerBlocks.length > 0 || receiveBlocks.length > 0 || spriteClickBlocks.length > 0;
     if (hasPersistentEvents && !_stopRequested) {
@@ -214,6 +223,35 @@ const Executor = (function () {
 
   function stop() {
     _stopRequested = true;
+  }
+
+  /** 强制停止（立即重置所有状态，即使积木链仍在执行） */
+  function forceStop() {
+    _stopRequested = true;
+    // 立即清理定时器
+    _timers.forEach(id => clearInterval(id));
+    _timers = [];
+    _broadcastListeners = [];
+    // 立即清理按键监听
+    if (_keyHandler) {
+      document.removeEventListener('keydown', _keyHandler);
+      if (_keyHandler._upHandler) document.removeEventListener('keyup', _keyHandler._upHandler);
+      _keyHandler = null;
+    }
+    // 立即清理精灵点击
+    if (_spriteClickHandler) {
+      const stageCanvas = document.getElementById('stage-canvas');
+      if (stageCanvas) stageCanvas.removeEventListener('click', _spriteClickHandler);
+      _spriteClickHandler = null;
+    }
+    _running = false;
+    if (typeof EditorState !== 'undefined') EditorState.running = false;
+    if (typeof StageManager !== 'undefined' && StageManager.setExecuting) StageManager.setExecuting(false);
+    if (_savedBlocks) { EditorState.blocks = _savedBlocks; _savedBlocks = null; }
+    document.getElementById('btn-run').disabled = false;
+    document.getElementById('btn-stop').disabled = true;
+    document.getElementById('status-text').textContent = '已强制停止';
+    console.log('[Executor] 强制停止完成');
   }
 
   /** 执行积木链 */
@@ -1425,7 +1463,7 @@ const Executor = (function () {
     if (subTop) return await executeChain(subTop, scope || {});
   }
 
-  return { run, stop, getOutput, clearOutput, _getGlobalVars, runBlock: publicRunBlock, runSubBlock: publicRunSubBlock };
+  return { run, stop, forceStop, getOutput, clearOutput, setPostStartCallback, _getGlobalVars, runBlock: publicRunBlock, runSubBlock: publicRunSubBlock };
 })();
 
 /**

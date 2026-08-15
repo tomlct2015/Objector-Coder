@@ -21,6 +21,8 @@ i18n.load('en', {
     desc: 'Select how you want to create',
     normal: 'Normal Mode',
     normalDesc: 'Build animations and games with blocks, focus on creativity',
+    advanced: 'Advanced Mode',
+    advancedDesc: 'Godot-style professional editor with blocks and code',
     extension: 'Extension Mode',
     extensionDesc: 'Create custom extension blocks to add new features to Objector',
     cancel: 'Cancel',

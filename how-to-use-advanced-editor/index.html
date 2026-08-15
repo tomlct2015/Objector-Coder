@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>高级编辑器使用指南 - ObjectScratch</title>
+  <style>
+    :root {
+      --bg: #0f0f17; --bg2: #181825; --bg3: #1e1e2e;
+      --surface: #313244; --hover: #45475a;
+      --text: #cdd6f4; --text2: #a6adc8; --muted: #6c7086;
+      --accent: #89b4fa; --green: #a6e3a1; --red: #f38ba8;
+      --yellow: #f9e2af; --peach: #fab387;
+      --border: #45475a;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      background: var(--bg); color: var(--text);
+      line-height: 1.7; padding: 0;
+    }
+    /* 顶部导航 */
+    .hero {
+      background: linear-gradient(135deg, #1e1e2e 0%, #181825 50%, #11111b 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 60px 40px 40px;
+      text-align: center;
+    }
+    .hero h1 { font-size: 2.2em; color: var(--accent); margin-bottom: 8px; }
+    .hero p { color: var(--text2); font-size: 1.1em; }
+    .badge {
+      display: inline-block; background: var(--surface); color: var(--accent);
+      border: 1px solid var(--accent); border-radius: 20px;
+      padding: 4px 14px; font-size: 0.8em; margin: 10px 4px 0;
+    }
+    /* 主内容 */
+    .container { max-width: 900px; margin: 0 auto; padding: 40px 24px; }
+    /* 目录 */
+    .toc {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 24px 28px; margin-bottom: 40px;
+    }
+    .toc h2 { color: var(--accent); font-size: 1.1em; margin-bottom: 12px; }
+    .toc ol { padding-left: 20px; }
+    .toc li { margin: 6px 0; }
+    .toc a { color: var(--text2); text-decoration: none; transition: color .15s; }
+    .toc a:hover { color: var(--accent); }
+    /* 章节 */
+    section { margin-bottom: 48px; }
+    h2 {
+      color: var(--accent); font-size: 1.6em;
+      border-bottom: 2px solid var(--accent); padding-bottom: 8px;
+      margin-bottom: 20px;
+    }
+    h3 { color: var(--peach); font-size: 1.2em; margin: 24px 0 12px; }
+    p, li { color: var(--text2); margin-bottom: 10px; }
+    strong { color: var(--text); }
+    /* 代码块 */
+    pre {
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 8px; padding: 16px 20px; overflow-x: auto;
+      margin: 12px 0 16px; font-size: 0.88em; line-height: 1.6;
+    }
+    code {
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      color: var(--text);
+    }
+    :not(pre) > code {
+      background: var(--surface); padding: 2px 7px; border-radius: 4px;
+      font-size: 0.88em; color: var(--peach);
+    }
+    /* 表格 */
+    table {
+      width: 100%; border-collapse: collapse; margin: 16px 0;
+      font-size: 0.9em;
+    }
+    th {
+      background: var(--surface); color: var(--accent); text-align: left;
+      padding: 10px 14px; border: 1px solid var(--border);
+    }
+    td {
+      padding: 8px 14px; border: 1px solid var(--border); color: var(--text2);
+    }
+    tr:nth-child(even) td { background: rgba(49,50,68,0.3); }
+    /* 提示框 */
+    .tip {
+      background: rgba(137,180,250,0.08); border-left: 4px solid var(--accent);
+      padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 16px 0;
+    }
+    .tip strong { color: var(--accent); }
+    .warn {
+      background: rgba(249,226,175,0.08); border-left: 4px solid var(--yellow);
+      padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 16px 0;
+    }
+    .warn strong { color: var(--yellow); }
+    /* 分类标签 */
+    .cat {
+      display: inline-block; background: var(--surface);
+      color: var(--green); border-radius: 4px;
+      padding: 2px 8px; font-size: 0.75em; margin-right: 6px;
+    }
+    /* 底部 */
+    footer {
+      text-align: center; padding: 30px; color: var(--muted);
+      border-top: 1px solid var(--border); font-size: 0.85em;
+    }
+    /* 响应式 */
+    @media (max-width: 700px) {
+      .hero { padding: 40px 20px 30px; }
+      .hero h1 { font-size: 1.6em; }
+      .container { padding: 24px 16px; }
+      pre { padding: 12px 14px; font-size: 0.82em; }
+    }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <h1>🎮 高级编辑器使用指南</h1>
+    <p>ObjectScratch Godot 式编辑器 · 图形化与 JavaScript 双模编程</p>
+    <span class="badge">v1.0.16+</span>
+    <span class="badge">高级模式</span>
+  </div>
+
+  <div class="container">
+
+    <!-- 目录 -->
+    <nav class="toc">
+      <h2>📑 目录</h2>
+      <ol>
+        <li><a href="#intro">高级模式简介</a></li>
+        <li><a href="#layout">界面布局</a></li>
+        <li><a href="#blocks-mode">积木编程模式</a></li>
+        <li><a href="#js-mode">JavaScript 编程模式</a></li>
+        <li><a href="#js-api">JS API 完整参考</a></li>
+        <li><a href="#examples">实用示例代码</a></li>
+        <li><a href="#tips">技巧与常见问题</a></li>
+      </ol>
+    </nav>
+
+    <!-- 1. 简介 -->
+    <section id="intro">
+      <h2>1. 高级模式简介</h2>
+      <p>高级模式是 ObjectScratch 的 <strong>Godot 风格游戏开发界面</strong>，提供：</p>
+      <ul>
+        <li><strong>场景树</strong> — 层级化管理游戏对象（Sprite2D、Camera2D 等）</li>
+        <li><strong>文件系统</strong> — 真实文件目录，管理贴图、脚本、场景文件</li>
+        <li><strong>属性检查器</strong> — 实时编辑节点属性</li>
+        <li><strong>双模脚本编辑器</strong> — 积木（图形化）或 JavaScript 代码，随时切换</li>
+        <li><strong>全屏编辑器</strong> — 按 <code>F11</code> 进入全屏编程</li>
+        <li><strong>独立 JS 窗口</strong> — 点击 <code>⧉</code> 在新窗口中编写代码</li>
+      </ul>
+      <div class="tip">
+        <strong>如何进入高级模式？</strong> 在主页创建/打开项目时选择「高级模式」即可。
+      </div>
+    </section>
+
+    <!-- 2. 界面布局 -->
+    <section id="layout">
+      <h2>2. 界面布局</h2>
+      <pre>
+┌─────────────────────────────────────────────────────────┐
+│  文件 │ 运行 │ 工具          ← 菜单栏（类似 File 菜单）│
+├────────┬──────────────────────────┬──────────────────────┤
+│        │                          │                      │
+│ 场景树 │      视口（舞台）        │    属性检查器        │
+│        │                          │                      │
+│────────┤──────────────────────────│                      │
+│        │ 积木 │ JS代码  ⛶  ⧉   │                      │
+│文件系统│──────────────────────────│                      │
+│        │  积木面板 │  编辑画布   │                      │
+│        │ (或 JS 代码编辑器)       │                      │
+└────────┴──────────────────────────┴──────────────────────┘
+      </pre>
+      <h3>快捷键</h3>
+      <table>
+        <tr><th>快捷键</th><th>功能</th></tr>
+        <tr><td><code>F5</code></td><td>运行程序</td></tr>
+        <tr><td><code>Shift+F5</code></td><td>停止程序</td></tr>
+        <tr><td><code>Ctrl+Shift+Q</code></td><td>强制停止</td></tr>
+        <tr><td><code>F11</code></td><td>切换编辑器全屏</td></tr>
+        <tr><td><code>Esc</code></td><td>退出全屏</td></tr>
+        <tr><td><code>Ctrl+S</code></td><td>保存项目 / JS 窗口保存关闭</td></tr>
+        <tr><td><code>Ctrl+Shift+S</code></td><td>JS 窗口应用代码（保持打开）</td></tr>
+      </table>
+    </section>
+
+    <!-- 3. 积木模式 -->
+    <section id="blocks-mode">
+      <h2>3. 积木编程模式</h2>
+      <p>积木模式与基础编辑器完全一致，支持所有积木类别：</p>
+      <table>
+        <tr><th>类别</th><th>说明</th></tr>
+        <tr><td>🟦 运动</td><td>移动、转向、定位、速度、物理运动</td></tr>
+        <tr><td>🟪 外观</td><td>说话、思考、造型、大小、颜色特效</td></tr>
+        <tr><td>🟧 声音</td><td>播放声音、音量控制</td></tr>
+        <tr><td>🟨 事件</td><td>绿旗开始、按键、广播、定时器</td></tr>
+        <tr><td>🟫 控制</td><td>条件、循环、等待、克隆、函数</td></tr>
+        <tr><td>🟩 侦测</td><td>碰撞、鼠标、键盘、距离</td></tr>
+        <tr><td>🟢 运算</td><td>数学、字符串、逻辑、随机</td></tr>
+        <tr><td>🔵 变量</td><td>变量读写、列表操作</td></tr>
+        <tr><td>🔴 3D</td><td>3D 对象创建、摄像机、材质（3D 模式）</td></tr>
+      </table>
+      <div class="tip">
+        <strong>提示：</strong> 全屏模式下（F11），左侧积木栏仍然可见，可以直接拖拽积木到编辑区。
+      </div>
+    </section>
+
+    <!-- 4. JS 模式 -->
+    <section id="js-mode">
+      <h2>4. JavaScript 编程模式</h2>
+      <p>切换到「JS 代码」标签即可使用 JavaScript 编程。代码在每个 <strong>Sprite2D 节点</strong>上独立运行。</p>
+
+      <h3>可用变量与全局函数</h3>
+      <p>在 JS 代码中，以下变量和函数可直接使用：</p>
+      <table>
+        <tr><th>名称</th><th>说明</th></tr>
+        <tr><td><code>sprite</code></td><td>当前精灵的 API 代理对象（见下方完整 API）</td></tr>
+        <tr><td><code>stage</code></td><td>全局舞台 API 对象（鼠标、舞台尺寸等）</td></tr>
+        <tr><td><code>globalVars</code></td><td>全局变量对象，所有精灵共享</td></tr>
+        <tr><td><code>log(msg)</code></td><td>输出到输出面板</td></tr>
+        <tr><td><code>say(text)</code></td><td>说话（等同 <code>sprite.say(text)</code>）</td></tr>
+        <tr><td><code>sayFor(text, sec)</code></td><td>说话 N 秒后消失</td></tr>
+        <tr><td><code>think(text)</code></td><td>思考气泡</td></tr>
+        <tr><td><code>move(steps)</code></td><td>前进 N 步</td></tr>
+        <tr><td><code>turnRight(deg)</code></td><td>右转 N 度</td></tr>
+        <tr><td><code>turnLeft(deg)</code></td><td>左转 N 度</td></tr>
+        <tr><td><code>show()</code></td><td>显示精灵</td></tr>
+        <tr><td><code>hide()</code></td><td>隐藏精灵</td></tr>
+        <tr><td><code>setSize(sz)</code></td><td>设置大小</td></tr>
+        <tr><td><code>changeSize(n)</code></td><td>改变大小</td></tr>
+      </table>
+
+      <div class="tip">
+        <strong>运行时机：</strong> JS 代码在积木的 <code>event_start</code>（绿旗）执行完毕后自动运行。如果没有绿旗积木，JS 代码在点击运行按钮后立即执行。
+      </div>
+
+      <h3>独立 JS 编辑窗口</h3>
+      <p>点击脚本标签栏的 <code>⧉</code> 按钮，可以打开独立的 JS 代码编辑窗口，支持：</p>
+      <ul>
+        <li>完整的代码高亮、自动括号匹配、代码折叠</li>
+        <li>窗口可自由移动、最大化、全屏（F11）</li>
+        <li><code>Ctrl+S</code> 保存并关闭 / <code>Ctrl+Shift+S</code> 应用代码保持窗口打开</li>
+        <li>代码实时同步到主编辑器</li>
+      </ul>
+    </section>
+
+    <!-- 5. JS API -->
+    <section id="js-api">
+      <h2>5. JS API 完整参考</h2>
+
+      <h3>5.1 精灵属性（sprite.xxx）</h3>
+      <p>所有属性支持读写，修改后自动反映到舞台上：</p>
+      <table>
+        <tr><th>属性</th><th>类型</th><th>说明</th></tr>
+        <tr><td><code>sprite.name</code></td><td>string</td><td>精灵名称</td></tr>
+        <tr><td><code>sprite.x</code></td><td>number</td><td>X 坐标（-240 ~ 240）</td></tr>
+        <tr><td><code>sprite.y</code></td><td>number</td><td>Y 坐标（-180 ~ 180）</td></tr>
+        <tr><td><code>sprite.direction</code></td><td>number</td><td>朝向角度（0~360，90=朝上）</td></tr>
+        <tr><td><code>sprite.size</code></td><td>number</td><td>大小百分比（默认 100）</td></tr>
+        <tr><td><code>sprite.visible</code></td><td>boolean</td><td>是否可见</td></tr>
+        <tr><td><code>sprite.color</code></td><td>string</td><td>颜色值（如 '#ff0000'）</td></tr>
+        <tr><td><code>sprite.sayText</code></td><td>string</td><td>说话文字（直接设置即可）</td></tr>
+        <tr><td><code>sprite.vx</code></td><td>number</td><td>X 速度</td></tr>
+        <tr><td><code>sprite.vy</code></td><td>number</td><td>Y 速度</td></tr>
+        <tr><td><code>sprite.rotationStyle</code></td><td>string</td><td>'allAround' | 'leftRight' | 'noRotate'</td></tr>
+      </table>
+
+      <h3>5.2 外观方法</h3>
+      <table>
+        <tr><th>方法</th><th>说明</th><th>对应积木</th></tr>
+        <tr><td><code>sprite.say(text)</code></td><td>显示说话气泡</td><td>说 {text}</td></tr>
+        <tr><td><code>sprite.sayFor(text, sec)</code></td><td>说话 N 秒后消失</td><td>说 {text} {sec} 秒</td></tr>
+        <tr><td><code>sprite.think(text)</code></td><td>显示思考气泡 💭</td><td>思考 {text}</td></tr>
+        <tr><td><code>sprite.clearSay()</code></td><td>清除说话气泡</td><td>说 ""</td></tr>
+        <tr><td><code>sprite.show()</code></td><td>显示精灵</td><td>显示</td></tr>
+        <tr><td><code>sprite.hide()</code></td><td>隐藏精灵</td><td>隐藏</td></tr>
+        <tr><td><code>sprite.setSize(sz)</code></td><td>设置大小为 sz%</td><td>将大小设为 {sz}%</td></tr>
+        <tr><td><code>sprite.changeSize(n)</code></td><td>大小改变 n</td><td>将大小增加 {n}</td></tr>
+        <tr><td><code>sprite.nextCostume()</code></td><td>切换到下一个造型</td><td>下一个造型</td></tr>
+        <tr><td><code>sprite.setCostume(name)</code></td><td>切换到指定造型</td><td>切换造型为 {name}</td></tr>
+        <tr><td><code>sprite.setColor(val)</code></td><td>设置颜色特效</td><td>将颜色特效设为 {val}</td></tr>
+        <tr><td><code>sprite.clearEffects()</code></td><td>清除所有特效</td><td>清除图形特效</td></tr>
+      </table>
+
+      <h3>5.3 运动方法</h3>
+      <table>
+        <tr><th>方法</th><th>说明</th><th>对应积木</th></tr>
+        <tr><td><code>sprite.move(steps)</code></td><td>沿朝向移动 N 步</td><td>移动 {steps} 步</td></tr>
+        <tr><td><code>sprite.turnRight(deg)</code></td><td>右转 N 度</td><td>右转 {deg} 度</td></tr>
+        <tr><td><code>sprite.turnLeft(deg)</code></td><td>左转 N 度</td><td>左转 {deg} 度</td></tr>
+        <tr><td><code>sprite.pointInDirection(deg)</code></td><td>面向指定方向</td><td>面向 {deg} 度</td></tr>
+        <tr><td><code>sprite.goTo(x, y)</code></td><td>移到坐标 (x, y)</td><td>移到 x:{x} y:{y}</td></tr>
+        <tr><td><code>sprite.bounce()</code></td><td>碰到边缘反弹</td><td>碰到边缘就反弹</td></tr>
+        <tr><td><code>sprite.clampToStage()</code></td><td>限制在舞台内</td><td>限制在舞台内</td></tr>
+        <tr><td><code>sprite.wrapAround()</code></td><td>超出舞台从另一侧进入</td><td>超出舞台从另一侧进入</td></tr>
+        <tr><td><code>sprite.goToRandomPosition()</code></td><td>随机位置</td><td>随机移动</td></tr>
+      </table>
+
+      <h3>5.4 高级运动（物理 / 速度系统）</h3>
+      <table>
+        <tr><th>方法</th><th>说明</th></tr>
+        <tr><td><code>sprite.setVelocity(vx, vy)</code></td><td>设置速度向量</td></tr>
+        <tr><td><code>sprite.changeVelocity(dvx, dvy)</code></td><td>改变速度</td></tr>
+        <tr><td><code>sprite.updateVelocity()</code></td><td>根据速度更新位置</td></tr>
+        <tr><td><code>sprite.applyGravity(g)</code></td><td>施加重力（加到 vy）</td></tr>
+        <tr><td><code>sprite.applyFriction(f)</code></td><td>施加摩擦力（速度乘以 f）</td></tr>
+        <tr><td><code>sprite.bounceEdgeVelocity()</code></td><td>碰边反弹速度</td></tr>
+        <tr><td><code>sprite.pointTowards(tx, ty)</code></td><td>面向目标坐标</td></tr>
+        <tr><td><code>sprite.moveTowards(tx, ty, steps)</code></td><td>向目标移动 N 步</td></tr>
+      </table>
+
+      <h3>5.5 侦测方法</h3>
+      <table>
+        <tr><th>方法</th><th>返回值</th><th>说明</th></tr>
+        <tr><td><code>sprite.isTouchingEdge()</code></td><td>boolean</td><td>是否碰到边缘</td></tr>
+        <tr><td><code>sprite.isTouchingSprite(name)</code></td><td>boolean</td><td>是否碰到指定精灵</td></tr>
+        <tr><td><code>sprite.distanceTo(name)</code></td><td>number</td><td>到指定精灵的距离</td></tr>
+        <tr><td><code>sprite.directionTo(name)</code></td><td>number</td><td>到指定精灵的方向</td></tr>
+        <tr><td><code>sprite.distanceToMouse()</code></td><td>number</td><td>到鼠标的距离</td></tr>
+        <tr><td><code>sprite.directionToMouse()</code></td><td>number</td><td>到鼠标的方向</td></tr>
+      </table>
+
+      <h3>5.6 克隆</h3>
+      <table>
+        <tr><th>方法</th><th>说明</th></tr>
+        <tr><td><code>sprite.clone()</code></td><td>克隆当前精灵（返回新精灵索引）</td></tr>
+      </table>
+
+      <h3>5.7 全局 stage 对象</h3>
+      <table>
+        <tr><th>属性/方法</th><th>说明</th></tr>
+        <tr><td><code>stage.stageWidth</code></td><td>舞台宽度（480）</td></tr>
+        <tr><td><code>stage.stageHeight</code></td><td>舞台高度（360）</td></tr>
+        <tr><td><code>stage.mouseX</code></td><td>鼠标 X 坐标</td></tr>
+        <tr><td><code>stage.mouseY</code></td><td>鼠标 Y 坐标</td></tr>
+        <tr><td><code>stage.isMouseDown()</code></td><td>鼠标是否按下</td></tr>
+        <tr><td><code>stage.isKeyPressed(key)</code></td><td>按键是否按下（如 'space', 'a'）</td></tr>
+        <tr><td><code>stage.getSprites()</code></td><td>获取所有精灵数组</td></tr>
+        <tr><td><code>stage.getSpriteByName(name)</code></td><td>按名称获取精灵</td></tr>
+        <tr><td><code>stage.getSpriteCount()</code></td><td>精灵总数</td></tr>
+        <tr><td><code>stage.setActiveSprite(idx)</code></td><td>设置当前活动精灵</td></tr>
+        <tr><td><code>stage.getVolume()</code></td><td>获取当前音量</td></tr>
+        <tr><td><code>stage.setVolume(v)</code></td><td>设置音量</td></tr>
+        <tr><td><code>stage.random(a, b)</code></td><td>随机整数 [a, b]</td></tr>
+        <tr><td><code>stage.randomFloat()</code></td><td>随机浮点数 [0, 1)</td></tr>
+        <tr><td><code>stage.randomRange(a, b)</code></td><td>随机浮点数 [a, b)</td></tr>
+        <tr><td><code>stage.now()</code></td><td>当前 Date 对象</td></tr>
+        <tr><td><code>stage.timer()</code></td><td>当前时间戳（秒）</td></tr>
+      </table>
+    </section>
+
+    <!-- 6. 示例 -->
+    <section id="examples">
+      <h2>6. 实用示例代码</h2>
+
+      <h3>6.1 基础移动 + 说话</h3>
+      <pre><code>// 精灵向前走 50 步，然后说话
+move(50);
+say("我走了 50 步！");
+log("当前位置: " + sprite.x + ", " + sprite.y);</code></pre>
+
+      <h3>6.2 键盘控制移动</h3>
+      <pre><code>// 通过直接读取属性实现方向控制
+if (stage.isKeyPressed('ArrowRight')) {
+  sprite.x += 5;
+  sprite.pointInDirection(90);
+}
+if (stage.isKeyPressed('ArrowLeft')) {
+  sprite.x -= 5;
+  sprite.pointInDirection(-90);
+}
+if (stage.isKeyPressed('ArrowUp')) {
+  sprite.y += 5;
+  sprite.pointInDirection(0);
+}
+if (stage.isKeyPressed('ArrowDown')) {
+  sprite.y -= 5;
+  sprite.pointInDirection(180);
+}</code></pre>
+
+      <h3>6.3 跟随鼠标</h3>
+      <pre><code>// 面向鼠标并移动
+sprite.pointTowards(stage.mouseX, stage.mouseY);
+sprite.moveTowards(stage.mouseX, stage.mouseY, 5);</code></pre>
+
+      <h3>6.4 简单物理：重力 + 弹跳</h3>
+      <pre><code>// 设置初始速度（向上抛）
+sprite.setVelocity(0, 8);
+
+// 每帧更新
+sprite.applyGravity(-0.5);   // 重力向下
+sprite.updateVelocity();     // 更新位置
+
+// 碰到地面弹跳
+if (sprite.y &lt; -170) {
+  sprite.y = -170;
+  sprite.vy = Math.abs(sprite.vy) * 0.7; // 反弹，损失 30% 能量
+  sprite.applyFriction(0.98);
+}</code></pre>
+
+      <h3>6.5 精灵碰撞检测</h3>
+      <pre><code>// 检测是否碰到另一个精灵
+if (sprite.isTouchingSprite("敌人")) {
+  sprite.say("被碰到了！");
+  sprite.hide();
+  log("游戏结束！");
+}</code></pre>
+
+      <h3>6.6 使用全局变量计分</h3>
+      <pre><code>// 精灵 A：初始化分数
+globalVars.score = 0;
+sprite.say("按空格键得分！");</code></pre>
+      <pre><code>// 精灵 B：在另一个节点上检测加分
+if (stage.isKeyPressed('space')) {
+  globalVars.score += 1;
+  sprite.sayFor("得分: " + globalVars.score, 1);
+}</code></pre>
+
+      <h3>6.7 造型切换动画</h3>
+      <pre><code>// 循环切换造型（需要已上传多个造型）
+sprite.nextCostume();
+// 或者指定名称
+sprite.setCostume("walk2");</code></pre>
+
+      <h3>6.8 随机出现 + 克隆</h3>
+      <pre><code>// 随机移动到舞台某处
+sprite.goToRandomPosition();
+sprite.say("我在这！");
+
+// 克隆一个分身
+const cloneIdx = sprite.clone();
+log("克隆体索引: " + cloneIdx);</code></pre>
+    </section>
+
+    <!-- 7. 技巧 -->
+    <section id="tips">
+      <h2>7. 技巧与常见问题</h2>
+
+      <h3>积木和 JS 可以混用吗？</h3>
+      <p><strong>可以！</strong>积木代码（event_start 积木）会先执行，然后 JS 代码再执行。你可以在积木中搭建场景和初始化，在 JS 中编写复杂逻辑。</p>
+
+      <h3>JS 代码什么时候运行？</h3>
+      <p>点击运行按钮后：</p>
+      <ol>
+        <li>所有 <code>event_start</code>（绿旗）积木先执行</li>
+        <li>每个精灵的 JS 代码按顺序执行</li>
+        <li>如果有按键/定时器积木，进入事件循环等待</li>
+      </ol>
+
+      <h3>多个精灵的 JS 代码会互相干扰吗？</h3>
+      <p>每个精灵的 <code>sprite</code> 变量指向自己，不会干扰。但 <code>globalVars</code> 是共享的，可以用来在精灵之间传递数据。</p>
+
+      <h3>如何让代码每帧重复执行？</h3>
+      <p>目前 JS 代码是单次执行的。要实现每帧循环，可以：</p>
+      <ul>
+        <li>在积木中添加一个「重复执行」积木，在 JS 中使用 <code>setInterval</code></li>
+        <li>或者使用 <code>sprite.updateVelocity()</code> 配合速度系统</li>
+      </ul>
+      <pre><code>// 每 30ms 更新一次位置（约 33fps）
+setInterval(() => {
+  sprite.applyGravity(-0.3);
+  sprite.updateVelocity();
+  if (sprite.y &lt; -170) { sprite.y = -170; sprite.vy *= -0.8; }
+}, 30);</code></pre>
+
+      <div class="warn">
+        <strong>注意：</strong> <code>sprite</code> 对象是一个代理，修改属性会立即反映到精灵上。不要将 <code>sprite</code> 赋给其他变量后修改副本——副本不会同步到舞台。始终直接操作 <code>sprite.x</code>、<code>sprite.y</code> 等属性。
+      </div>
+
+      <h3>支持 ES6+ 语法吗？</h3>
+      <p><strong>支持！</strong> 可以使用箭头函数、模板字符串、解构、async/await 等所有现代 JS 特性。</p>
+    </section>
+
+  </div>
+
+  <footer>
+    ObjectScratch · 高级编辑器使用指南 · 由社区维护
+  </footer>
+</body>
+</html>

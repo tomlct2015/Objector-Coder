@@ -1,7 +1,7 @@
 /**
  * 编辑器窗口入口 - 初始化编辑器模块，绑定 UI 事件
  */
-(function () {
+window.EditorApp = (function () {
   /**
    * Mobile detection and landscape orientation handling
    */
@@ -879,6 +879,259 @@
     });
   }
 
+  // ============================================================
+  // 高级模式 (Godot-style) 初始化
+  // ============================================================
+  let _codeMirrorInstance = null;
+  let _spriteScripts = {}; // index -> JS code
+  let _advancedInitialized = false;
+
+  function initAdvancedMode() {
+    if (_advancedInitialized) return;
+    _advancedInitialized = true;
+
+    const mainLayout = document.getElementById('main-layout');
+    const advancedLayout = document.getElementById('advanced-layout');
+    if (!mainLayout || !advancedLayout) return;
+
+    // 切换布局
+    mainLayout.classList.add('hidden');
+    advancedLayout.classList.remove('hidden');
+
+    // 移动画布到高级布局
+    const stageCanvas = document.getElementById('stage-canvas');
+    const editorCanvas = document.getElementById('editor-canvas');
+    const viewport = document.getElementById('viewport');
+    const blocksContent = document.getElementById('script-blocks-content');
+    const palettePanel = document.getElementById('palette-panel');
+    const editorPanel = document.getElementById('editor-panel');
+
+    if (stageCanvas && viewport) viewport.appendChild(stageCanvas);
+    // 将积木面板和编辑器面板移入脚本区域
+    if (palettePanel && blocksContent) blocksContent.appendChild(palettePanel);
+    if (editorPanel && blocksContent) blocksContent.appendChild(editorPanel);
+
+    // 初始化 SceneGraph（场景图核心）
+    const renderMode = (typeof EditorState !== 'undefined' && EditorState.renderMode) || '2d';
+    if (typeof SceneGraph !== 'undefined') {
+      SceneGraph.init(renderMode);
+      // 同步到 StageManager
+      if (typeof StageManager !== 'undefined') {
+        StageManager.syncFromSceneGraph();
+      }
+    }
+
+    // 初始化场景树、检查器和文件系统
+    if (typeof SceneTree !== 'undefined') SceneTree.init();
+    if (typeof Inspector !== 'undefined') Inspector.init();
+    if (typeof FileSystemDock !== 'undefined') FileSystemDock.init();
+
+    // 初始化 CodeMirror
+    const jsEditorEl = document.getElementById('js-editor');
+    if (jsEditorEl && typeof CodeMirror !== 'undefined') {
+      _codeMirrorInstance = CodeMirror(jsEditorEl, {
+        mode: 'javascript',
+        theme: 'material-darker',
+        lineNumbers: true,
+        tabSize: 2,
+        indentWithTabs: false,
+        matchBrackets: true,
+        autoCloseBrackets: true,
+        value: '// 在此编写 JavaScript 代码\n// 可用对象：sprite（当前角色）、globalVars（全局变量）\n// 示例：\n// sprite.x = 100;\n// sprite.say("Hello!");\n',
+      });
+      // 实时保存代码到 _spriteScripts
+      _codeMirrorInstance.on('change', () => {
+        const selIdx = (typeof SceneTree !== 'undefined') ? SceneTree.getSelectedIndex() : -1;
+        if (selIdx >= 0) {
+          _spriteScripts[selIdx] = _codeMirrorInstance.getValue();
+        }
+      });
+    }
+
+    // 脚本 tab 切换
+    const scriptTabs = document.querySelectorAll('.script-tab');
+    scriptTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        scriptTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const tabName = tab.dataset.tab;
+        document.getElementById('script-blocks-content').classList.toggle('hidden', tabName !== 'blocks');
+        document.getElementById('script-js-content').classList.toggle('hidden', tabName !== 'js');
+        if (tabName === 'js' && _codeMirrorInstance) {
+          _codeMirrorInstance.refresh();
+        }
+      });
+    });
+
+    // ⧉ 新窗口编辑代码
+    const popoutBtn = document.getElementById('btn-popout-js');
+    if (popoutBtn && window.api && window.api.openJsEditor) {
+      popoutBtn.addEventListener('click', () => {
+        // 获取当前选中精灵的脚本
+        const selIdx = (typeof SceneTree !== 'undefined') ? SceneTree.getSelectedIndex() : -1;
+        if (selIdx < 0) {
+          alert('请先在场景树中选择一个 Sprite2D 节点');
+          return;
+        }
+        const sprite = (typeof StageManager !== 'undefined') ? StageManager.getSprites()[selIdx] : null;
+        const name = sprite ? sprite.name : ('角色' + (selIdx + 1));
+        // 先保存当前编辑器内容
+        if (_codeMirrorInstance) {
+          EditorApp.setSpriteScript(selIdx, _codeMirrorInstance.getValue());
+        }
+        const code = _spriteScripts[selIdx] || '// 在此编写 JavaScript 代码\n';
+        window.api.openJsEditor({ spriteIdx: selIdx, name: name + '.js', code: code });
+      });
+
+      // 监听外部窗口保存的代码
+      window.api.onJsEditorCodeUpdated((spriteIdx, code) => {
+        _spriteScripts[spriteIdx] = code;
+        // 如果当前正在编辑这个角色，同步到内嵌编辑器
+        const selIdx = (typeof SceneTree !== 'undefined') ? SceneTree.getSelectedIndex() : -1;
+        if (selIdx === spriteIdx && _codeMirrorInstance) {
+          const cursor = _codeMirrorInstance.getCursor();
+          _codeMirrorInstance.setValue(code);
+          _codeMirrorInstance.setCursor(cursor);
+        }
+        document.getElementById('status-text').textContent = '已保存代码: 角色 ' + (spriteIdx + 1);
+        console.log('[JS Editor] 外部窗口保存代码，角色:', spriteIdx);
+      });
+    }
+
+    // ==================== 编辑器全屏功能 ====================
+    let _fsPanel = null;  // 当前全屏的面板
+    let _fsExitBtn = null;
+
+    function enterFullscreen(panel) {
+      if (_fsPanel) exitFullscreen();
+      panel.classList.add('panel-fullscreen');
+      // 保持 tab 栏可见，让用户自由切换积木/JS 模式
+      // 添加退出按钮
+      _fsExitBtn = document.createElement('button');
+      _fsExitBtn.className = 'fullscreen-exit';
+      _fsExitBtn.textContent = '✕ 退出全屏 (Esc)';
+      _fsExitBtn.addEventListener('click', exitFullscreen);
+      panel.appendChild(_fsExitBtn);
+      _fsPanel = panel;
+      // 刷新当前内容区域
+      _refreshContent();
+    }
+
+    function exitFullscreen() {
+      if (!_fsPanel) return;
+      _fsPanel.classList.remove('panel-fullscreen');
+      if (_fsExitBtn) { _fsExitBtn.remove(); _fsExitBtn = null; }
+      _fsPanel = null;
+      _refreshContent();
+    }
+
+    function _refreshContent() {
+      if (typeof EditorCanvas !== 'undefined' && EditorCanvas.resize) {
+        setTimeout(() => EditorCanvas.resize(), 50);
+      }
+      if (_codeMirrorInstance) setTimeout(() => _codeMirrorInstance.refresh(), 50);
+    }
+
+    // 单一全屏按钮
+    document.getElementById('btn-fs-editor')?.addEventListener('click', () => {
+      if (_fsPanel) {
+        exitFullscreen();
+      } else {
+        const panel = document.getElementById('script-editor-panel');
+        if (panel) enterFullscreen(panel);
+      }
+    });
+
+    // Esc 退出全屏 / F11 切换全屏
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && _fsPanel) {
+        e.preventDefault();
+        exitFullscreen();
+      }
+      if (e.key === 'F11') {
+        e.preventDefault();
+        const panel = document.getElementById('script-editor-panel');
+        if (_fsPanel) {
+          exitFullscreen();
+        } else if (panel) {
+          enterFullscreen(panel);
+        }
+      }
+    });
+
+    // 窗口 resize 时刷新内容
+    window.addEventListener('resize', () => {
+      if (_fsPanel) _refreshContent();
+    });
+
+    // 分割条拖拽调整高度
+    const divider = document.getElementById('center-divider');
+    const scriptPanel = document.getElementById('script-editor-panel');
+    if (divider && scriptPanel) {
+      let dragging = false;
+      divider.addEventListener('mousedown', (e) => {
+        dragging = true;
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        const center = document.getElementById('advanced-center');
+        if (!center) return;
+        const rect = center.getBoundingClientRect();
+        const newHeight = rect.bottom - e.clientY;
+        scriptPanel.style.height = Math.max(120, Math.min(newHeight, rect.height - 200)) + 'px';
+        if (_codeMirrorInstance) _codeMirrorInstance.refresh();
+      });
+      document.addEventListener('mouseup', () => { dragging = false; });
+    }
+
+    // 自动选中第一个节点
+    setTimeout(() => {
+      if (typeof SceneGraph !== 'undefined' && typeof Inspector !== 'undefined') {
+        const root = SceneGraph.getRoot();
+        if (root && root.children && root.children.length > 0) {
+          SceneTree.selectNode(root.children[0]);
+        } else if (root) {
+          Inspector.showNode(root.id);
+        }
+      }
+    }, 100);
+
+    // 注册 JS 脚本回调（在 event_start 积木执行完后、事件循环开始前执行）
+    if (typeof Executor !== 'undefined' && Executor.setPostStartCallback) {
+      Executor.setPostStartCallback(async () => {
+        await runAdvancedScripts();
+      });
+    }
+
+    console.log('[高级模式] Godot 式编辑器已初始化');
+  }
+
+  /** 获取当前精灵的 JS 脚本 */
+  function getSpriteScript(index) {
+    return _spriteScripts[index] || '';
+  }
+
+  /** 设置当前精灵的 JS 脚本 */
+  function setSpriteScript(index, code) {
+    _spriteScripts[index] = code;
+  }
+
+  /** 获取所有精灵脚本（用于保存） */
+  function getAllSpriteScripts() {
+    return { ..._spriteScripts };
+  }
+
+  /** 批量设置精灵脚本（用于加载） */
+  function setAllSpriteScripts(scripts) {
+    _spriteScripts = scripts || {};
+  }
+
+  /** 获取 CodeMirror 实例 */
+  function getJsEditor() {
+    return _codeMirrorInstance;
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     // 全局错误捕获（帮助定位问题）
     window.addEventListener('error', (e) => {
@@ -940,6 +1193,11 @@
     const projectPath = params.get('path');
     const projectMode = params.get('mode') || 'normal';
 
+    // 高级模式初始化
+    if (projectMode === 'advanced') {
+      initAdvancedMode();
+    }
+
     if (projectPath) {
       loadProject(projectPath, projectMode);
     }
@@ -950,29 +1208,95 @@
       loadProjectFromCommunity(previewId);
     }
 
-    // 工具栏事件
-    document.getElementById('btn-home').addEventListener('click', (e) => {
-      // Web 版：检查未保存状态后再导航
+    // ==================== 菜单栏交互 ====================
+    const _actionHome = () => {
       if (EditorState._isDirty) {
-        var msg = i18n.isEnglish()
-          ? 'You have unsaved changes. Leave anyway?'
-          : '您有未保存的更改，确定要离开吗？';
-        if (!confirm(msg)) { e.preventDefault(); return; }
+        const msg = i18n.isEnglish() ? 'You have unsaved changes. Leave anyway?' : '您有未保存的更改，确定要离开吗？';
+        if (!confirm(msg)) return;
       }
-      EditorState._isDirty = false; // 用户确认离开，清除标记
+      EditorState._isDirty = false;
       window.location.href = 'index.html';
-    });
-    document.getElementById('btn-save').addEventListener('click', async () => {
+    };
+    const _actionSave = async () => {
       await ProjectManager.saveProject();
       EditorState._isDirty = false;
       EditorState._blocksSnapshot = JSON.stringify(EditorState.blocks);
-    });
+    };
 
-    // 保存到本地（ZIP）
-    document.getElementById('btn-save-local')?.addEventListener('click', saveProjectToLocal);
+    const _actionRun = async () => {
+      Executor.clearOutput();
+      document.getElementById('output-log').textContent = '';
+      // JS 脚本已通过 Executor.setPostStartCallback 注册，
+      // 会在 event_start 积木完成后、事件循环开始前自动执行
+      await Executor.run();
+    };
+    const _actionStop = () => {
+      Executor.stop();
+      SoundManager.stopAll();
+    };
+    const _actionForceStop = () => {
+      Executor.forceStop();
+      SoundManager.stopAll();
+    };
+    const _actionExportHtml = async () => {
+      try {
+        if (typeof HtmlExporter === 'undefined') { alert('HtmlExporter 未加载！'); return; }
+        await HtmlExporter.exportProject();
+      } catch(e) { alert('导出失败: ' + e.message); }
+    };
 
-    // 发布到社区
-    document.getElementById('btn-publish-community')?.addEventListener('click', publishToCommunity);
+    const menuActions = {
+      'home': _actionHome,
+      'save': _actionSave,
+      'save-local': () => saveProjectToLocal(),
+      'export-html': _actionExportHtml,
+      'publish': () => publishToCommunity(),
+      'run': _actionRun,
+      'stop': _actionStop,
+      'force-stop': _actionForceStop,
+      'load-ext': () => loadExtensionDialog(),
+      'ext-docs': () => window.api && window.api.openExtensionDocs(),
+      'view-code': () => showAllCodeDialog(),
+      'blocks-guide': () => window.open('https://tomlct2015.github.io/Objector-Coder/blocks-guide/', '_blank'),
+    };
+
+    // 菜单栏下拉交互
+    const menubar = document.getElementById('menubar');
+    if (menubar) {
+      let openMenu = null;
+      const closeAllMenus = () => {
+        menubar.querySelectorAll('.menu-item.open').forEach(m => m.classList.remove('open'));
+        openMenu = null;
+      };
+      menubar.querySelectorAll('.menu-item').forEach(mi => {
+        mi.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const wasOpen = mi.classList.contains('open');
+          closeAllMenus();
+          if (!wasOpen) { mi.classList.add('open'); openMenu = mi; }
+        });
+        mi.addEventListener('mouseenter', () => {
+          if (openMenu && openMenu !== mi) {
+            closeAllMenus();
+            mi.classList.add('open');
+            openMenu = mi;
+          }
+        });
+      });
+      document.addEventListener('click', closeAllMenus);
+      menubar.querySelectorAll('.menu-dropdown-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const action = item.dataset.action;
+          closeAllMenus();
+          if (action && menuActions[action]) menuActions[action]();
+        });
+      });
+    }
+
+    // 工具栏运行/停止按钮
+    document.getElementById('btn-run')?.addEventListener('click', _actionRun);
+    document.getElementById('btn-stop')?.addEventListener('click', _actionStop);
 
     // 社区用户信息显示
     const communityUserInfo = document.getElementById('community-user-info');
@@ -995,46 +1319,9 @@
       CommunityAPI.restoreSession().then(() => refreshCommunityUI());
     }
 
-    // 项目重命名：点击项目名或重命名按钮
+    // 项目重命名
     document.getElementById('btn-rename')?.addEventListener('click', () => ProjectManager.renameProject());
     document.getElementById('project-name')?.addEventListener('click', () => ProjectManager.renameProject());
-
-    document.getElementById('btn-run').addEventListener('click', () => {
-      Executor.clearOutput();
-      document.getElementById('output-log').textContent = '';
-      Executor.run();
-    });
-    document.getElementById('btn-stop').addEventListener('click', () => {
-      Executor.stop();
-      SoundManager.stopAll();  // 停止时也停止所有声音
-    });
-
-    // 扩展加载按钮
-    document.getElementById('btn-load-ext').addEventListener('click', loadExtensionDialog);
-
-    // 扩展文档按钮
-    document.getElementById('btn-ext-docs').addEventListener('click', () => {
-      window.api.openExtensionDocs();
-    });
-
-    // 查看代码按钮
-    document.getElementById('btn-view-code')?.addEventListener('click', showAllCodeDialog);
-
-    // 导出 HTML 按钮
-    document.getElementById('btn-export-html')?.addEventListener('click', async () => {
-      try {
-        console.log('[导出HTML] 按钮被点击');
-        if (typeof HtmlExporter === 'undefined') {
-          alert('HtmlExporter 未加载！');
-          return;
-        }
-        await HtmlExporter.exportProject();
-        console.log('[导出HTML] 完成');
-      } catch(e) {
-        console.error('[导出HTML] 错误:', e);
-        alert('导出失败: ' + e.message);
-      }
-    });
 
     // 窗口控制按钮
     document.getElementById('win-minimize')?.addEventListener('click', () => window.api.windowMinimize());
@@ -1054,7 +1341,6 @@
     // 精灵面板按钮
     document.getElementById('btn-add-sprite').addEventListener('click', () => {
       const s = StageManager.addSprite((i18n.isEnglish() ? 'Sprite' : '精灵') + (StageManager.getSprites().length + 1));
-      // 切换到新精灵
       const idx = StageManager.getSprites().indexOf(s);
       if (idx >= 0) StageManager.setActiveSprite(idx);
     });
@@ -1066,10 +1352,16 @@
     document.addEventListener('keydown', (e) => {
       if (e.ctrlKey && e.key === 's') {
         e.preventDefault();
-        ProjectManager.saveProject().then(() => {
-          EditorState._isDirty = false;
-          EditorState._blocksSnapshot = JSON.stringify(EditorState.blocks);
-        });
+        _actionSave();
+      } else if (e.key === 'F5' && !e.shiftKey) {
+        e.preventDefault();
+        _actionRun();
+      } else if (e.key === 'F5' && e.shiftKey) {
+        e.preventDefault();
+        _actionStop();
+      } else if (e.ctrlKey && e.shiftKey && (e.key === 'Q' || e.key === 'q')) {
+        e.preventDefault();
+        _actionForceStop();
       }
     });
 
@@ -1333,6 +1625,85 @@
       FileEditor.refreshFileList();
     }
 
+    // 高级模式：激活 Godot 式布局并加载数据
+    if (EditorState.projectMode === 'advanced') {
+      initAdvancedMode();
+
+      // 恢复 SceneGraph - 优先从场景文件加载，回退到 config.sceneGraph
+      let sceneLoaded = false;
+      const sceneFileRel = config.mainScene || 'scenes/main.scene.json';
+      const _pj = window.api.pathJoin || ((...a) => a.join('/'));
+      const sceneFilePath = await _pj(folder, sceneFileRel);
+      const scenesDir = await _pj(folder, 'scenes');
+      const mainScenePath = await _pj(scenesDir, 'main.scene.json');
+      try {
+        const sceneContent = await window.api.readFile(sceneFilePath);
+        if (sceneContent && typeof SceneGraph !== 'undefined') {
+          const sceneData = JSON.parse(sceneContent);
+          if (sceneData.rootId || sceneData.nodes) {
+            SceneGraph.fromJSON(sceneData);
+            if (typeof StageManager !== 'undefined') StageManager.syncFromSceneGraph();
+            sceneLoaded = true;
+            console.log('[高级模式] 已从场景文件加载:', sceneFilePath);
+          }
+        }
+      } catch (e) {
+        console.warn('[高级模式] 场景文件不存在，回退到 project.json');
+      }
+
+      if (!sceneLoaded && config.sceneGraph && typeof SceneGraph !== 'undefined') {
+        // 旧项目回退：从 config.sceneGraph 加载
+        SceneGraph.fromJSON(config.sceneGraph);
+        if (typeof StageManager !== 'undefined') StageManager.syncFromSceneGraph();
+        // 保存为场景文件（迁移到文件系统）
+        try {
+          await window.api.ensureDir(scenesDir);
+          const sceneData = { name: 'main', ...SceneGraph.toJSON() };
+          await window.api.writeFile(mainScenePath, JSON.stringify(sceneData, null, 2));
+          console.log('[高级模式] 已迁移场景数据到 scenes/main.scene.json');
+        } catch (e) {
+          console.warn('[高级模式] 保存场景文件失败:', e);
+        }
+      }
+
+      // 新项目：确保默认场景文件存在
+      if (!sceneLoaded && !config.sceneGraph && typeof SceneGraph !== 'undefined') {
+        try {
+          await window.api.ensureDir(scenesDir);
+          const sceneData = { name: 'main', ...SceneGraph.toJSON() };
+          await window.api.writeFile(mainScenePath, JSON.stringify(sceneData, null, 2));
+          console.log('[高级模式] 已创建默认场景文件');
+        } catch (e) {
+          console.warn('[高级模式] 创建默认场景文件失败:', e);
+        }
+      }
+
+      // 恢复 JS 脚本
+      if (config.jsScripts && typeof EditorApp !== 'undefined' && EditorApp.setAllSpriteScripts) {
+        const scripts = {};
+        Object.keys(config.jsScripts).forEach(k => {
+          scripts[parseInt(k)] = config.jsScripts[k];
+        });
+        EditorApp.setAllSpriteScripts(scripts);
+        if (EditorApp.getJsEditor()) {
+          const firstScript = scripts[0] || '// 在此编写 JavaScript 代码\n';
+          EditorApp.getJsEditor().setValue(firstScript);
+        }
+      }
+
+      // 刷新场景树、检查器和文件系统
+      if (typeof SceneTree !== 'undefined') SceneTree.refresh();
+      if (typeof FileSystemDock !== 'undefined') FileSystemDock.refresh();
+      if (typeof Inspector !== 'undefined') {
+        const root = (typeof SceneGraph !== 'undefined') ? SceneGraph.getRoot() : null;
+        if (root && root.children && root.children.length > 0) {
+          Inspector.showNode(root.children[0]);
+        } else if (root) {
+          Inspector.showNode(root.id);
+        }
+      }
+    }
+
     // 加载声音
     await loadProjectSounds();
 
@@ -1348,4 +1719,60 @@
       document.getElementById('status-text').textContent = i18n.t('status.loadFailed', null).replace('{error}', e.message);
     }
   }
+
+  // ============================================================
+  // 高级模式 JS 脚本执行
+  // ============================================================
+  function runAdvancedScripts() {
+    const sprites = (typeof StageManager !== 'undefined') ? StageManager.getSprites() : [];
+    const globalVars = (typeof Executor !== 'undefined') ? Executor._getGlobalVars() : {};
+    const selIdx = (typeof SceneTree !== 'undefined') ? SceneTree.getSelectedIndex() : -1;
+    const editor = (typeof EditorApp !== 'undefined' && EditorApp.getJsEditor) ? EditorApp.getJsEditor() : null;
+
+    sprites.forEach((sprite, index) => {
+      // 优先从当前编辑器获取代码（如果是当前选中的精灵）
+      let code;
+      if (editor && selIdx === index) {
+        code = editor.getValue();
+        _spriteScripts[index] = code;  // 同步保存
+      } else {
+        code = _spriteScripts[index] || '';
+      }
+      // 跳过空代码和纯注释
+      if (!code || !code.trim() || /^\s*(\/\/[^\n]*\n?|\/\*[\s\S]*?\*\/\s*)+$/.test(code)) return;
+
+      try {
+        // 构建执行上下文
+        const fn = new Function('sprite', 'globalVars', 'log', code);
+        fn(
+          sprite,
+          globalVars,
+          (msg) => {
+            const logEl = document.getElementById('output-log');
+            if (logEl) logEl.textContent += '\n' + msg;
+          }
+        );
+        // 执行后刷新渲染
+        if (typeof StageCanvas !== 'undefined') StageCanvas.render();
+        if (typeof SceneTree !== 'undefined') SceneTree.refresh();
+        if (typeof Inspector !== 'undefined') Inspector.refresh();
+      } catch (e) {
+        console.error(`[JS执行错误] 角色 ${sprite.name || index}:`, e);
+        const logEl = document.getElementById('output-log');
+        if (logEl) {
+          logEl.textContent += `\n[JS错误] ${sprite.name || ('角色' + index)}: ${e.message}`;
+        }
+      }
+    });
+  }
+
+  return {
+    getJsEditor,
+    getSpriteScript,
+    setSpriteScript,
+    getAllSpriteScripts,
+    setAllSpriteScripts,
+    initAdvancedMode,
+    runAdvancedScripts,
+  };
 })();

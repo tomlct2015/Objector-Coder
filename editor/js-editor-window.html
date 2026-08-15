@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>JS 代码编辑器</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/material-darker.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/edit/matchbrackets.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/edit/closebrackets.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldgutter.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/brace-fold.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldgutter.min.css">
+  <style>
+    :root {
+      --bg-primary: #1e1e2e;
+      --bg-secondary: #181825;
+      --bg-surface: #313244;
+      --bg-hover: #45475a;
+      --text-primary: #cdd6f4;
+      --text-secondary: #a6adc8;
+      --text-muted: #6c7086;
+      --border: #45475a;
+      --accent: #89b4fa;
+      --green: #a6e3a1;
+      --red: #f38ba8;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    /* 标题栏 */
+    .editor-titlebar {
+      height: 36px;
+      background: var(--bg-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      -webkit-app-region: drag;
+      padding: 0 8px;
+    }
+    .editor-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .editor-title-icon { font-size: 16px; }
+    .titlebar-actions {
+      display: flex;
+      gap: 4px;
+      -webkit-app-region: no-drag;
+    }
+    .titlebar-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 11px;
+      cursor: pointer;
+      padding: 4px 10px;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .titlebar-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .titlebar-btn.save { color: var(--green); font-weight: 600; }
+    .titlebar-btn.save:hover { background: rgba(166,227,161,0.15); }
+    .titlebar-btn.close { color: var(--text-muted); }
+    .titlebar-btn.close:hover { background: var(--red); color: #fff; }
+    .titlebar-btn.win-btn { font-size: 13px; padding: 4px 8px; }
+    /* 工具栏 */
+    .editor-toolbar {
+      height: 32px;
+      background: var(--bg-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .toolbar-info { display: flex; align-items: center; gap: 12px; }
+    .toolbar-info span { display: flex; align-items: center; gap: 3px; }
+    /* CodeMirror 容器 */
+    .editor-wrap {
+      flex: 1;
+      overflow: hidden;
+    }
+    .CodeMirror {
+      height: 100% !important;
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    /* 底部状态栏 */
+    .editor-statusbar {
+      height: 24px;
+      background: var(--bg-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    .status-left, .status-right { display: flex; gap: 12px; }
+  </style>
+</head>
+<body>
+  <div class="editor-titlebar">
+    <div class="editor-title">
+      <span class="editor-title-icon">📜</span>
+      <span id="title-text">JS 代码编辑器</span>
+    </div>
+    <div class="titlebar-actions">
+      <button class="titlebar-btn save" id="btn-save" title="保存并关闭 (Ctrl+S)">💾 保存</button>
+      <button class="titlebar-btn" id="btn-save-keep" title="应用 (Ctrl+Shift+S)">💾 应用</button>
+      <span style="width:1px;height:18px;background:var(--border);margin:0 2px;"></span>
+      <button class="titlebar-btn win-btn" id="btn-fullscreen" title="全屏 (F11)">⛶</button>
+      
+      <span style="width:1px;height:18px;background:var(--border);margin:0 2px;"></span>
+      <button class="titlebar-btn win-btn" id="btn-minimize" title="最小化">─</button>
+      <button class="titlebar-btn win-btn" id="btn-maximize" title="最大化">□</button>
+      <button class="titlebar-btn close" id="btn-close" title="关闭 (Esc)">✕</button>
+    </div>
+  </div>
+
+  <div class="editor-toolbar">
+    <div class="toolbar-info">
+      <span>📄 <span id="info-name">untitled.js</span></span>
+      <span>📏 <span id="info-lines">0</span> 行</span>
+      <span>📊 <span id="info-chars">0</span> 字符</span>
+    </div>
+  </div>
+
+  <div class="editor-wrap">
+    <textarea id="code-area" spellcheck="false"></textarea>
+  </div>
+
+  <div class="editor-statusbar">
+    <div class="status-left">
+      <span id="status-msg">就绪</span>
+    </div>
+    <div class="status-right">
+      <span>JavaScript</span>
+      <span>UTF-8</span>
+      <span id="cursor-pos">行 1, 列 1</span>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    let _spriteIdx = -1;
+    let _dirty = false;
+    let cm = null;
+
+    // 初始化 CodeMirror
+    function initEditor(code) {
+      cm = CodeMirror.fromTextArea(document.getElementById('code-area'), {
+        mode: 'javascript',
+        theme: 'material-darker',
+        lineNumbers: true,
+        tabSize: 2,
+        indentWithTabs: false,
+        matchBrackets: true,
+        autoCloseBrackets: true,
+        foldGutter: true,
+        gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
+        extraKeys: {
+          'Ctrl-S': () => saveAndClose(),
+          'Ctrl-Shift-S': () => saveKeepOpen(),
+          'Ctrl-Z': 'undo',
+          'Ctrl-Y': 'redo',
+          'Tab': (cm) => cm.replaceSelection('  ', 'end'),
+        },
+      });
+
+      cm.setValue(code || '// 在此编写 JavaScript 代码\n// 可用对象：sprite（当前角色）、globalVars（全局变量）\n// 示例：\n// sprite.x = 100;\n// sprite.say("Hello!");\n');
+      cm.clearHistory();
+
+      // 监听变化
+      cm.on('change', () => {
+        _dirty = true;
+        updateInfo();
+      });
+
+      // 光标位置
+      cm.on('cursorActivity', () => {
+        const pos = cm.getCursor();
+        document.getElementById('cursor-pos').textContent = `行 ${pos.line + 1}, 列 ${pos.ch + 1}`;
+      });
+
+      updateInfo();
+    }
+
+    function updateInfo() {
+      if (!cm) return;
+      const code = cm.getValue();
+      document.getElementById('info-lines').textContent = cm.lineCount();
+      document.getElementById('info-chars').textContent = code.length;
+    }
+
+    function saveAndClose() {
+      const code = cm.getValue();
+      ipcRenderer.send('js-editor-save', _spriteIdx, code);
+      _dirty = false;
+      setStatus('已保存');
+      setTimeout(() => ipcRenderer.send('js-editor-close-window'), 150);
+    }
+
+    function saveKeepOpen() {
+      const code = cm.getValue();
+      ipcRenderer.send('js-editor-save', _spriteIdx, code);
+      _dirty = false;
+      setStatus('✓ 已应用');
+    }
+
+    function closeWithoutSave() {
+      if (_dirty) {
+        ipcRenderer.send('js-editor-confirm-close', _spriteIdx);
+        return;
+      }
+      ipcRenderer.send('js-editor-close-window');
+    }
+
+    function setStatus(msg) {
+      document.getElementById('status-msg').textContent = msg;
+    }
+
+    // 接收主进程数据
+    ipcRenderer.on('js-editor-init', (_e, data) => {
+      _spriteIdx = data.spriteIdx;
+      document.getElementById('title-text').textContent = '📜 ' + (data.name || 'untitled.js');
+      document.getElementById('info-name').textContent = data.name || 'untitled.js';
+      initEditor(data.code);
+    });
+
+    // 窗口控制
+    const btnFs = document.getElementById('btn-fullscreen');
+    const btnMax = document.getElementById('btn-maximize');
+    const btnMin = document.getElementById('btn-minimize');
+
+    if (btnFs) {
+      btnFs.addEventListener('click', () => {
+        // 通过 IPC 请求主进程操作窗口
+        ipcRenderer.send('js-editor-toggle-fullscreen');
+      });
+    }
+    if (btnMax) {
+      btnMax.addEventListener('click', () => {
+        ipcRenderer.send('js-editor-toggle-maximize');
+      });
+    }
+    if (btnMin) {
+      btnMin.addEventListener('click', () => {
+        ipcRenderer.send('js-editor-minimize');
+      });
+    }
+
+    // 按钮事件
+    document.getElementById('btn-save').addEventListener('click', saveAndClose);
+    document.getElementById('btn-save-keep').addEventListener('click', saveKeepOpen);
+    document.getElementById('btn-close').addEventListener('click', closeWithoutSave);
+
+    // 键盘快捷键
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 's' && !e.shiftKey) { e.preventDefault(); saveAndClose(); }
+      if (e.ctrlKey && e.shiftKey && (e.key === 'S' || e.key === 's')) { e.preventDefault(); saveKeepOpen(); }
+      if (e.key === 'Escape') { closeWithoutSave(); }
+      if (e.key === 'F11') {
+        e.preventDefault();
+        ipcRenderer.send('js-editor-toggle-fullscreen');
+      }
+    });
+
+    // 请求初始化数据
+    ipcRenderer.send('js-editor-ready');
+  </script>
+</body>
+</html>

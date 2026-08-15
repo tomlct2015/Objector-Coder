@@ -128,7 +128,30 @@ const ProjectManager = (function () {
     config.sprites = spritesData;
     config.stageWidth = StageManager.STAGE_W;
     config.stageHeight = StageManager.STAGE_H;
-    await window.api.writeFile(EditorState.projectPath + '/project.json', JSON.stringify(config, null, 2));
+
+    // 高级模式：保存 JS 脚本和 SceneGraph
+    if (config.mode === 'advanced' && typeof EditorApp !== 'undefined' && EditorApp.getAllSpriteScripts) {
+      config.jsScripts = EditorApp.getAllSpriteScripts();
+    }
+    // 高级模式：保存场景图
+    if (config.mode === 'advanced' && typeof SceneGraph !== 'undefined') {
+      // 同步当前状态到 SceneGraph
+      if (typeof StageManager !== 'undefined') StageManager.syncToSceneGraph();
+      config.sceneGraph = SceneGraph.toJSON();
+      config.mainScene = 'scenes/main.scene.json';
+      // 同时保存场景文件
+      const sceneData = { name: 'main', ...SceneGraph.toJSON() };
+      const _pj = window.api.pathJoin || ((...a) => a.join('/'));
+      const scenesDir = await _pj(EditorState.projectPath, 'scenes');
+      const scenePath = await _pj(scenesDir, 'main.scene.json');
+      await window.api.ensureDir(scenesDir);
+      await window.api.writeFile(scenePath, JSON.stringify(sceneData, null, 2));
+    }
+
+    const projectJsonPath = (window.api.pathJoin)
+      ? await window.api.pathJoin(EditorState.projectPath, 'project.json')
+      : EditorState.projectPath + '/project.json';
+    await window.api.writeFile(projectJsonPath, JSON.stringify(config, null, 2));
 
     document.getElementById('status-text').textContent = i18n.t('status.saved');
     setTimeout(() => {

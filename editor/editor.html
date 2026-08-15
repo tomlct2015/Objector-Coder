@@ -1,31 +1,29 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Objector Web Editor</title>
-  <link rel="icon" href="../icon.svg" type="image/svg+xml" />
+  <title>Objector 编辑器</title>
   <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="web-styles.css" />
   <script src="core/i18n.js"></script>
   <script src="i18n/zh-CN.js"></script>
   <script src="i18n/en.js"></script>
-  <script src="web-api-shim.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="../docs/community/shared/community-api.js"></script>
+  <!-- CodeMirror 5 for JS editor in advanced mode -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/material-darker.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
 </head>
 <body>
-  <!-- Mobile rotate hint overlay -->
-  <div id="mobile-rotate-overlay" class="mobile-rotate-overlay">
-    <div class="rotate-icon">📱</div>
-    <div class="rotate-text">Please rotate your device to landscape mode</div>
-    <div class="rotate-text" style="font-size:13px;opacity:0.6;">请旋转设备至横屏模式</div>
-  </div>
-
   <!-- 编辑器界面 -->
   <div id="editor-screen">
-    <!-- 顶部标题栏 -->
+    <!-- 顶部标题栏（可拖拽） -->
     <header id="titlebar">
       <div class="titlebar-drag">
-        <span class="app-title">⚡ Objector Web</span>
+        <img src="../Objector2.png" class="app-logo" alt="" />
+        <span class="app-title">Objector</span>
         <span class="app-sep">|</span>
         <span id="project-name" class="project-name-editable" data-i18n-title="titlebar.rename">未命名项目</span>
         <button id="btn-rename" class="tb-btn tb-btn-small" data-i18n-title="titlebar.rename">✏️</button>
@@ -37,23 +35,47 @@
       </div>
     </header>
 
+    <!-- 菜单栏 -->
+    <div id="menubar">
+      <div class="menu-item" data-menu="file">
+        <span>文件</span>
+        <div class="menu-dropdown">
+          <div class="menu-dropdown-item" data-action="home">🏠 返回主页<span class="menu-shortcut">Ctrl+H</span></div>
+          <div class="menu-sep"></div>
+          <div class="menu-dropdown-item" data-action="save">💾 保存项目<span class="menu-shortcut">Ctrl+S</span></div>
+          <div class="menu-dropdown-item" data-action="save-local">📥 保存到本地</div>
+          <div class="menu-sep"></div>
+          <div class="menu-dropdown-item" data-action="export-html">🌐 导出HTML</div>
+          <div class="menu-dropdown-item" data-action="publish">🚀 发布到社区</div>
+        </div>
+      </div>
+      <div class="menu-item" data-menu="run">
+        <span>运行</span>
+        <div class="menu-dropdown">
+          <div class="menu-dropdown-item" data-action="run">▶ 运行<span class="menu-shortcut">F5</span></div>
+          <div class="menu-dropdown-item" data-action="stop">⏹ 停止<span class="menu-shortcut">Shift+F5</span></div>
+          <div class="menu-sep"></div>
+          <div class="menu-dropdown-item" data-action="force-stop">🛑 强制停止<span class="menu-shortcut">Ctrl+Shift+Q</span></div>
+        </div>
+      </div>
+      <div class="menu-item" data-menu="tools">
+        <span>工具</span>
+        <div class="menu-dropdown">
+          <div class="menu-dropdown-item" data-action="load-ext">🧩 扩展导入</div>
+          <div class="menu-dropdown-item" data-action="ext-docs">📖 扩展文档</div>
+          <div class="menu-dropdown-item" data-action="view-code">💻 查看代码</div>
+          <div class="menu-sep"></div>
+          <div class="menu-dropdown-item" data-action="blocks-guide">📖 积木指南</div>
+        </div>
+      </div>
+    </div>
+
     <!-- 工具栏 -->
     <div id="toolbar">
       <div class="toolbar-left">
-        <button id="btn-home" class="tb-btn" data-i18n="editor.home" data-i18n-title="editor.homeTitle">← 主页</button>
-        <span class="tb-sep"></span>
-        <button id="btn-save" class="tb-btn" data-i18n="editor.save" data-i18n-title="editor.saveTitle">💾 保存</button>
-        <button id="btn-save-local" class="tb-btn" title="保存到本地 ZIP">📥 保存本地</button>
-        <span class="tb-sep"></span>
         <button id="btn-run" class="tb-btn tb-run" data-i18n="editor.run" data-i18n-title="editor.runTitle">▶ 运行</button>
         <button id="btn-stop" class="tb-btn tb-stop" data-i18n="editor.stop" data-i18n-title="editor.stopTitle" disabled>⏹ 停止</button>
         <span class="tb-sep"></span>
-        <button id="btn-load-ext" class="tb-btn" data-i18n="editor.loadExt" data-i18n-title="editor.loadExtTitle">🧩 扩展导入</button>
-        <button id="btn-ext-docs" class="tb-btn" data-i18n="editor.extDocs" data-i18n-title="editor.extDocsTitle">📖 扩展文档</button>
-        <a href="../blocks-guide/" target="_blank" data-i18n="editor.blocksGuide">📖 积木指南</a>
-        <button id="btn-view-code" class="tb-btn" data-i18n="editor.viewCode" data-i18n-title="editor.viewCodeTitle">💻 查看代码</button>
-        <button id="btn-export-html" class="tb-btn" data-i18n="editor.exportHtml" data-i18n-title="editor.exportHtmlTitle">🌐 导出HTML</button>
-        <button id="btn-publish-community" class="tb-btn" title="发布到社区">🚀 发布到社区</button>
         <span id="community-user-info" class="tb-user-info hidden" style="font-size:11px;color:var(--text-secondary);padding:0 8px;"></span>
       </div>
       <div class="toolbar-right">
@@ -118,12 +140,73 @@
         </div>
         <div id="files-content" class="hidden">
           <div class="file-editor-toolbar">
-            <button id="btn-new-file" class="tb-btn" data-i18n="fileEditor.newFile">+ 新建文件</button>
+            <button id="btn-file-editor-new" class="tb-btn" data-i18n="fileEditor.newFile">+ 新建文件</button>
             <button id="btn-save-file" class="tb-btn" data-i18n="fileEditor.save">💾 保存</button>
             <button id="btn-load-test" class="tb-btn tb-run" data-i18n="fileEditor.loadTest">▶ 加载测试</button>
           </div>
           <div id="file-list"></div>
           <textarea id="file-editor-area" data-i18n-ph="fileEditor.placeholder" placeholder="选择或新建文件开始编辑..." spellcheck="false"></textarea>
+        </div>
+      </aside>
+    </div>
+
+    <!-- 高级模式 Godot 式布局（默认隐藏） -->
+    <div id="advanced-layout" class="hidden">
+      <!-- 左侧 Dock：场景树 + 文件系统 -->
+      <aside id="left-dock">
+        <div id="scene-tree-panel">
+          <div class="panel-header">
+            <span class="panel-title">场景</span>
+            <button id="btn-add-scene-node" class="tb-btn tb-btn-small" title="添加节点">+</button>
+          </div>
+          <div id="scene-tree"></div>
+        </div>
+        <div id="left-divider"></div>
+        <div id="filesystem-panel">
+          <div class="panel-header">
+            <span class="panel-title">文件系统</span>
+            <div style="display:flex;gap:2px;">
+              <button id="btn-new-file" class="tb-btn tb-btn-small" title="新建文件">📄+</button>
+              <button id="btn-new-folder" class="tb-btn tb-btn-small" title="新建文件夹">📁+</button>
+              <button id="btn-refresh-fs" class="tb-btn tb-btn-small" title="刷新">↻</button>
+            </div>
+          </div>
+          <div id="file-tree"></div>
+        </div>
+      </aside>
+
+      <!-- 中央区域：视口 + 脚本编辑器 -->
+      <div id="advanced-center">
+        <!-- 上部视口（画布由 JS 从 #main-layout 移入） -->
+        <div id="viewport"></div>
+        <!-- 分割条 -->
+        <div id="center-divider"></div>
+        <!-- 下部脚本编辑器 -->
+        <div id="script-editor-panel">
+          <div id="script-tabs">
+            <button class="script-tab active" data-tab="blocks">积木</button>
+            <button class="script-tab" data-tab="js">JS 代码</button>
+            <div style="display:flex;gap:2px;margin-left:auto;align-items:center;">
+              <button id="btn-fs-editor" class="tb-btn tb-btn-small" title="编辑器全屏 (F11)">⛶</button>
+              <button id="btn-popout-js" class="tb-btn tb-btn-small" title="在新窗口中编辑代码">⧉</button>
+            </div>
+          </div>
+          <div id="script-blocks-content">
+            <!-- 积木编辑器的 palette + canvas 由 JS 移入 -->
+          </div>
+          <div id="script-js-content" class="hidden">
+            <div id="js-editor"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右侧属性检查器 -->
+      <aside id="inspector-panel">
+        <div class="panel-header">
+          <span class="panel-title">属性</span>
+        </div>
+        <div id="inspector-content">
+          <p class="inspector-hint">选择场景树中的节点</p>
         </div>
       </aside>
     </div>
@@ -152,7 +235,7 @@
   <!-- 参数编辑输入框 -->
   <input id="param-editor" class="param-editor hidden" type="text" autocomplete="off" />
 
-  <!-- 自定义 Prompt 对话框 -->
+  <!-- 自定义 Prompt 对话框（替代 window.prompt） -->
   <div id="custom-prompt" class="custom-prompt-overlay hidden">
     <div class="custom-prompt-box">
       <div class="custom-prompt-title" id="custom-prompt-title" data-i18n="dialog.prompt">提示</div>
@@ -175,21 +258,7 @@
     </div>
   </div>
 
-  <!-- 项目选择器（selectFolder 时显示） -->
-  <div id="web-project-picker" class="web-picker-overlay hidden">
-    <div class="web-picker-box">
-      <h2 id="picker-title">选择项目</h2>
-      <div class="picker-list" id="picker-project-list"></div>
-      <div class="picker-actions">
-        <button class="tb-btn" onclick="_webPickerCancel()">取消</button>
-      </div>
-    </div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-  <script src="../community/shared/community-api.js"></script>
   <script src="core/block-defs.js"></script>
   <script src="core/block-types/events.js"></script>
   <script src="core/block-types/motion.js"></script>
@@ -223,6 +292,11 @@
   <script src="stage/stage-canvas.js"></script>
   <script src="stage/stage-3d.js"></script>
   <script src="stage/stage-manager.js"></script>
+  <script src="core/scene-graph.js"></script>
+  <script src="core/scene-tree.js"></script>
+  <script src="core/add-node-dialog.js"></script>
+  <script src="core/filesystem-dock.js"></script>
+  <script src="core/inspector.js"></script>
   <script src="editor-app.js"></script>
 </body>
 </html>

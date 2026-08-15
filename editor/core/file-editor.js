@@ -347,7 +347,7 @@ const FileEditor = (function () {
 
   /** 初始化（绑定按钮事件） */
   function init() {
-    const newBtn = document.getElementById('btn-new-file');
+    const newBtn = document.getElementById('btn-file-editor-new');
     const saveBtn = document.getElementById('btn-save-file');
     const loadBtn = document.getElementById('btn-load-test');
 

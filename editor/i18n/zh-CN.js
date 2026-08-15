@@ -21,6 +21,8 @@ i18n.load('zh-CN', {
     desc: '选择你想要的创作方式',
     normal: '普通创作',
     normalDesc: '使用积木搭建动画、游戏，专注于创意本身',
+    advanced: '高级创作',
+    advancedDesc: 'Godot 式专业编辑器，积木与代码双模式',
     extension: '扩展创作',
     extensionDesc: '创建自定义扩展积木，为 Objector 增加新功能',
     cancel: '取消',

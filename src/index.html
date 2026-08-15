@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Objector</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="core/i18n.js"></script>
+  <script src="i18n/zh-CN.js"></script>
+  <script src="i18n/en.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="../docs/community/shared/community-api.js"></script>
+</head>
+<body>
+  <!-- 自定义标题栏 -->
+  <header id="titlebar">
+    <div class="titlebar-drag">
+      <img src="../Objector2.png" class="app-logo" alt="" />
+      <span class="app-title">Objector</span>
+    </div>
+    <div class="titlebar-controls">
+      <button id="win-minimize" class="win-btn" data-i18n-title="titlebar.minimize">─</button>
+      <button id="win-maximize" class="win-btn" data-i18n-title="titlebar.maximize">□</button>
+      <button id="win-close" class="win-btn win-close-btn" data-i18n-title="titlebar.close">✕</button>
+    </div>
+  </header>
+
+  <!-- 主页 -->
+  <div id="home-screen">
+    <header class="home-header">
+      <h1 class="home-logo">Objector</h1>
+      <div class="home-actions">
+        <a href="https://tomlct2015.github.io/Objector-Coder/blocks-guide/" target="_blank" data-i18n="home.about">关于用法</a>
+        <button id="home-btn-new" class="tb-btn tb-run" data-i18n="home.newProject">+ 新建工程</button>
+        <button id="home-btn-open" class="tb-btn" data-i18n="home.openProject">打开项目</button>
+        <button id="home-lang-switch" class="tb-btn" data-i18n="langSwitch" title="Switch Language">EN</button>
+        <div style="position:relative;display:inline-block;">
+          <button id="home-btn-login" class="tb-btn" title="登录社区">👤 登录</button>
+          <div id="user-menu" class="user-menu hidden">
+            <button id="menu-open-community" class="user-menu-item">🏛️ 打开社区</button>
+            <button id="menu-logout" class="user-menu-item">🚪 退出登录</button>
+            <div style="border-top:1px solid var(--border);margin:4px 0;"></div>
+            <button id="menu-delete-account" class="user-menu-item" style="color:var(--red,#f38ba8);">🗑️ 注销账户</button>
+          </div>
+        </div>
+      </div>
+    </header>
+    <main class="home-body">
+      <h2 data-i18n="home.pinned">📌 固定项目</h2>
+      <div id="pinned-projects"></div>
+      <div id="no-pinned" class="hidden">
+        <p style="color:var(--text-muted);font-size:13px;" data-i18n="home.pinnedHint">点击项目卡片上的 📌 按钮固定项目到这里</p>
+      </div>
+      <h2 style="margin-top:24px;" data-i18n="home.recent">最近项目</h2>
+      <div id="recent-projects"></div>
+      <div id="no-projects" class="hidden">
+        <p data-i18n="home.noProjects">还没有项目，点击上方按钮开始创作</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- 模式选择弹窗 -->
+  <div id="mode-dialog" class="dialog-overlay hidden">
+    <div class="dialog-box mode-dialog-box">
+      <h2 data-i18n="mode.title">选择创作模式</h2>
+      <p data-i18n="mode.desc">选择你想要的创作方式</p>
+      <div class="mode-cards">
+        <div class="mode-card" data-mode="normal">
+          <div class="mode-icon">🎮</div>
+          <h3 data-i18n="mode.normal">普通创作</h3>
+          <p data-i18n="mode.normalDesc">使用积木搭建动画、游戏，专注于创意本身</p>
+        </div>
+        <div class="mode-card" data-mode="advanced">
+          <div class="mode-icon">🎬</div>
+          <h3 data-i18n="mode.advanced">高级创作</h3>
+          <p data-i18n="mode.advancedDesc">Godot 式专业编辑器，积木与代码双模式</p>
+        </div>
+        <div class="mode-card" data-mode="extension">
+          <div class="mode-icon">🧩</div>
+          <h3 data-i18n="mode.extension">扩展创作</h3>
+          <p data-i18n="mode.extensionDesc">创建自定义扩展积木，为 Objector 增加新功能</p>
+        </div>
+      </div>
+      <button id="mode-cancel" class="tb-btn" data-i18n="mode.cancel">取消</button>
+    </div>
+  </div>
+
+  <!-- 渲染模式子选择弹窗（点击普通创作后显示） -->
+  <div id="render-mode-dialog" class="dialog-overlay hidden">
+    <div class="dialog-box mode-dialog-box">
+      <h2>选择渲染模式</h2>
+      <p>选择你想要的画面渲染方式</p>
+      <div class="mode-cards">
+        <div class="mode-card" data-render="2d">
+          <div class="mode-icon">🖼️</div>
+          <h3>2D 模式</h3>
+          <p>经典 2D 平面渲染，适合大多数创作</p>
+        </div>
+        <div class="mode-card" data-render="3d">
+          <div class="mode-icon">🎲</div>
+          <h3>3D 模式</h3>
+          <p>3D 立体渲染，增加空间感和深度</p>
+        </div>
+      </div>
+      <button id="render-mode-cancel" class="tb-btn">取消</button>
+    </div>
+  </div>
+
+  <!-- 社区登录对话框 -->
+  <div id="community-login-dialog" class="custom-prompt-overlay hidden">
+    <div class="custom-prompt-box" style="max-width:380px;">
+      <div class="custom-prompt-title" data-i18n="login.title">👤 社区登录</div>
+      <!-- 登录方式切换 tab -->
+      <div style="display:flex;gap:0;margin-bottom:12px;border-bottom:1px solid var(--border);">
+        <button id="login-tab-password" class="login-tab active" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid var(--accent);color:var(--text-primary);cursor:pointer;font-size:13px;" data-i18n="login.tabPassword">密码登录</button>
+        <button id="login-tab-otp" class="login-tab" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-muted);cursor:pointer;font-size:13px;" data-i18n="login.tabOtp">验证码登录</button>
+      </div>
+      <!-- 密码登录区 -->
+      <div id="login-section-password">
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;" data-i18n="login.email">邮箱</label>
+          <input id="login-email" type="email" class="custom-prompt-input" placeholder="email@example.com" autocomplete="email" />
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;" data-i18n="login.password">密码</label>
+          <input id="login-password" type="password" class="custom-prompt-input" placeholder="********" autocomplete="current-password" />
+        </div>
+      </div>
+      <!-- OTP 验证码登录区 -->
+      <div id="login-section-otp" style="display:none;">
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;" data-i18n="login.email">邮箱</label>
+          <input id="login-otp-email" type="email" class="custom-prompt-input" placeholder="email@example.com" autocomplete="email" />
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <input id="login-otp-code" type="text" class="custom-prompt-input" placeholder="输入6位验证码" maxlength="6" style="flex:1;" autocomplete="one-time-code" />
+          <button id="login-otp-send" class="tb-btn" style="white-space:nowrap;min-width:90px;" data-i18n="login.sendOtp">发送验证码</button>
+        </div>
+      </div>
+      <div id="login-result" style="font-size:12px;min-height:20px;margin-bottom:8px;"></div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;text-align:center;">
+        还没有账号？<a id="login-register-link" href="#" style="color:var(--accent);text-decoration:none;">点击这里创建账号</a>
+      </div>
+      <div class="custom-prompt-actions">
+        <button id="login-cancel" class="tb-btn" data-i18n="dialog.cancel">取消</button>
+        <button id="login-submit" class="tb-btn tb-run" data-i18n="login.submit">登录</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 重命名弹窗 -->
+  <div id="rename-dialog" class="custom-prompt-overlay hidden">
+    <div class="custom-prompt-box" style="max-width:360px;">
+      <div class="custom-prompt-title" id="rename-title">✏️ 重命名</div>
+      <input id="rename-input" type="text" class="custom-prompt-input" placeholder="输入新名称" />
+      <div class="custom-prompt-actions">
+        <button id="rename-cancel" class="tb-btn">取消</button>
+        <button id="rename-ok" class="tb-btn tb-run">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 项目卡片右键菜单 -->
+  <div id="project-context-menu" class="ctx-menu hidden">
+    <div class="ctx-item" data-action="open">📂 打开项目</div>
+    <div class="ctx-item" data-action="rename">✏️ 重命名</div>
+    <div class="ctx-item" data-action="pin" id="ctx-pin-item">📌 固定</div>
+    <div class="ctx-divider"></div>
+    <div class="ctx-item ctx-danger" data-action="delete">🗑️ 删除</div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

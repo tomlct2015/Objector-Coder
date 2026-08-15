@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>ObjectScratch 扩展编写文档</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      background: #1e1e2e; color: #cdd6f4; line-height: 1.7; padding: 24px 40px;
+    }
+    h1 { color: #89b4fa; font-size: 26px; margin-bottom: 8px; border-bottom: 2px solid #313244; padding-bottom: 8px; }
+    h2 { color: #a6e3a1; font-size: 20px; margin-top: 28px; margin-bottom: 12px; }
+    h3 { color: #f9e2af; font-size: 16px; margin-top: 20px; margin-bottom: 8px; }
+    p, li { font-size: 14px; margin-bottom: 6px; }
+    ul { padding-left: 24px; }
+    code {
+      background: #313244; color: #f5c2e7; padding: 2px 6px; border-radius: 4px; font-size: 13px;
+    }
+    pre {
+      background: #181825; border: 1px solid #313244; border-radius: 8px;
+      padding: 16px; overflow-x: auto; margin: 12px 0; font-size: 13px;
+    }
+    pre code { background: none; padding: 0; color: #cdd6f4; }
+    .tag { display: inline-block; background: #45475a; color: #cba6f7; border-radius: 4px; padding: 1px 8px; font-size: 12px; margin-left: 4px; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+    th, td { border: 1px solid #45475a; padding: 8px 12px; text-align: left; font-size: 13px; }
+    th { background: #313244; color: #89b4fa; }
+    .tip { background: #313244; border-left: 4px solid #f9e2af; padding: 12px 16px; border-radius: 4px; margin: 12px 0; }
+    .warning { background: #313244; border-left: 4px solid #f38ba8; padding: 12px 16px; border-radius: 4px; margin: 12px 0; }
+    a { color: #89b4fa; }
+  </style>
+</head>
+<body>
+
+<h1>ObjectScratch 扩展编写指南</h1>
+<p>通过编写 JSON 扩展文件，你可以为 ObjectScratch 添加自定义积木和执行逻辑。</p>
+
+<h2>1. 扩展文件结构</h2>
+<p>扩展是一个 <code>.json</code> 文件，顶层结构如下：</p>
+<pre><code>{
+  "id": "my-extension",
+  "name": "我的扩展",
+  "color": "#FF6B6B",
+  "blocks": [ ... ],
+  "executors": { ... }
+}</code></pre>
+
+<table>
+  <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+  <tr><td><code>id</code></td><td>string</td><td>扩展唯一标识（英文、短横线），不可与已有分类重复</td></tr>
+  <tr><td><code>name</code></td><td>string</td><td>在面板中显示的分类名称</td></tr>
+  <tr><td><code>color</code></td><td>string</td><td>积木边框/文字颜色，十六进制颜色值</td></tr>
+  <tr><td><code>blocks</code></td><td>array</td><td>积木定义列表</td></tr>
+  <tr><td><code>executors</code></td><td>object</td><td>积木类型 → 执行器函数（JS函数字符串）</td></tr>
+</table>
+
+<h2>2. 积木定义</h2>
+<p>每个积木对象包含以下字段：</p>
+<table>
+  <tr><th>字段</th><th>类型</th><th>必填</th><th>说明</th></tr>
+  <tr><td><code>type</code></td><td>string</td><td>是</td><td>积木类型标识，全局唯一</td></tr>
+  <tr><td><code>label</code></td><td>string</td><td>是</td><td>显示文字，<code>{参数名}</code> 表示参数槽</td></tr>
+  <tr><td><code>shape</code></td><td>string</td><td>是</td><td>形状：<code>stack</code> / <code>reporter</code> / <code>boolean</code> / <code>hat</code> / <code>c-block</code></td></tr>
+  <tr><td><code>params</code></td><td>array</td><td>否</td><td>参数列表</td></tr>
+  <tr><td><code>ports</code></td><td>object</td><td>否</td><td>端口配置 <code>{ flowIn, flowOut }</code>（自动推断）</td></tr>
+  <tr><td><code>subBlocks</code></td><td>array</td><td>否</td><td>子代码区域名列表，仅 <code>c-block</code> 使用</td></tr>
+</table>
+
+<h3>积木形状说明</h3>
+<table>
+  <tr><th>形状</th><th>说明</th><th>典型用途</th></tr>
+  <tr><td><code>stack</code></td><td>普通积木，有上下 flow 端口</td><td>执行动作：移动、打印</td></tr>
+  <tr><td><code>hat</code></td><td>帽子积木，只有下方 flow</td><td>事件触发：当程序启动</td></tr>
+  <tr><td><code>reporter</code></td><td>椭圆积木，无 flow，有值输出</td><td>返回值：计算、获取属性</td></tr>
+  <tr><td><code>boolean</code></td><td>菱形积木，无 flow，返回布尔值</td><td>条件判断：大于、包含</td></tr>
+  <tr><td><code>c-block</code></td><td>C 形积木，包含子代码区域</td><td>循环/条件：重复、如果</td></tr>
+</table>
+
+<h3>参数类型</h3>
+<table>
+  <tr><th>type</th><th>说明</th><th>默认值示例</th></tr>
+  <tr><td><code>string</code></td><td>文本输入框</td><td><code>"hello"</code></td></tr>
+  <tr><td><code>number</code></td><td>数字输入框</td><td><code>0</code></td></tr>
+  <tr><td><code>dropdown</code></td><td>下拉选择，需配合 <code>options</code></td><td><code>"选项A"</code></td></tr>
+</table>
+
+<h2>3. 执行器函数</h2>
+<p>执行器是一个 JavaScript 函数字符串，签名为：</p>
+<pre><code>function(params, scope) {
+  // params: 参数值对象 { param1: value, param2: value }
+  // scope: 当前作用域变量
+  // 返回值：reporter/boolean 需返回值；stack 无需返回
+  // 特殊返回：'__RETURN__' 终止函数；'__STOP__' 终止程序
+}</code></pre>
+
+<h3>stack 执行器示例（无返回值）</h3>
+<pre><code>"ext_log": "function(params) { console.log(params.msg); }"</code></pre>
+
+<h3>reporter 执行器示例（有返回值）</h3>
+<pre><code>"ext_add": "function(params) { return Number(params.a) + Number(params.b); }"</code></pre>
+
+<h3>boolean 执行器示例（返回布尔值）</h3>
+<pre><code>"ext_is_even": "function(params) { return Number(params.n) % 2 === 0; }"</code></pre>
+
+<h2>4. JSON 格式完整示例</h2>
+<pre><code>{
+  "id": "math-tools",
+  "name": "数学工具",
+  "color": "#00BCD4",
+  "blocks": [
+    {
+      "type": "ext_math_square",
+      "label": "{n} 的平方",
+      "shape": "reporter",
+      "params": [
+        { "name": "n", "type": "number", "default": 2 }
+      ]
+    },
+    {
+      "type": "ext_math_is_even",
+      "label": "{n} 是偶数",
+      "shape": "boolean",
+      "params": [
+        { "name": "n", "type": "number", "default": 0 }
+      ]
+    },
+    {
+      "type": "ext_log",
+      "label": "记录日志 {msg}",
+      "shape": "stack",
+      "ports": { "flowIn": true, "flowOut": true },
+      "params": [
+        { "name": "msg", "type": "string", "default": "调试信息" }
+      ]
+    }
+  ],
+  "executors": {
+    "ext_math_square": "function(params) { var n = Number(params.n); return n * n; }",
+    "ext_math_is_even": "function(params) { return Number(params.n) % 2 === 0; }",
+    "ext_log": "function(params) { console.log('[LOG]', params.msg); }"
+  }
+}</code></pre>
+
+<h2>5. JavaScript 格式扩展（推荐）</h2>
+<p>JS 格式允许你直接编写真正的函数，无需字符串转义，更加灵活强大。</p>
+
+<h3>JS 格式优势</h3>
+<ul>
+  <li>✅ 直接写函数，不需要字符串转义</li>
+  <li>✅ 支持多行函数、复杂逻辑</li>
+  <li>✅ 可以使用闭包、局部变量</li>
+  <li>✅ 一个文件可以注册多个扩展</li>
+  <li>✅ 更好的代码可读性</li>
+</ul>
+
+<h3>JS 扩展模板</h3>
+<pre><code>/**
+ * JS 扩展示例：游戏工具
+ */
+
+ExtensionManager.registerExtension({
+  id: 'ext_game',
+  name: '游戏工具',
+  color: '#A29BFE',
+  blocks: [
+    {
+      type: 'ext_game_score',
+      label: '设置分数为 {val}',
+      shape: 'stack',
+      ports: { flowIn: true, flowOut: true },
+      params: [{ name: 'val', type: 'number', default: 0 }],
+    },
+    {
+      type: 'ext_game_get_score',
+      label: '当前分数',
+      shape: 'reporter',
+      ports: { flowIn: false, flowOut: false },
+      params: [],
+    },
+  ],
+  executors: {
+    // 直接写函数，不需要字符串！
+    ext_game_score: function(params) {
+      window.__gameScore = Number(params.val);
+      console.log('[游戏] 分数设置为', window.__gameScore);
+    },
+    
+    ext_game_get_score: function() {
+      return window.__gameScore || 0;
+    },
+  },
+});
+
+// 可以在文件中初始化状态
+window.__gameScore = 0;</code></pre>
+
+<h2>6. 加载扩展</h2>
+<h3>方式一：手动加载</h3>
+<p>点击工具栏的 <strong>🧩 扩展</strong> 按钮，选择 <code>.json</code> 或 <code>.js</code> 文件即可。</p>
+
+<h3>方式二：项目自动加载</h3>
+<p>将扩展文件放在项目的 <code>extensions/</code> 目录下，打开项目时会自动加载所有 <code>.json</code> 和 <code>.js</code> 文件。</p>
+
+<h2>7. JSON vs JS 格式对比</h2>
+<table>
+  <tr><th>特性</th><th>JSON 格式</th><th>JS 格式</th></tr>
+  <tr><td>执行器写法</td><td>函数字符串（需转义）</td><td>直接写函数</td></tr>
+  <tr><td>多行函数</td><td>用 \n 拼接</td><td>直接换行</td></tr>
+  <tr><td>局部变量</td><td>不支持</td><td>支持闭包</td></tr>
+  <tr><td>初始化代码</td><td>不支持</td><td>支持</td></tr>
+  <tr><td>多扩展注册</td><td>不支持</td><td>支持</td></tr>
+  <tr><td>语法检查</td><td>运行时</td><td>编辑器可检查</td></tr>
+</table>
+
+<h2>8. 可用全局对象</h2>
+<p>执行器函数中可通过 <code>window</code> 访问以下全局对象：</p>
+<table>
+  <tr><th>对象</th><th>说明</th></tr>
+  <tr><td><code>window</code></td><td>浏览器全局对象，可存储跨执行状态</td></tr>
+  <tr><td><code>document</code></td><td>DOM 文档对象</td></tr>
+  <tr><td><code>Math</code></td><td>数学函数</td></tr>
+  <tr><td><code>Date</code></td><td>日期时间</td></tr>
+  <tr><td><code>JSON</code></td><td>JSON 解析/序列化</td></tr>
+</table>
+
+<div class="tip">
+  <strong>提示：</strong>JS 格式扩展中可以直接使用闭包变量，不一定需要挂载到 window。
+</div>
+
+<div class="warning">
+  <strong>注意：</strong>积木 <code>type</code> 必须全局唯一，建议使用 <code>ext_</code> 前缀。如果 type 与内置积木重复，行为不可预测。
+</div>
+
+<h2>9. 内置扩展列表</h2>
+<p>ObjectScratch 已内置以下扩展，无需额外加载：</p>
+<table>
+  <tr><th>扩展 ID</th><th>名称</th><th>积木数量</th><th>说明</th></tr>
+  <tr><td><code>ext_time</code></td><td>时间</td><td>8</td><td>获取时间戳、日期、格式化、计时器</td></tr>
+  <tr><td><code>ext_drawing</code></td><td>绘图</td><td>9</td><td>在舞台画布上绘制线条、圆、矩形、文字</td></tr>
+  <tr><td><code>ext_string</code></td><td>字符串</td><td>11</td><td>字符串长度、截取、替换、大小写转换等</td></tr>
+  <tr><td><code>ext_color</code></td><td>颜色</td><td>3</td><td>RGB/十六进制颜色、随机颜色</td></tr>
+</table>
+
+</body>
+</html>
