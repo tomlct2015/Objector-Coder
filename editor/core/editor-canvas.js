@@ -828,6 +828,62 @@ const EditorCanvas = (function () {
       const bpItem = menu.querySelector('[data-action="toggle-breakpoint"]');
       if (bpItem) bpItem.textContent = DevMode.isBreakpoint(blockId) ? '✅ 取消断点' : '🔴 设置断点';
     }
+
+    // ===== 断开连接子菜单 =====
+    menu.querySelectorAll('.disconnect-option').forEach(el => el.remove());
+    delete menu.dataset._disconnecting;
+    const disconnectItem = menu.querySelector('[data-action="disconnect"]');
+    if (disconnectItem && block) {
+      const connections = [];
+      if (block.flowIn) {
+        const prev = EditorState.blocks[block.flowIn];
+        if (prev) {
+          const def = BlockRegistry.getBlock(prev.type);
+          connections.push({ type: 'flowIn', label: def ? def.label : prev.type });
+        }
+      }
+      if (block.flowOut) {
+        const next = EditorState.blocks[block.flowOut];
+        if (next) {
+          const def = BlockRegistry.getBlock(next.type);
+          connections.push({ type: 'flowOut', label: def ? def.label : next.type });
+        }
+      }
+      if (block.subBlocks) {
+        for (const [name, subId] of Object.entries(block.subBlocks)) {
+          const sub = EditorState.blocks[subId];
+          if (sub) {
+            const def = BlockRegistry.getBlock(sub.type);
+            connections.push({ type: 'sub:' + name, label: name + ': ' + (def ? def.label : sub.type) });
+          }
+        }
+      }
+      if (block.paramConnections) {
+        for (const [pName, rId] of Object.entries(block.paramConnections)) {
+          const rep = EditorState.blocks[rId];
+          if (rep) {
+            const def = BlockRegistry.getBlock(rep.type);
+            connections.push({ type: 'param:' + pName, label: '{' + pName + '} → ' + (def ? def.label : rep.type) });
+          }
+        }
+      }
+      if (connections.length > 0) {
+        disconnectItem.textContent = (i18n.isEnglish() ? 'Disconnect' : '断开连接') + ' ▸';
+        disconnectItem.dataset.hasConnections = 'true';
+        let refNode = disconnectItem.nextElementSibling;
+        connections.forEach(conn => {
+          const el = document.createElement('div');
+          el.className = 'ctx-item disconnect-option';
+          el.dataset.action = 'disconnect-' + conn.type;
+          el.style.paddingLeft = '32px';
+          el.textContent = (i18n.isEnglish() ? '↩ Disconnect from ' : '↩ 断开: ') + conn.label;
+          menu.insertBefore(el, refNode);
+        });
+      } else {
+        disconnectItem.dataset.hasConnections = 'false';
+        disconnectItem.textContent = (i18n.isEnglish() ? 'Disconnect (none)' : '断开连接（无连接）');
+      }
+    }
   }
 
   function hideContextMenu() {
@@ -905,39 +961,148 @@ const EditorCanvas = (function () {
     offsetY = rect.height / 2 - (block.y + 20) * scale;
   }
 
+  /** 复制积木链（含子代码），返回新链的首积木 ID */
+  function duplicateChain(blockId) {
+    const startBlock = EditorState.blocks[blockId];
+    if (!startBlock) return null;
+
+    // 1. BFS 收集所有需要复制的积木
+    const toCopy = [];
+    const inChain = new Set();
+    const queue = [blockId];
+    while (queue.length > 0) {
+      const id = queue.shift();
+      if (inChain.has(id)) continue;
+      if (!EditorState.blocks[id]) continue;
+      inChain.add(id);
+      toCopy.push(id);
+      const b = EditorState.blocks[id];
+      if (b.flowOut) queue.push(b.flowOut);
+      if (b.subBlocks) Object.values(b.subBlocks).forEach(sid => queue.push(sid));
+    }
+
+    // 2. 生成新 ID 映射
+    const idMap = {};
+    toCopy.forEach(id => {
+      idMap[id] = 'blk_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+    });
+
+    // 3. 复制积木并重新映射所有引用
+    let firstNewId = null;
+    toCopy.forEach((oldId, idx) => {
+      const orig = EditorState.blocks[oldId];
+      const copy = JSON.parse(JSON.stringify(orig));
+      copy.id = idMap[oldId];
+      if (idx === 0) firstNewId = copy.id;
+      copy.x += 30;
+      copy.y += 30;
+      copy.flowIn = idMap[orig.flowIn] || null;
+      copy.flowOut = idMap[orig.flowOut] || null;
+      // 重新映射 subBlocks
+      if (copy.subBlocks) {
+        for (const [k, v] of Object.entries(copy.subBlocks)) {
+          copy.subBlocks[k] = idMap[v] || v;
+        }
+      }
+      // 重新映射 paramConnections（仅保留链内的连接）
+      if (copy.paramConnections) {
+        const remapped = {};
+        for (const [pn, rid] of Object.entries(copy.paramConnections)) {
+          if (idMap[rid]) remapped[pn] = idMap[rid];
+        }
+        copy.paramConnections = remapped;
+      }
+      EditorState.blocks[copy.id] = copy;
+    });
+
+    return firstNewId;
+  }
+
   return {
     init, render, resize, addBlockFromPalette, getCanvas: () => canvas, screenToWorld,
     commitParamEdit: () => paramEditorState && commitParamEdit(),
     addListItem, removeListItem, addDynamicParam, removeDynamicParam,
     hasDynamicParams, editComment, toggleImportant, showGotoLabelDialog, jumpToBlock,
+    duplicateChain,
   };
 })();
 
-// 右键菜单项事件
+// 右键菜单项事件（事件委托：统一在菜单上监听，支持动态子菜单项）
 document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.ctx-item').forEach(item => {
-    item.addEventListener('click', (e) => {
+  const menu = document.getElementById('context-menu');
+  if (menu) {
+    menu.addEventListener('click', (e) => {
       e.stopPropagation();
-      const menu = document.getElementById('context-menu');
+      const item = e.target.closest('.ctx-item');
+      if (!item) return;
+
       const blockId = menu.dataset.blockId;
       const action = item.dataset.action;
-      if (action === 'delete' && blockId) {
-        const b = window.EditorState?.blocks[blockId];
-        if (b) {
-          if (b.flowIn) { const p = window.EditorState.blocks[b.flowIn]; if (p) p.flowOut = b.flowOut; }
-          if (b.flowOut) { const n = window.EditorState.blocks[b.flowOut]; if (n) n.flowIn = b.flowIn; }
-          delete window.EditorState.blocks[blockId];
+      const b = blockId ? window.EditorState?.blocks[blockId] : null;
+
+      // ===== 复制积木 =====
+      if (action === 'duplicate' && blockId) {
+        const newId = EditorCanvas.duplicateChain(blockId);
+        if (newId) {
+          if (typeof EditorCanvas.render === 'function') EditorCanvas.render();
+          // 更新积木计数
+          const bc = document.getElementById('block-count');
+          if (bc) bc.textContent = (i18n.isEnglish() ? 'Blocks: ' : '积木: ') + Object.keys(window.EditorState.blocks).length;
         }
-      } else if (action === 'disconnect' && blockId) {
-        const b = window.EditorState?.blocks[blockId];
-        if (b) {
-          if (b.flowIn) { const p = window.EditorState.blocks[b.flowIn]; if (p) p.flowOut = null; }
-          b.flowIn = null;
+      }
+      // ===== 删除积木 =====
+      else if (action === 'delete' && b) {
+        if (b.flowIn) { const p = window.EditorState.blocks[b.flowIn]; if (p) p.flowOut = b.flowOut; }
+        if (b.flowOut) { const n = window.EditorState.blocks[b.flowOut]; if (n) n.flowIn = b.flowIn; }
+        delete window.EditorState.blocks[blockId];
+      }
+      // ===== 断开连接（父级）：展开子菜单 =====
+      else if (action === 'disconnect') {
+        if (item.dataset.hasConnections === 'true') {
+          menu.dataset._disconnecting = '1';
+          item.style.display = 'none';
+          menu.querySelectorAll('.disconnect-option').forEach(el => el.style.display = '');
+          // 插入返回按钮
+          const backEl = document.createElement('div');
+          backEl.className = 'ctx-item disconnect-option';
+          backEl.dataset.action = 'disconnect-back';
+          backEl.textContent = (i18n.isEnglish() ? '← Back' : '← 返回') ;
+          backEl.style.fontStyle = 'italic';
+          menu.insertBefore(backEl, item);
+          return; // 不隐藏菜单
         }
-      } else if (action === 'add-list-item' && blockId) {
-        const b = window.EditorState?.blocks[blockId];
-        if (b && EditorCanvas.hasDynamicParams(b)) {
-          // 列表检查已有项是否都填了值
+      }
+      // ===== 返回上级菜单 =====
+      else if (action === 'disconnect-back') {
+        delete menu.dataset._disconnecting;
+        menu.querySelectorAll('.disconnect-option').forEach(el => el.remove());
+        const disconnectItem = menu.querySelector('[data-action="disconnect"]');
+        if (disconnectItem) disconnectItem.style.display = '';
+        return; // 不隐藏菜单
+      }
+      // ===== 断开指定连接 =====
+      else if (action.startsWith('disconnect-')) {
+        const connType = action.substring('disconnect-'.length);
+        if (b) {
+          if (connType === 'flowIn') {
+            if (b.flowIn) { const p = window.EditorState.blocks[b.flowIn]; if (p) p.flowOut = null; }
+            b.flowIn = null;
+          } else if (connType === 'flowOut') {
+            if (b.flowOut) { const n = window.EditorState.blocks[b.flowOut]; if (n) n.flowIn = null; }
+            b.flowOut = null;
+          } else if (connType.startsWith('sub:')) {
+            const subName = connType.substring(4);
+            if (b.subBlocks) delete b.subBlocks[subName];
+          } else if (connType.startsWith('param:')) {
+            const paramName = connType.substring(6);
+            if (b.paramConnections) delete b.paramConnections[paramName];
+          }
+        }
+        delete menu.dataset._disconnecting;
+      }
+      // ===== 添加列表项/参数 =====
+      else if (action === 'add-list-item' && b) {
+        if (EditorCanvas.hasDynamicParams(b)) {
           if (b.type === 'list_create') {
             const extras = b._extraParams || [];
             const allFilled = extras.every(p => {
@@ -948,24 +1113,32 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           EditorCanvas.addDynamicParam(b);
         }
-      } else if (action === 'remove-list-item' && blockId) {
-        const b = window.EditorState?.blocks[blockId];
-        if (b && EditorCanvas.hasDynamicParams(b) && b._extraParams && b._extraParams.length > 0) {
+      }
+      // ===== 移除列表项/参数 =====
+      else if (action === 'remove-list-item' && b) {
+        if (EditorCanvas.hasDynamicParams(b) && b._extraParams && b._extraParams.length > 0) {
           const last = b._extraParams[b._extraParams.length - 1];
           EditorCanvas.removeDynamicParam(b, last.name);
         }
-      } else if (action === 'edit-comment' && blockId) {
-        const b = window.EditorState?.blocks[blockId];
-        if (b) EditorCanvas.editComment(b);
-      } else if (action === 'toggle-important' && blockId) {
-        const b = window.EditorState?.blocks[blockId];
-        if (b) EditorCanvas.toggleImportant(b);
-      } else if (action === 'toggle-collapse' && blockId) {
+      }
+      // ===== 编辑批注 =====
+      else if (action === 'edit-comment' && b) {
+        EditorCanvas.editComment(b);
+      }
+      // ===== 标记重要代码 =====
+      else if (action === 'toggle-important' && b) {
+        EditorCanvas.toggleImportant(b);
+      }
+      // ===== 折叠/展开 =====
+      else if (action === 'toggle-collapse' && blockId) {
         if (typeof DevMode !== 'undefined') DevMode.toggleCollapse(blockId);
-      } else if (action === 'toggle-breakpoint' && blockId) {
+      }
+      // ===== 断点 =====
+      else if (action === 'toggle-breakpoint' && blockId) {
         if (typeof DevMode !== 'undefined') DevMode.toggleBreakpoint(blockId);
-      } else if (action === 'run-to-here' && blockId) {
-        // 运行到此处：设置断点并运行
+      }
+      // ===== 运行到此处 =====
+      else if (action === 'run-to-here' && blockId) {
         if (typeof DevMode !== 'undefined') {
           DevMode.toggleBreakpoint(blockId);
           Executor.clearOutput();
@@ -973,9 +1146,13 @@ document.addEventListener('DOMContentLoaded', () => {
           Executor.run();
         }
       }
-      menu.classList.add('hidden');
+
+      // 隐藏菜单（除非处于断开连接的子菜单模式）
+      if (menu.dataset._disconnecting !== '1') {
+        menu.classList.add('hidden');
+      }
     });
-  });
+  }
 
   // 跳转对话框关闭按钮
   const gotoCloseBtn = document.getElementById('goto-label-close');

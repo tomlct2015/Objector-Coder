@@ -21,6 +21,12 @@ const AddNodeDialog = (function () {
         const info = SceneGraph.getNodeType(type);
         return { type, ...info };
       });
+
+      // 始终添加 SceneRef（场景引用）作为可选项
+      const sceneRefInfo = SceneGraph.getNodeType('SceneRef');
+      if (sceneRefInfo && !_allTypes.find(t => t.type === 'SceneRef')) {
+        _allTypes.push({ type: 'SceneRef', ...sceneRefInfo });
+      }
     } else {
       _allTypes = [];
     }

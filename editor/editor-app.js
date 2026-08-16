@@ -915,6 +915,11 @@ window.EditorApp = (function () {
     const renderMode = (typeof EditorState !== 'undefined' && EditorState.renderMode) || '2d';
     if (typeof SceneGraph !== 'undefined') {
       SceneGraph.init(renderMode);
+      // 根据场景模式切换渲染器（画布已移动到高级布局，现在可以安全初始化 3D）
+      const currentMode = SceneGraph.getRootMode();
+      if (currentMode) {
+        switchRendererForMode(currentMode);
+      }
       // 同步到 StageManager
       if (typeof StageManager !== 'undefined') {
         StageManager.syncFromSceneGraph();
@@ -1258,6 +1263,7 @@ window.EditorApp = (function () {
       'ext-docs': () => window.api && window.api.openExtensionDocs(),
       'view-code': () => showAllCodeDialog(),
       'blocks-guide': () => window.open('https://tomlct2015.github.io/Objector-Coder/blocks-guide/', '_blank'),
+      'advanced-guide': () => window.open('https://tomlct2015.github.io/Objector-Coder/how-to-use-advanced-editor/', '_blank'),
     };
 
     // 菜单栏下拉交互
@@ -1411,6 +1417,8 @@ window.EditorApp = (function () {
   // ============================================================
   function switchTo3D() {
     if (typeof Stage3D === 'undefined') return false;
+    // 如果已经初始化了 3D，跳过
+    if (Stage3D.isInitialized && Stage3D.isInitialized()) return true;
     // 停止 2D 渲染循环
     StageCanvas.stop();
     // 替换 canvas 元素（2D context 无法转为 WebGL）
@@ -1420,6 +1428,8 @@ window.EditorApp = (function () {
     newCanvas.id = 'stage-canvas';
     newCanvas.width = 480;
     newCanvas.height = 360;
+    newCanvas.className = oldCanvas.className;
+    newCanvas.style.cssText = oldCanvas.style.cssText;
     oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
     // 初始化 3D 舞台
     var success = Stage3D.init(newCanvas);
@@ -1432,6 +1442,43 @@ window.EditorApp = (function () {
     }
     return success;
   }
+
+  /** 从 3D 切换回 2D 模式 */
+  function switchTo2D() {
+    // 如果 3D 没有初始化，说明已经在 2D 模式
+    if (typeof Stage3D === 'undefined' || !Stage3D.isInitialized || !Stage3D.isInitialized()) return true;
+    // 停止 3D 渲染
+    Stage3D.dispose();
+    // 替换 canvas 元素（WebGL canvas 无法获取 2D context）
+    var oldCanvas = document.getElementById('stage-canvas');
+    if (!oldCanvas) return false;
+    var newCanvas = document.createElement('canvas');
+    newCanvas.id = 'stage-canvas';
+    newCanvas.width = 480;
+    newCanvas.height = 360;
+    newCanvas.className = oldCanvas.className;
+    newCanvas.style.cssText = oldCanvas.style.cssText;
+    oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
+    // 重新初始化 2D 画布
+    StageCanvas.init();
+    // 重新绑定侦测输入
+    if (typeof SensingInput !== 'undefined') SensingInput.init(newCanvas);
+    console.log('[switchTo2D] 已切换到 2D 模式');
+    return true;
+  }
+
+  /** 根据场景模式切换渲染器（2D/3D/UI） */
+  function switchRendererForMode(sceneMode) {
+    if (sceneMode === 'Scene3D') {
+      return switchTo3D();
+    } else {
+      // Scene2D 和 SceneUI 都使用 2D 渲染
+      return switchTo2D();
+    }
+  }
+
+  // 暴露到全局，供 scene-tree.js 和 inspector.js 调用
+  window.switchRendererForMode = switchRendererForMode;
 
   // ============================================================
   // 社区作品在线预览：从社区 API 获取项目并加载到编辑器
@@ -1642,9 +1689,14 @@ window.EditorApp = (function () {
           const sceneData = JSON.parse(sceneContent);
           if (sceneData.rootId || sceneData.nodes) {
             SceneGraph.fromJSON(sceneData);
+            // 根据场景模式切换渲染器
+            const sceneMode = SceneGraph.getRootMode();
+            if (sceneMode) {
+              switchRendererForMode(sceneMode);
+            }
             if (typeof StageManager !== 'undefined') StageManager.syncFromSceneGraph();
             sceneLoaded = true;
-            console.log('[高级模式] 已从场景文件加载:', sceneFilePath);
+            console.log('[高级模式] 已从场景文件加载:', sceneFilePath, '模式:', sceneMode);
           }
         }
       } catch (e) {
@@ -1654,6 +1706,11 @@ window.EditorApp = (function () {
       if (!sceneLoaded && config.sceneGraph && typeof SceneGraph !== 'undefined') {
         // 旧项目回退：从 config.sceneGraph 加载
         SceneGraph.fromJSON(config.sceneGraph);
+        // 根据场景模式切换渲染器
+        const sceneMode = SceneGraph.getRootMode();
+        if (sceneMode) {
+          switchRendererForMode(sceneMode);
+        }
         if (typeof StageManager !== 'undefined') StageManager.syncFromSceneGraph();
         // 保存为场景文件（迁移到文件系统）
         try {
@@ -1723,36 +1780,181 @@ window.EditorApp = (function () {
   // ============================================================
   // 高级模式 JS 脚本执行
   // ============================================================
+
+  /** 创建精灵 API 代理对象（将所有积木功能映射为方法） */
+  function _createSpriteAPI(raw, idx) {
+    const SM = (typeof StageManager !== 'undefined') ? StageManager : null;
+    if (!SM) return raw;
+
+    const proxy = Object.create(null);
+
+    // 基础属性（getter/setter 直接读写原始精灵）
+    Object.defineProperties(proxy, {
+      name: { get() { return raw.name; }, set(v) { raw.name = v; if (typeof SceneTree !== 'undefined') SceneTree.refresh(); } },
+      x: { get() { return raw.x; }, set(v) { raw.x = Number(v); } },
+      y: { get() { return raw.y; }, set(v) { raw.y = Number(v); } },
+      direction: { get() { return raw.direction; }, set(v) { raw.direction = Number(v); } },
+      size: { get() { return raw.size; }, set(v) { raw.size = Number(v); } },
+      visible: { get() { return raw.visible; }, set(v) { raw.visible = !!v; } },
+      color: { get() { return raw.color; }, set(v) { raw.color = v; } },
+      sayText: { get() { return raw.sayText; }, set(v) { raw.sayText = String(v); } },
+      vx: { get() { return raw.vx || 0; }, set(v) { raw.vx = Number(v); } },
+      vy: { get() { return raw.vy || 0; }, set(v) { raw.vy = Number(v); } },
+      rotationStyle: { get() { return raw.rotationStyle; }, set(v) { raw.rotationStyle = v; } },
+      _raw: { value: raw },
+      _idx: { value: idx },
+    });
+
+    // === 外观 ===
+    proxy.say = (text) => { SM.setSpriteSay(idx, String(text)); };
+    proxy.sayFor = (text, sec) => { SM.setSpriteSay(idx, String(text)); setTimeout(() => SM.setSpriteSay(idx, ''), Number(sec) * 1000); };
+    proxy.think = (text) => { SM.setSpriteSay(idx, '\u{1F4AD} ' + String(text)); };
+    proxy.clearSay = () => { SM.setSpriteSay(idx, ''); };
+    proxy.show = () => { raw.visible = true; };
+    proxy.hide = () => { raw.visible = false; };
+    proxy.setSize = (sz) => { SM.setSpriteSize(idx, Number(sz)); };
+    proxy.changeSize = (n) => { SM.changeSpriteSize(idx, Number(n)); };
+    proxy.nextCostume = async () => {
+      if (typeof CostumeManager !== 'undefined') {
+        const names = CostumeManager.getAllNames();
+        if (names.length > 0) {
+          const curName = raw.costumeName || '';
+          const curIdx = names.indexOf(curName);
+          await SM.setSpriteCostume(idx, names[(curIdx + 1) % names.length]);
+        }
+      }
+    };
+    proxy.setCostume = async (name) => { await SM.setSpriteCostume(idx, name); };
+    proxy.setColor = (val) => { raw.colorEffect = Number(val); };
+    proxy.clearEffects = () => { raw.colorEffect = 0; raw.size = 100; };
+
+    // === 运动 ===
+    proxy.move = (steps) => { SM.moveSprite(idx, Number(steps)); };
+    proxy.turnRight = (deg) => { SM.rotateSprite(idx, Number(deg)); };
+    proxy.turnLeft = (deg) => { SM.rotateSprite(idx, -Number(deg)); };
+    proxy.pointInDirection = (deg) => { SM.setSpriteDir(idx, Number(deg)); };
+    proxy.goTo = (x, y) => { SM.setSpritePos(idx, Number(x), Number(y)); };
+    proxy.bounce = () => { SM.bounceSprite(idx); };
+    proxy.clampToStage = () => {
+      const hw = SM.STAGE_W / 2, hh = SM.STAGE_H / 2;
+      raw.x = Math.max(-hw, Math.min(hw, raw.x));
+      raw.y = Math.max(-hh, Math.min(hh, raw.y));
+    };
+    proxy.wrapAround = () => {
+      const hw = SM.STAGE_W / 2, hh = SM.STAGE_H / 2;
+      if (raw.x > hw) raw.x = -hw; else if (raw.x < -hw) raw.x = hw;
+      if (raw.y > hh) raw.y = -hh; else if (raw.y < -hh) raw.y = hh;
+    };
+    proxy.goToRandomPosition = () => {
+      const hw = SM.STAGE_W / 2, hh = SM.STAGE_H / 2;
+      raw.x = Math.random() * hw * 2 - hw;
+      raw.y = Math.random() * hh * 2 - hh;
+    };
+
+    // === 侦测 ===
+    proxy.isTouchingEdge = () => SM.isTouchingEdge(idx);
+    proxy.isTouchingSprite = (name) => {
+      const all = SM.getSprites();
+      const tIdx = all.findIndex(s => s.name === name);
+      return tIdx >= 0 ? SM.isTouchingSprite(idx, tIdx) : false;
+    };
+    proxy.distanceTo = (name) => {
+      const all = SM.getSprites();
+      const t = all.find(s => s.name === name);
+      return t ? SM.getDistanceToPoint(idx, t.x, t.y) : 0;
+    };
+    proxy.directionTo = (name) => {
+      const all = SM.getSprites();
+      const t = all.find(s => s.name === name);
+      return t ? SM.getDirectionToPoint(idx, t.x, t.y) : 0;
+    };
+    proxy.distanceToMouse = () => {
+      const SI = (typeof SensingInput !== 'undefined') ? SensingInput : null;
+      return SI ? SM.getDistanceToPoint(idx, SI.getMouseX(), SI.getMouseY()) : 0;
+    };
+    proxy.directionToMouse = () => {
+      const SI = (typeof SensingInput !== 'undefined') ? SensingInput : null;
+      return SI ? SM.getDirectionToPoint(idx, SI.getMouseX(), SI.getMouseY()) : 0;
+    };
+
+    // === 高级运动 ===
+    proxy.setVelocity = (vx, vy) => { SM.setVelocity(idx, vx, vy); };
+    proxy.changeVelocity = (dvx, dvy) => { SM.changeVelocity(idx, dvx, dvy); };
+    proxy.updateVelocity = () => { SM.updateVelocity(idx); };
+    proxy.applyGravity = (g) => { SM.applyGravity(idx, g); };
+    proxy.applyFriction = (f) => { SM.applyFriction(idx, f); };
+    proxy.bounceEdgeVelocity = () => { SM.bounceEdgeVelocity(idx); };
+    proxy.pointTowards = (tx, ty) => { SM.pointTowards(idx, tx, ty); };
+    proxy.moveTowards = (tx, ty, steps) => { SM.moveTowards(idx, tx, ty, steps || 3); };
+
+    // === 克隆 ===
+    proxy.clone = () => SM.cloneSprite(idx);
+
+    return proxy;
+  }
+
+  /** 创建全局 API 对象 */
+  function _createGlobalAPI() {
+    const SM = (typeof StageManager !== 'undefined') ? StageManager : null;
+    const SI = (typeof SensingInput !== 'undefined') ? SensingInput : null;
+    const SND = (typeof SoundManager !== 'undefined') ? SoundManager : null;
+
+    return {
+      get stageWidth() { return SM ? SM.STAGE_W : 480; },
+      get stageHeight() { return SM ? SM.STAGE_H : 360; },
+      getSprites: () => SM ? SM.getSprites() : [],
+      getSpriteByName: (name) => SM ? SM.getSpriteByName(name) : null,
+      getSpriteCount: () => SM ? SM.getSpriteCount() : 0,
+      setActiveSprite: (idx) => SM && SM.setActiveSprite(idx),
+      get mouseX() { return SI ? SI.getMouseX() : 0; },
+      get mouseY() { return SI ? SI.getMouseY() : 0; },
+      isMouseDown: () => SI ? SI.isMouseDown() : false,
+      isKeyPressed: (key) => SI ? SI.isKeyPressed(key) : false,
+      getVolume: () => SND ? SND.getVolume() : 0,
+      setVolume: (v) => SND && SND.setVolume(v),
+      random: (a, b) => Math.floor(Math.random() * (b - a + 1)) + a,
+      randomFloat: () => Math.random(),
+      randomRange: (a, b) => Math.random() * (b - a) + a,
+      now: () => new Date(),
+      timer: () => Date.now() / 1000,
+    };
+  }
+
   function runAdvancedScripts() {
     const sprites = (typeof StageManager !== 'undefined') ? StageManager.getSprites() : [];
     const globalVars = (typeof Executor !== 'undefined') ? Executor._getGlobalVars() : {};
     const selIdx = (typeof SceneTree !== 'undefined') ? SceneTree.getSelectedIndex() : -1;
     const editor = (typeof EditorApp !== 'undefined' && EditorApp.getJsEditor) ? EditorApp.getJsEditor() : null;
+    const globalAPI = _createGlobalAPI();
 
     sprites.forEach((sprite, index) => {
-      // 优先从当前编辑器获取代码（如果是当前选中的精灵）
       let code;
       if (editor && selIdx === index) {
         code = editor.getValue();
-        _spriteScripts[index] = code;  // 同步保存
+        _spriteScripts[index] = code;
       } else {
         code = _spriteScripts[index] || '';
       }
-      // 跳过空代码和纯注释
       if (!code || !code.trim() || /^\s*(\/\/[^\n]*\n?|\/\*[\s\S]*?\*\/\s*)+$/.test(code)) return;
 
       try {
-        // 构建执行上下文
-        const fn = new Function('sprite', 'globalVars', 'log', code);
-        fn(
-          sprite,
-          globalVars,
-          (msg) => {
-            const logEl = document.getElementById('output-log');
-            if (logEl) logEl.textContent += '\n' + msg;
-          }
+        const api = _createSpriteAPI(sprite, index);
+        const logFn = (msg) => {
+          const logEl = document.getElementById('output-log');
+          if (logEl) logEl.textContent += '\n' + msg;
+        };
+        // 常用方法作为全局函数注入
+        const fn = new Function('sprite', 'globalVars', 'log', 'stage',
+          'say', 'sayFor', 'think', 'move', 'turnRight', 'turnLeft',
+          'show', 'hide', 'setSize', 'changeSize',
+          code
         );
-        // 执行后刷新渲染
+        fn(
+          api, globalVars, logFn, globalAPI,
+          api.say.bind(api), api.sayFor.bind(api), api.think.bind(api),
+          api.move.bind(api), api.turnRight.bind(api), api.turnLeft.bind(api),
+          api.show.bind(api), api.hide.bind(api), api.setSize.bind(api), api.changeSize.bind(api)
+        );
         if (typeof StageCanvas !== 'undefined') StageCanvas.render();
         if (typeof SceneTree !== 'undefined') SceneTree.refresh();
         if (typeof Inspector !== 'undefined') Inspector.refresh();

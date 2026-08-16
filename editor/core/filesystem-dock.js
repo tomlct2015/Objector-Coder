@@ -52,6 +52,12 @@ const FileSystemDock = (function () {
       newFolderBtn.addEventListener('click', _createNewFolder);
     }
 
+    // 绑定创建新场景按钮
+    const newSceneBtn = document.getElementById('btn-new-scene');
+    if (newSceneBtn) {
+      newSceneBtn.addEventListener('click', _createNewScene);
+    }
+
     // 左侧分割条拖拽
     const divider = document.getElementById('left-divider');
     const scenePanel = document.getElementById('scene-tree-panel');
@@ -264,6 +270,11 @@ const FileSystemDock = (function () {
       const sceneData = JSON.parse(content);
       if ((sceneData.rootId || sceneData.nodes) && typeof SceneGraph !== 'undefined') {
         SceneGraph.fromJSON(sceneData);
+        // 根据场景模式切换渲染器
+        const sceneMode = SceneGraph.getRootMode();
+        if (sceneMode && typeof window.switchRendererForMode === 'function') {
+          window.switchRendererForMode(sceneMode);
+        }
         if (typeof StageManager !== 'undefined') StageManager.syncFromSceneGraph();
         if (typeof SceneTree !== 'undefined') SceneTree.refresh();
         if (typeof Inspector !== 'undefined') {
@@ -635,6 +646,178 @@ const FileSystemDock = (function () {
     }
   }
 
+  // ===================== 创建新场景 =====================
+
+  /** 创建新场景文件（带模式选择） */
+  async function _createNewScene() {
+    if (!_projectPath) {
+      alert('请先打开项目');
+      return;
+    }
+    if (!window.api || !window.api.writeFile || !window.api.ensureDir) {
+      alert('文件系统 API 不可用');
+      return;
+    }
+
+    // 显示创建场景对话框
+    await _showCreateSceneDialog();
+  }
+
+  /** 显示创建场景对话框 */
+  async function _showCreateSceneDialog() {
+    const overlay = document.createElement('div');
+    overlay.className = 'dialog-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;';
+    overlay.innerHTML = `
+      <div style="background:var(--bg-secondary,#181825);border:1px solid var(--border,#45475a);border-radius:10px;padding:20px;min-width:360px;max-width:440px;">
+        <h3 style="margin:0 0 14px;font-size:14px;color:var(--accent,#89b4fa);">🎬 创建新场景</h3>
+        <p style="margin:0 0 8px;font-size:12px;color:var(--text-secondary,#a6adc8);">场景名称：</p>
+        <input type="text" id="scene-name-input" value="new-scene" placeholder="例如: enemy, ui-menu" style="width:100%;padding:8px 10px;background:var(--bg-surface,#313244);border:1px solid var(--border,#45475a);border-radius:6px;color:var(--text-primary,#cdd6f4);font-size:13px;outline:none;margin-bottom:12px;" />
+        <p style="margin:0 0 8px;font-size:12px;color:var(--text-secondary,#a6adc8);">场景模式：</p>
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+          <button class="scene-mode-btn active" data-mode="Scene2D" style="flex:1;padding:10px;background:var(--bg-surface,#313244);border:2px solid var(--accent,#89b4fa);border-radius:8px;cursor:pointer;text-align:center;color:var(--text-primary,#cdd6f4);">
+            <div style="font-size:20px;">🎬</div>
+            <div style="font-size:12px;font-weight:600;">2D</div>
+            <div style="font-size:10px;opacity:0.7;">2D 场景</div>
+          </button>
+          <button class="scene-mode-btn" data-mode="Scene3D" style="flex:1;padding:10px;background:var(--bg-surface,#313244);border:2px solid var(--border,#45475a);border-radius:8px;cursor:pointer;text-align:center;color:var(--text-primary,#cdd6f4);">
+            <div style="font-size:20px;">🌐</div>
+            <div style="font-size:12px;font-weight:600;">3D</div>
+            <div style="font-size:10px;opacity:0.7;">3D 场景</div>
+          </button>
+          <button class="scene-mode-btn" data-mode="SceneUI" style="flex:1;padding:10px;background:var(--bg-surface,#313244);border:2px solid var(--border,#45475a);border-radius:8px;cursor:pointer;text-align:center;color:var(--text-primary,#cdd6f4);">
+            <div style="font-size:20px;">🖼️</div>
+            <div style="font-size:12px;font-weight:600;">UI</div>
+            <div style="font-size:10px;opacity:0.7;">Control UI</div>
+          </button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end;">
+          <button id="scene-dialog-cancel" class="tb-btn" style="background:var(--bg-surface,#313244);color:var(--text-primary,#cdd6f4);border:1px solid var(--border,#45475a);border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer;">取消</button>
+          <button id="scene-dialog-ok" class="tb-btn" style="background:var(--accent,#89b4fa);color:#1e1e2e;border:none;border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer;font-weight:600;">创建</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const input = overlay.querySelector('#scene-name-input');
+    input.focus();
+    input.select();
+
+    let selectedMode = 'Scene2D';
+
+    // 模式按钮交互
+    overlay.querySelectorAll('.scene-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        overlay.querySelectorAll('.scene-mode-btn').forEach(b => {
+          b.style.borderColor = 'var(--border,#45475a)';
+          b.classList.remove('active');
+        });
+        btn.style.borderColor = 'var(--accent,#89b4fa)';
+        btn.classList.add('active');
+        selectedMode = btn.dataset.mode;
+      });
+    });
+
+    overlay.querySelector('#scene-dialog-cancel').addEventListener('click', () => {
+      document.body.removeChild(overlay);
+    });
+
+    overlay.querySelector('#scene-dialog-ok').addEventListener('click', async () => {
+      const sceneName = input.value.trim();
+      if (!sceneName) {
+        alert('请输入场景名称');
+        return;
+      }
+      document.body.removeChild(overlay);
+      await _doCreateScene(sceneName, selectedMode);
+    });
+
+    input.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        const sceneName = input.value.trim();
+        if (!sceneName) {
+          alert('请输入场景名称');
+          return;
+        }
+        document.body.removeChild(overlay);
+        await _doCreateScene(sceneName, selectedMode);
+      }
+      if (e.key === 'Escape') {
+        document.body.removeChild(overlay);
+      }
+    });
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        document.body.removeChild(overlay);
+      }
+    });
+  }
+
+  /** 执行创建场景文件 */
+  async function _doCreateScene(sceneName, modeType) {
+    if (!window.api || !window.api.writeFile || !window.api.ensureDir || !window.api.pathJoin) {
+      alert('文件系统 API 不可用');
+      return;
+    }
+
+    try {
+      // 构建路径
+      const scenesDir = await window.api.pathJoin(_projectPath, 'scenes');
+      const filePath = await window.api.pathJoin(scenesDir, sceneName + '.scene.json');
+
+      // 检查文件是否已存在
+      try {
+        const existing = await window.api.readFile(filePath);
+        if (existing !== null && existing !== undefined) {
+          if (!confirm('场景文件 "' + sceneName + '.scene.json" 已存在，是否覆盖？')) {
+            return;
+          }
+        }
+      } catch (e) {
+        // 文件不存在，继续创建
+      }
+
+      // 创建临时 SceneGraph 来生成新场景数据
+      // 使用 SceneGraph.getNodeType 获取模式的默认属性
+      const modeInfo = typeof SceneGraph !== 'undefined' ? SceneGraph.getNodeType(modeType) : null;
+      const rootNodeId = 'node_1';
+      const sceneData = {
+        name: sceneName,
+        rootId: rootNodeId,
+        nextId: 2,
+        nodes: {
+          [rootNodeId]: {
+            id: rootNodeId,
+            type: modeType,
+            name: sceneName,
+            parent: null,
+            children: [],
+            properties: modeInfo ? { ...modeInfo.defaultProps } : {},
+            spriteRef: null,
+            script: '',
+            blocks: {},
+            expanded: true,
+            visible: true,
+            locked: false,
+          }
+        }
+      };
+
+      // 确保目录存在并写入文件
+      await window.api.ensureDir(scenesDir);
+      await window.api.writeFile(filePath, JSON.stringify(sceneData, null, 2));
+
+      // 刷新文件列表
+      await refresh();
+
+      document.getElementById('status-text').textContent = '已创建场景: ' + sceneName + ' (' + modeType + ')';
+    } catch (e) {
+      console.error('[FileSystem] 创建场景失败:', e);
+      alert('创建场景失败: ' + e.message);
+    }
+  }
+
   /** 保存当前场景到文件 */
   async function saveCurrentScene(name) {
     if (typeof SceneGraph === 'undefined' || typeof EditorState === 'undefined') return;
@@ -671,5 +854,6 @@ const FileSystemDock = (function () {
     init,
     refresh,
     saveCurrentScene,
+    createNewScene: _createNewScene,
   };
 })();

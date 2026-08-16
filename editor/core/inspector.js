@@ -23,6 +23,8 @@ const Inspector = (function () {
       return;
     }
     const typeInfo = SceneGraph.getNodeType(node.type);
+    const isRoot = !node.parent;
+    const isSceneRoot = isRoot && ['Scene2D', 'Scene3D', 'SceneUI'].includes(node.type);
     _container.innerHTML = `
       <div class="inspector-group">
         <div class="inspector-group-title">
@@ -36,10 +38,24 @@ const Inspector = (function () {
           <span class="inspector-label">可见</span>
           <input type="checkbox" data-prop="visible" ${node.visible !== false ? 'checked' : ''} style="width:auto;" />
         </div>
+        ${isSceneRoot ? _renderModeSwitcher(node) : ''}
       </div>
       ${_renderProps(node)}
     `;
     _bindInputs(nodeId);
+  }
+
+  /** 渲染场景模式切换器（仅根节点） */
+  function _renderModeSwitcher(node) {
+    const modes = SceneGraph.getSceneModes();
+    const labels = SceneGraph.getSceneModeLabels();
+    const opts = modes.map(m => `<option value="${m}" ${m === node.type ? 'selected' : ''}>${labels[m] || m}</option>`).join('');
+    return `<div class="inspector-row">
+      <span class="inspector-label">场景模式</span>
+      <select class="inspector-input" data-action="switch-mode" style="padding:2px 4px;">
+        ${opts}
+      </select>
+    </div>`;
   }
 
   function _renderProps(node) {
@@ -60,6 +76,55 @@ const Inspector = (function () {
         break;
       case 'Scene2D': h += '<p class="inspector-hint">2D 场景根节点</p>'; break;
       case 'Scene3D': h += '<p class="inspector-hint">3D 场景根节点</p>'; break;
+      case 'SceneUI': h += '<p class="inspector-hint">Control UI 场景根节点</p>'; break;
+      // ===== UI 节点 =====
+      case 'NodeUI':
+        h += _pos2d(p) + _uiSize(p);
+        break;
+      case 'ButtonUI':
+        h += _pos2d(p) + _uiSize(p);
+        h += `<div class="inspector-group"><div class="inspector-group-title">按钮</div>
+          <div class="inspector-row"><span class="inspector-label">文本</span>
+          <input class="inspector-input" data-prop="text" value="${esc(p.text||'')}" /></div>
+          <div class="inspector-row"><span class="inspector-label">背景色</span>
+          <input class="inspector-input" type="color" data-prop="color" value="${p.color||'#89b4fa'}" style="padding:2px;height:24px;" /></div>
+          <div class="inspector-row"><span class="inspector-label">文字色</span>
+          <input class="inspector-input" type="color" data-prop="textColor" value="${p.textColor||'#1e1e2e'}" style="padding:2px;height:24px;" /></div></div>`;
+        break;
+      case 'LabelUI':
+        h += _pos2d(p);
+        h += `<div class="inspector-group"><div class="inspector-group-title">文本</div>
+          <div class="inspector-row"><span class="inspector-label">内容</span>
+          <input class="inspector-input" data-prop="text" value="${esc(p.text||'')}" /></div>
+          <div class="inspector-row"><span class="inspector-label">字号</span>
+          <input class="inspector-input" type="number" data-prop="fontSize" value="${p.fontSize||16}" min="6" max="200" /></div>
+          <div class="inspector-row"><span class="inspector-label">颜色</span>
+          <input class="inspector-input" type="color" data-prop="color" value="${p.color||'#cdd6f4'}" style="padding:2px;height:24px;" /></div></div>`;
+        break;
+      case 'ImageUI':
+        h += _pos2d(p) + _uiSize(p);
+        h += `<div class="inspector-group"><div class="inspector-group-title">图片</div>
+          <div class="inspector-row"><span class="inspector-label">图片路径</span>
+          <input class="inspector-input" data-prop="src" value="${esc(p.src||'')}" placeholder="assets/img.png" /></div></div>`;
+        break;
+      case 'PanelUI':
+        h += _pos2d(p) + _uiSize(p);
+        h += `<div class="inspector-group"><div class="inspector-group-title">面板样式</div>
+          <div class="inspector-row"><span class="inspector-label">背景色</span>
+          <input class="inspector-input" type="color" data-prop="bgColor" value="${p.bgColor||'#313244'}" style="padding:2px;height:24px;" /></div>
+          <div class="inspector-row"><span class="inspector-label">边框色</span>
+          <input class="inspector-input" type="color" data-prop="borderColor" value="${p.borderColor||'#45475a'}" style="padding:2px;height:24px;" /></div></div>`;
+        break;
+      // ===== SceneRef =====
+      case 'SceneRef':
+        h += `<div class="inspector-group"><div class="inspector-group-title">场景引用</div>
+          <div class="inspector-row"><span class="inspector-label">场景路径</span>
+          <input class="inspector-input" data-prop="scenePath" value="${esc(p.scenePath||'')}" placeholder="scenes/xxx.scene.json" /></div>
+          <div class="inspector-row" style="padding-top:4px;">
+            <button id="btn-pick-scene" class="tb-btn" style="font-size:11px;padding:4px 10px;">📁 选择场景文件...</button>
+          </div>
+        </div>`;
+        break;
       case 'Node3D':
         h += _pos3d(p);
         break;
@@ -98,6 +163,14 @@ const Inspector = (function () {
       default: h += '<p class="inspector-hint">未知节点类型</p>';
     }
     return h;
+  }
+
+  function _uiSize(p) {
+    return `<div class="inspector-group"><div class="inspector-group-title">尺寸</div>
+      <div class="inspector-row"><span class="inspector-label">宽度</span>
+      <input class="inspector-input" type="number" data-prop="width" value="${p.width||100}" min="1" /></div>
+      <div class="inspector-row"><span class="inspector-label">高度</span>
+      <input class="inspector-input" type="number" data-prop="height" value="${p.height||40}" min="1" /></div></div>`;
   }
 
   function _pos2d(p) {
@@ -158,7 +231,27 @@ const Inspector = (function () {
   function _bindInputs(nodeId) {
     _container.querySelectorAll('.inspector-input').forEach(input => {
       const prop = input.dataset.prop;
-      if (!prop) return;
+      const action = input.dataset.action;
+      if (!prop && !action) return;
+
+      // 场景模式切换
+      if (action === 'switch-mode') {
+        input.addEventListener('change', () => {
+          const ok = SceneGraph.switchRootMode(input.value);
+          if (ok) {
+            // 切换实际渲染器
+            if (typeof window.switchRendererForMode === 'function') {
+              window.switchRendererForMode(input.value);
+            }
+            if (typeof StageManager !== 'undefined') StageManager.syncFromSceneGraph();
+            if (typeof SceneTree !== 'undefined') SceneTree.refresh();
+            // 重新渲染 inspector
+            showNode(nodeId);
+          }
+        });
+        return;
+      }
+
       const handler = () => {
         let value;
         if (input.type === 'checkbox') value = input.checked;
@@ -174,6 +267,30 @@ const Inspector = (function () {
       input.addEventListener('change', handler);
       if (input.type === 'color' || input.type === 'range') input.addEventListener('input', handler);
     });
+
+    // 场景选择按钮
+    const pickBtn = _container.querySelector('#btn-pick-scene');
+    if (pickBtn) {
+      pickBtn.addEventListener('click', async () => {
+        const scenes = await SceneGraph.listScenes();
+        if (scenes.length === 0) {
+          alert('未找到场景文件。请先在 scenes/ 目录下创建 .scene.json 文件。');
+          return;
+        }
+        const options = scenes.map(s => s.name).join('\n');
+        const chosen = prompt('选择场景文件（输入文件名）：\n\n' + options);
+        if (chosen) {
+          const match = scenes.find(s => s.name === chosen.trim());
+          if (match) {
+            SceneGraph.updateProperty(nodeId, 'scenePath', match.path);
+            if (typeof StageManager !== 'undefined') StageManager.syncFromSceneGraph();
+            showNode(nodeId); // 刷新显示
+          } else {
+            alert('未找到场景文件: ' + chosen);
+          }
+        }
+      });
+    }
   }
 
   function showSprite(index) {

@@ -207,6 +207,52 @@ body { font-family: 'Segoe UI','Microsoft YaHei',sans-serif; background:var(--bg
 .scene-node-vis, .scene-node-lock { font-size:10px; opacity:0.6; cursor:pointer; flex-shrink:0; padding:0 2px; }
 .scene-node-vis:hover, .scene-node-lock:hover { opacity:1; }
 
+/* 场景模式徽章 */
+.scene-mode-badge {
+  display:inline-block;
+  font-size:9px;
+  font-weight:700;
+  padding:1px 5px;
+  margin-left:4px;
+  border-radius:3px;
+  background:var(--accent,#89b4fa);
+  color:#1e1e2e;
+  cursor:pointer;
+  vertical-align:middle;
+  transition:all .15s;
+}
+.scene-mode-badge:hover { opacity:0.8; transform:scale(1.1); }
+
+/* 模式切换菜单 */
+.mode-switch-menu { user-select:none; }
+.mode-switch-item {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 14px;
+  cursor:pointer;
+  font-size:12px;
+  color:var(--text-primary,#cdd6f4);
+  transition:background .1s;
+}
+.mode-switch-item:hover { background:var(--bg-hover,#313244); }
+.mode-switch-item.active { background:var(--accent,#89b4fa); color:#1e1e2e; }
+.mode-switch-icon { font-size:14px; }
+.mode-switch-label { font-weight:600; min-width:30px; }
+.mode-switch-desc { font-size:10px; opacity:0.7; }
+
+/* 创建场景对话框 - 模式选择按钮 */
+.scene-mode-btn {
+  transition: all 0.15s ease;
+}
+.scene-mode-btn:hover {
+  border-color: var(--accent,#89b4fa) !important;
+  transform: translateY(-1px);
+}
+.scene-mode-btn.active {
+  box-shadow: 0 0 12px rgba(137,180,250,0.3);
+}
+
 #advanced-center { flex:1; display:flex; flex-direction:column; overflow:hidden; }
 #viewport { flex:1; display:flex; align-items:center; justify-content:center; background:#11111b; min-height:200px; }
 #viewport #stage-canvas { background:#fff; border-radius:2px; max-width:100%; height:auto; }

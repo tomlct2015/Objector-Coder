@@ -2,48 +2,46 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Objector Web IDE</title>
-  <link rel="icon" href="../icon.svg" type="image/svg+xml" />
+  <title>Objector</title>
   <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="web-styles.css" />
   <script src="core/i18n.js"></script>
   <script src="i18n/zh-CN.js"></script>
   <script src="i18n/en.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="../community/shared/community-api.js"></script>
-  <script src="web-api-shim.js"></script>
+  <script src="../docs/community/shared/community-api.js"></script>
 </head>
 <body>
-  <!-- 顶部导航栏 -->
+  <!-- 自定义标题栏 -->
   <header id="titlebar">
     <div class="titlebar-drag">
-      <span class="app-title" style="font-size:14px;">⚡ Objector Web IDE</span>
+      <img src="../Objector2.png" class="app-logo" alt="" />
+      <span class="app-title">Objector</span>
     </div>
-    <div style="display:flex;gap:8px;padding-right:12px;">
-      <a href="../community/index.html" class="tb-btn" style="text-decoration:none;font-size:11px;">🏘️ 社区</a>
-      <a href="../blocks-guide/" target="_blank" class="tb-btn" style="text-decoration:none;font-size:11px;" data-i18n="editor.blocksGuide">📖 积木指南</a>
-      <button id="home-lang-switch" class="tb-btn" data-i18n="langSwitch" title="Switch Language" style="font-size:11px;">EN</button>
-      <div style="position:relative;display:inline-block;">
-        <button id="home-btn-login" class="tb-btn" title="登录社区" style="font-size:11px;">👤 登录</button>
-        <div id="user-menu" class="user-menu hidden">
-          <a id="menu-open-community" class="user-menu-item" href="../community/index.html">🏨️ 打开社区</a>
-          <button id="menu-logout" class="user-menu-item">🚪 退出登录</button>
-          <div style="border-top:1px solid var(--border);margin:4px 0;"></div>
-          <button id="menu-delete-account" class="user-menu-item" style="color:var(--red,#f38ba8);">🗑️ 注销账户</button>
-        </div>
-      </div>
+    <div class="titlebar-controls">
+      <button id="win-minimize" class="win-btn" data-i18n-title="titlebar.minimize">─</button>
+      <button id="win-maximize" class="win-btn" data-i18n-title="titlebar.maximize">□</button>
+      <button id="win-close" class="win-btn win-close-btn" data-i18n-title="titlebar.close">✕</button>
     </div>
   </header>
 
   <!-- 主页 -->
   <div id="home-screen">
     <header class="home-header">
-      <h1 class="home-logo" style="font-size:20px;">⚡ Objector Web IDE</h1>
+      <h1 class="home-logo">Objector</h1>
       <div class="home-actions">
+        <a href="https://tomlct2015.github.io/Objector-Coder/blocks-guide/" target="_blank" data-i18n="home.about">关于用法</a>
         <button id="home-btn-new" class="tb-btn tb-run" data-i18n="home.newProject">+ 新建工程</button>
         <button id="home-btn-open" class="tb-btn" data-i18n="home.openProject">打开项目</button>
+        <button id="home-lang-switch" class="tb-btn" data-i18n="langSwitch" title="Switch Language">EN</button>
+        <div style="position:relative;display:inline-block;">
+          <button id="home-btn-login" class="tb-btn" title="登录社区">👤 登录</button>
+          <div id="user-menu" class="user-menu hidden">
+            <button id="menu-open-community" class="user-menu-item">🏛️ 打开社区</button>
+            <button id="menu-logout" class="user-menu-item">🚪 退出登录</button>
+            <div style="border-top:1px solid var(--border);margin:4px 0;"></div>
+            <button id="menu-delete-account" class="user-menu-item" style="color:var(--red,#f38ba8);">🗑️ 注销账户</button>
+          </div>
+        </div>
       </div>
     </header>
     <main class="home-body">
@@ -58,6 +56,9 @@
         <p data-i18n="home.noProjects">还没有项目，点击上方按钮开始创作</p>
       </div>
     </main>
+    <footer class="home-footer" style="text-align:center;padding:16px 0 8px;font-size:11px;color:var(--text-muted);opacity:0.6;">
+      Objector v1.0.18
+    </footer>
   </div>
 
   <!-- 模式选择弹窗 -->
@@ -70,6 +71,11 @@
           <div class="mode-icon">🎮</div>
           <h3 data-i18n="mode.normal">普通创作</h3>
           <p data-i18n="mode.normalDesc">使用积木搭建动画、游戏，专注于创意本身</p>
+        </div>
+        <div class="mode-card" data-mode="advanced">
+          <div class="mode-icon">🎬</div>
+          <h3 data-i18n="mode.advanced">高级创作</h3>
+          <p data-i18n="mode.advancedDesc">Godot 式专业编辑器，积木与代码双模式</p>
         </div>
         <div class="mode-card" data-mode="extension">
           <div class="mode-icon">🧩</div>
@@ -102,954 +108,69 @@
     </div>
   </div>
 
-  <!-- 打开项目来源选择弹窗 -->
-  <div id="open-source-dialog" class="dialog-overlay hidden">
-    <div class="dialog-box open-source-box">
-      <h2 id="os-title" data-i18n="home.openProject">打开项目</h2>
-      <div id="os-tabs" class="os-tabs">
-        <button class="os-tab active" data-source="cloud">☁️ 云端</button>
-        <button class="os-tab" data-source="local">📁 本地文件</button>
-        <button class="os-tab" data-source="url">🔗 网址</button>
-      </div>
-      <!-- 云端项目列表 -->
-      <div id="os-cloud-panel" class="os-panel">
-        <div id="os-cloud-status" style="color:var(--text-muted);font-size:12px;margin-bottom:8px;"></div>
-        <div id="os-cloud-list" class="os-cloud-list"></div>
-      </div>
-      <!-- 本地文件 -->
-      <div id="os-local-panel" class="os-panel" style="display:none">
-        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">选择本地项目（ZIP 文件或文件夹）</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <div style="flex:1;min-width:180px;">
-            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">📦 ZIP 文件</label>
-            <input type="file" id="os-local-file" accept=".zip" style="margin-bottom:8px;" />
-            <button id="os-local-btn" class="tb-btn tb-run" style="width:100%;">打开 ZIP</button>
-          </div>
-          <div style="flex:1;min-width:180px;">
-            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">📁 文件夹</label>
-            <input type="file" id="os-local-folder" webkitdirectory multiple style="margin-bottom:8px;" />
-            <button id="os-local-folder-btn" class="tb-btn tb-run" style="width:100%;">打开文件夹</button>
-          </div>
-        </div>
-      </div>
-      <!-- 网址 -->
-      <div id="os-url-panel" class="os-panel" style="display:none">
-        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">输入 ZIP 格式项目的网址</p>
-        <input type="url" id="os-url-input" placeholder="https://example.com/project.zip" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input);color:var(--text);margin-bottom:12px;" />
-        <button id="os-url-btn" class="tb-btn tb-run">下载并打开</button>
-      </div>
-      <div style="margin-top:16px;">
-        <button id="os-cancel" class="tb-btn" data-i18n="dialog.cancel">取消</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 项目选择器（编辑器中调用 selectFolder 时显示） -->
-  <div id="web-project-picker" class="web-picker-overlay hidden">
-    <div class="web-picker-box">
-      <h2 id="picker-title">选择项目</h2>
-      <div class="picker-list" id="picker-project-list"></div>
-      <div class="picker-actions">
-        <button class="tb-btn" onclick="_webPickerCancel()">取消</button>
-      </div>
-    </div>
-  </div>
-
   <!-- 社区登录对话框 -->
   <div id="community-login-dialog" class="custom-prompt-overlay hidden">
     <div class="custom-prompt-box" style="max-width:380px;">
-      <div class="custom-prompt-title">👤 社区登录</div>
+      <div class="custom-prompt-title" data-i18n="login.title">👤 社区登录</div>
       <!-- 登录方式切换 tab -->
       <div style="display:flex;gap:0;margin-bottom:12px;border-bottom:1px solid var(--border);">
-        <button id="login-tab-password" class="login-tab active" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid var(--accent);color:var(--text-primary);cursor:pointer;font-size:13px;">密码登录</button>
-        <button id="login-tab-otp" class="login-tab" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-muted);cursor:pointer;font-size:13px;">验证码登录</button>
+        <button id="login-tab-password" class="login-tab active" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid var(--accent);color:var(--text-primary);cursor:pointer;font-size:13px;" data-i18n="login.tabPassword">密码登录</button>
+        <button id="login-tab-otp" class="login-tab" style="flex:1;padding:8px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-muted);cursor:pointer;font-size:13px;" data-i18n="login.tabOtp">验证码登录</button>
       </div>
       <!-- 密码登录区 -->
       <div id="login-section-password">
         <div style="margin-bottom:12px;">
-          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">邮箱</label>
+          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;" data-i18n="login.email">邮箱</label>
           <input id="login-email" type="email" class="custom-prompt-input" placeholder="email@example.com" autocomplete="email" />
         </div>
         <div style="margin-bottom:12px;">
-          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">密码</label>
+          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;" data-i18n="login.password">密码</label>
           <input id="login-password" type="password" class="custom-prompt-input" placeholder="********" autocomplete="current-password" />
         </div>
       </div>
       <!-- OTP 验证码登录区 -->
       <div id="login-section-otp" style="display:none;">
         <div style="margin-bottom:12px;">
-          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">邮箱</label>
+          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;" data-i18n="login.email">邮箱</label>
           <input id="login-otp-email" type="email" class="custom-prompt-input" placeholder="email@example.com" autocomplete="email" />
         </div>
         <div style="display:flex;gap:8px;margin-bottom:12px;">
           <input id="login-otp-code" type="text" class="custom-prompt-input" placeholder="输入6位验证码" maxlength="6" style="flex:1;" autocomplete="one-time-code" />
-          <button id="login-otp-send" class="tb-btn" style="white-space:nowrap;min-width:90px;">发送验证码</button>
+          <button id="login-otp-send" class="tb-btn" style="white-space:nowrap;min-width:90px;" data-i18n="login.sendOtp">发送验证码</button>
         </div>
       </div>
       <div id="login-result" style="font-size:12px;min-height:20px;margin-bottom:8px;"></div>
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;text-align:center;">
-        还没有账号？<a id="login-register-link" href="../community/login.html" style="color:var(--accent);text-decoration:none;">点击这里创建账号</a>
+        还没有账号？<a id="login-register-link" href="#" style="color:var(--accent);text-decoration:none;">点击这里创建账号</a>
       </div>
       <div class="custom-prompt-actions">
-        <button id="login-cancel" class="tb-btn">取消</button>
-        <button id="login-submit" class="tb-btn tb-run">登录</button>
+        <button id="login-cancel" class="tb-btn" data-i18n="dialog.cancel">取消</button>
+        <button id="login-submit" class="tb-btn tb-run" data-i18n="login.submit">登录</button>
       </div>
     </div>
   </div>
 
-  <script>
-  /**
-   * Web 版主页逻辑 - 基于 localStorage 的项目管理
-   */
-  (function () {
-    // 获取固定项目列表
-    function getPinnedProjects() {
-      try { return JSON.parse(localStorage.getItem('pinned-projects') || '[]'); } catch { return []; }
-    }
-    function savePinnedProjects(list) {
-      localStorage.setItem('pinned-projects', JSON.stringify(list));
-    }
-
-    // 固定/取消固定项目
-    function togglePinProject(folderPath) {
-      let pinned = getPinnedProjects();
-      const idx = pinned.findIndex(p => p.path === folderPath);
-      if (idx >= 0) {
-        pinned.splice(idx, 1);
-      } else {
-        const recent = JSON.parse(localStorage.getItem('recent-projects') || '[]');
-        const proj = recent.find(p => p.path === folderPath);
-        if (proj) pinned.unshift({ ...proj });
-      }
-      savePinnedProjects(pinned);
-      renderPinnedProjects();
-      renderRecentProjects();
-    }
-
-    // 渲染固定项目
-    function renderPinnedProjects() {
-      const container = document.getElementById('pinned-projects');
-      const noPinned = document.getElementById('no-pinned');
-      if (!container) return;
-      const pinned = getPinnedProjects();
-      container.innerHTML = '';
-      if (pinned.length === 0) { noPinned?.classList.remove('hidden'); return; }
-      noPinned?.classList.add('hidden');
-      pinned.forEach(proj => {
-        const card = document.createElement('div');
-        card.className = 'recent-card pinned-card';
-        card.innerHTML =
-          '<div class="recent-card-name">📌 ' + (proj.name || i18n.t('app.unnamed')) + '</div>' +
-          '<div class="recent-card-time">' + formatTime(proj.lastOpened) + '</div>' +
-          '<div style="display:flex;gap:8px;align-items:center;margin-top:6px;">' +
-            '<span class="recent-card-mode">' + (proj.mode === 'extension' ? i18n.t('app.extension') : i18n.t('app.normal')) + '</span>' +
-            '<button class="pin-btn pinned" title="' + i18n.t('app.unpin') + '">✖</button>' +
-            '<button class="delete-btn" title="删除项目" style="background:none;border:none;cursor:pointer;padding:2px 6px;font-size:14px;color:#f38ba8;">🗑️</button>' +
-          '</div>';
-        card.querySelector('.pin-btn').onclick = (e) => { e.stopPropagation(); togglePinProject(proj.path); };
-        card.querySelector('.delete-btn').onclick = (e) => {
-          e.stopPropagation();
-          if (confirm('确定要删除项目 "' + (proj.name || '未命名') + '" 吗？')) {
-            deleteProject(proj.path);
-          }
-        };
-        card.onclick = () => openProject(proj.path);
-        container.appendChild(card);
-      });
-    }
-
-    // 渲染最近项目
-    function renderRecentProjects() {
-      const container = document.getElementById('recent-projects');
-      const noProjects = document.getElementById('no-projects');
-      if (!container) return;
-      let list = [];
-      try { list = JSON.parse(localStorage.getItem('recent-projects') || '[]'); } catch {}
-      container.innerHTML = '';
-      if (list.length === 0) { noProjects?.classList.remove('hidden'); return; }
-      noProjects?.classList.add('hidden');
-      const pinned = getPinnedProjects();
-      const pinnedPaths = new Set(pinned.map(p => p.path));
-      list.forEach(proj => {
-        const card = document.createElement('div');
-        card.className = 'recent-card';
-        const isPinned = pinnedPaths.has(proj.path);
-        card.innerHTML =
-          '<div class="recent-card-name">' + (proj.name || i18n.t('app.unnamed')) + '</div>' +
-          '<div class="recent-card-time">' + formatTime(proj.lastOpened) + '</div>' +
-          '<div style="display:flex;gap:8px;align-items:center;margin-top:6px;">' +
-            '<span class="recent-card-mode">' + (proj.mode === 'extension' ? i18n.t('app.extension') : i18n.t('app.normal')) + '</span>' +
-            '<button class="pin-btn' + (isPinned ? ' pinned' : '') + '" title="' + (isPinned ? i18n.t('app.unpin') : i18n.t('app.pin')) + '">' + (isPinned ? '📌' : '📍') + '</button>' +
-            '<button class="delete-btn" title="删除项目" style="background:none;border:none;cursor:pointer;padding:2px 6px;font-size:14px;color:#f38ba8;">🗑️</button>' +
-          '</div>';
-        card.querySelector('.pin-btn').onclick = (e) => { e.stopPropagation(); togglePinProject(proj.path); };
-        card.querySelector('.delete-btn').onclick = (e) => {
-          e.stopPropagation();
-          if (confirm('确定要删除项目 "' + (proj.name || '未命名') + '" 吗？')) {
-            deleteProject(proj.path);
-          }
-        };
-        card.onclick = () => openProject(proj.path);
-        container.appendChild(card);
-      });
-    }
-
-    function formatTime(iso) {
-      if (!iso) return '';
-      const d = new Date(iso);
-      return d.toLocaleString(i18n.isEnglish() ? 'en-US' : 'zh-CN');
-    }
-
-    // 打开项目（Web 版：导航到 editor.html）
-    async function openProject(folder) {
-      addRecentProject(folder);
-      var renderMode = '2d';
-      try {
-        var configStr = await window.api.readFile(folder + '/project.json');
-        if (configStr) {
-          var config = JSON.parse(configStr);
-          renderMode = config.renderMode || '2d';
-        }
-      } catch(e) {}
-      await window.api.openEditor(folder, 'normal', renderMode);
-    }
-
-    // ============ 打开项目来源选择弹窗 ============
-
-    function showOpenSourceDialog() {
-      const dialog = document.getElementById('open-source-dialog');
-      dialog.classList.remove('hidden');
-
-      // 初始化云端项目列表
-      loadCloudProjects();
-    }
-
-    function hideOpenSourceDialog() {
-      document.getElementById('open-source-dialog').classList.add('hidden');
-    }
-
-    // 从社区 API 获取云端项目列表
-    async function loadCloudProjects() {
-      const statusEl = document.getElementById('os-cloud-status');
-      const listEl = document.getElementById('os-cloud-list');
-      if (!statusEl || !listEl) return;
-
-      listEl.innerHTML = '<div style="color:var(--text-muted);padding:8px;">加载中...</div>';
-
-      CommunityAPI.init();
-      const res = await CommunityAPI.getProjects(1, 'newest');
-      if (res.error || !res.data || res.data.length === 0) {
-        listEl.innerHTML = '<div style="color:var(--text-muted);padding:8px;">暂无云端项目</div>';
-        statusEl.textContent = '';
-        return;
-      }
-
-      const currentUser = CommunityAPI.getUser();
-      statusEl.textContent = '共 ' + (res.total || res.data.length) + ' 个公开项目';
-      listEl.innerHTML = res.data.map(p => {
-        const author = p.profiles || {};
-        const isOwn = currentUser && currentUser.id === p.author_id;
-        const deleteBtn = isOwn
-          ? '<button class="os-cloud-delete" data-id="' + p.id + '" title="删除作品" style="background:none;border:none;cursor:pointer;color:#f38ba8;font-size:14px;padding:2px 6px;opacity:0.7;flex-shrink:0">🗑️</button>'
-          : '';
-        return '<div class="os-cloud-item" data-zip="' + (p.zip_url || '') + '" data-id="' + p.id + '" data-title="' + (p.title || '') + '">' +
-          '<div style="flex:1;min-width:0">' +
-            '<div class="os-cloud-name">' + (p.title || 'Unnamed') + '</div>' +
-            '<div class="os-cloud-author">' + (author.username || '匿名') + ' · ❤️ ' + (p.likes_count || 0) + '</div>' +
-          '</div>' +
-          deleteBtn +
-        '</div>';
-      }).join('');
-
-      listEl.querySelectorAll('.os-cloud-item').forEach(item => {
-        item.onclick = async () => {
-          const zipUrl = item.dataset.zip;
-          const title = item.dataset.title || '云端项目';
-          if (!zipUrl) {
-            alert('该作品没有 ZIP 文件，无法打开');
-            return;
-          }
-          hideOpenSourceDialog();
-          await importZipFromUrl(zipUrl, title);
-        };
-      });
-
-      // 绑定删除按钮
-      listEl.querySelectorAll('.os-cloud-delete').forEach(btn => {
-        btn.onclick = async (e) => {
-          e.stopPropagation();
-          const projectId = btn.dataset.id;
-          if (!confirm('确定要删除这个云端作品吗？此操作不可撤销。')) return;
-          const result = await CommunityAPI.deleteProject(projectId);
-          if (result.error) {
-            alert('删除失败，请重试');
-          } else {
-            btn.closest('.os-cloud-item').remove();
-          }
-        };
-      });
-    }
-
-    // 从 ZIP blob 解压并导入到 VFS，返回项目路径
-    async function importZipToVFS(zipBlob, projectName) {
-      const zip = await JSZip.loadAsync(zipBlob);
-      const folder = '/projects/' + projectName.replace(/\s+/g, '_') + '_' + Date.now();
-
-      await window.api.ensureDir(folder);
-
-      // 检测是否有公共根文件夹（如 "project-name/project.json"）
-      const allPaths = Object.keys(zip.files).filter(p => !zip.files[p].dir);
-      let commonPrefix = '';
-      if (allPaths.length > 0) {
-        const firstParts = allPaths[0].split('/');
-        if (firstParts.length > 1) {
-          // 检查是否所有文件都有相同的根文件夹
-          const rootFolder = firstParts[0] + '/';
-          const allHaveRoot = allPaths.every(p => p.startsWith(rootFolder));
-          if (allHaveRoot) commonPrefix = rootFolder;
-        }
-      }
-
-      // 解压所有文件到 VFS
-      const fileEntries = Object.entries(zip.files);
-      for (const [relPath, fileEntry] of fileEntries) {
-        if (fileEntry.dir) continue;
-        // 跳过 macOS 的 __MACOSX 和 .DS_Store
-        if (relPath.startsWith('__MACOSX') || relPath.endsWith('.DS_Store')) continue;
-
-        // 去除公共根文件夹前缀
-        let cleanPath = commonPrefix && relPath.startsWith(commonPrefix)
-          ? relPath.slice(commonPrefix.length)
-          : relPath;
-        if (!cleanPath) continue;
-
-        if (/\.(png|jpg|jpeg|gif|bmp|webp|svg|mp3|wav|ogg)$/i.test(cleanPath)) {
-          // 二进制文件
-          const base64 = await fileEntry.async('base64');
-          const mimeMatch = cleanPath.match(/\.(png|jpg|jpeg|gif|bmp|webp|svg|mp3|wav|ogg)$/i);
-          const mimeMap = { png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif',
-            bmp:'image/bmp', webp:'image/webp', svg:'image/svg+xml',
-            mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg' };
-          const mime = mimeMap[mimeMatch[1].toLowerCase()] || 'application/octet-stream';
-          const content = 'data:' + mime + ';base64,' + base64;
-          localStorage.setItem('vfsb:' + folder + '/' + cleanPath, content);
-        } else {
-          const content = await fileEntry.async('string');
-          await window.api.writeFile(folder + '/' + cleanPath, content);
-        }
-      }
-
-      // 确保 project.json 存在
-      const hasConfig = await window.api.readFile(folder + '/project.json');
-      if (!hasConfig) {
-        // 从 ZIP 内容推断模式
-        let mode = 'normal';
-        const extCheck = commonPrefix ? commonPrefix + 'extensions/' : 'extensions/';
-        if (zip.files[extCheck] || Object.keys(zip.files).some(k => k.startsWith(extCheck))) mode = 'extension';
-        const config = {
-          name: projectName,
-          version: '1.0',
-          mode: mode,
-          created: new Date().toISOString(),
-          stageWidth: 480,
-          stageHeight: 360,
-        };
-        await window.api.writeFile(folder + '/project.json', JSON.stringify(config, null, 2));
-      }
-
-      // 确保 scripts/main.json 存在
-      const hasScripts = await window.api.readFile(folder + '/scripts/main.json');
-      if (!hasScripts) {
-        await window.api.ensureDir(folder + '/scripts');
-        await window.api.writeFile(folder + '/scripts/main.json', '{}');
-      }
-
-      return folder;
-    }
-
-    // 从本地 ZIP 文件导入
-    async function importZipFromLocalFile(file) {
-      if (!file) return;
-      const projectName = file.name.replace(/\.zip$/i, '');
-      try {
-        const folder = await importZipToVFS(file, projectName);
-        addRecentProject(folder);
-        await window.api.openEditor(folder, 'normal');
-      } catch (e) {
-        alert('导入失败: ' + e.message);
-      }
-    }
-
-    // 从本地文件夹导入（使用 webkitdirectory 选择的 FileList）
-    async function importFolderToVFS(fileList) {
-      if (!fileList || fileList.length === 0) return;
-
-      // 检测公共根文件夹
-      const allPaths = [];
-      for (const f of fileList) {
-        allPaths.push(f.webkitRelativePath || f.name);
-      }
-      let commonPrefix = '';
-      if (allPaths.length > 0) {
-        const firstParts = allPaths[0].split('/');
-        if (firstParts.length > 1) {
-          const rootFolder = firstParts[0] + '/';
-          if (allPaths.every(p => p.startsWith(rootFolder))) commonPrefix = rootFolder;
-        }
-      }
-
-      const projectName = commonPrefix ? commonPrefix.replace(/\/$/, '') : (fileList[0].webkitRelativePath || fileList[0].name).split('/')[0];
-      const folder = '/projects/' + projectName.replace(/\s+/g, '_') + '_' + Date.now();
-      await window.api.ensureDir(folder);
-
-      for (const f of fileList) {
-        const relPath = f.webkitRelativePath || f.name;
-        // 跳过 macOS 元数据
-        if (relPath.includes('__MACOSX') || relPath.endsWith('.DS_Store')) continue;
-        // 去除公共根前缀
-        let cleanPath = commonPrefix && relPath.startsWith(commonPrefix)
-          ? relPath.slice(commonPrefix.length)
-          : relPath;
-        if (!cleanPath) continue;
-
-        if (/\.(png|jpg|jpeg|gif|bmp|webp|svg|mp3|wav|ogg)$/i.test(cleanPath)) {
-          const dataUrl = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(f);
-          });
-          localStorage.setItem('vfsb:' + folder + '/' + cleanPath, dataUrl);
-        } else {
-          const text = await f.text();
-          await window.api.writeFile(folder + '/' + cleanPath, text);
-        }
-      }
-
-      // 确保 project.json 存在
-      const hasConfig = await window.api.readFile(folder + '/project.json');
-      if (!hasConfig) {
-        let mode = 'normal';
-        const allClean = allPaths.map(p => commonPrefix && p.startsWith(commonPrefix) ? p.slice(commonPrefix.length) : p);
-        if (allClean.some(p => p.startsWith('extensions/'))) mode = 'extension';
-        const config = {
-          name: projectName,
-          version: '1.0',
-          mode: mode,
-          created: new Date().toISOString(),
-          stageWidth: 480,
-          stageHeight: 360,
-        };
-        await window.api.writeFile(folder + '/project.json', JSON.stringify(config, null, 2));
-      }
-
-      // 确保 scripts/main.json 存在
-      const hasScripts = await window.api.readFile(folder + '/scripts/main.json');
-      if (!hasScripts) {
-        await window.api.ensureDir(folder + '/scripts');
-        await window.api.writeFile(folder + '/scripts/main.json', '{}');
-      }
-
-      return folder;
-    }
-
-    // 从 URL 下载 ZIP 并导入
-    async function importZipFromUrl(url, projectName) {
-      try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('HTTP ' + response.status);
-        const blob = await response.blob();
-        const folder = await importZipToVFS(blob, projectName || 'url_project');
-        addRecentProject(folder);
-        await window.api.openEditor(folder, 'normal');
-      } catch (e) {
-        alert('下载或导入失败: ' + e.message);
-      }
-    }
-
-    // 添加最近项目
-    function addRecentProject(folder) {
-      let list = [];
-      try { list = JSON.parse(localStorage.getItem('recent-projects') || '[]'); } catch {}
-      const name = folder.split(/[\\/]/).pop();
-      // 读取项目配置
-      const configStr = localStorage.getItem('vfs:' + folder + '/project.json');
-      let mode = 'normal';
-      let projName = name;
-      if (configStr) {
-        try {
-          const config = JSON.parse(configStr);
-          projName = config.name || name;
-          mode = config.mode || 'normal';
-        } catch {}
-      }
-      list = list.filter(p => p.path !== folder);
-      list.unshift({ name: projName, path: folder, mode: mode, lastOpened: new Date().toISOString() });
-      if (list.length > 10) list = list.slice(0, 10);
-      localStorage.setItem('recent-projects', JSON.stringify(list));
-      renderRecentProjects();
-    }
-
-    // 删除项目
-    function deleteProject(folderPath) {
-      // 删除 vfs: 前缀的所有相关键
-      const keysToRemove = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key.startsWith('vfs:' + folderPath + '/') || key.startsWith('vfs:' + folderPath + '/')) {
-          keysToRemove.push(key);
-        }
-      }
-      keysToRemove.forEach(key => localStorage.removeItem(key));
-      // 从最近项目列表移除
-      let recentList = [];
-      try { recentList = JSON.parse(localStorage.getItem('recent-projects') || '[]'); } catch {}
-      recentList = recentList.filter(p => p.path !== folderPath);
-      localStorage.setItem('recent-projects', JSON.stringify(recentList));
-      // 从固定项目列表移除
-      let pinnedList = [];
-      try { pinnedList = JSON.parse(localStorage.getItem('pinned-projects') || '[]'); } catch {}
-      pinnedList = pinnedList.filter(p => p.path !== folderPath);
-      localStorage.setItem('pinned-projects', JSON.stringify(pinnedList));
-      // 重新渲染
-      renderRecentProjects();
-      renderPinnedProjects();
-    }
-
-    // 显示模式弹窗
-    function showModeDialog() {
-      document.getElementById('mode-dialog').classList.remove('hidden');
-    }
-    function hideModeDialog() {
-      document.getElementById('mode-dialog').classList.add('hidden');
-    }
-
-    // 渲染模式子选择弹窗
-    function showRenderModeDialog() {
-      document.getElementById('render-mode-dialog').classList.remove('hidden');
-    }
-    function hideRenderModeDialog() {
-      document.getElementById('render-mode-dialog').classList.add('hidden');
-    }
-
-    // 新建项目（Web 版：直接在 VFS 中创建，无需选择文件夹）
-    async function createNewProject(mode, renderMode) {
-      hideModeDialog();
-      hideRenderModeDialog();
-      mode = mode || 'normal';
-      renderMode = renderMode || '2d';
-      const projectName = i18n.t('app.myWork');
-      const folder = '/projects/' + projectName + '_' + Date.now();
-
-      await window.api.ensureDir(folder);
-      await window.api.ensureDir(folder + '/scripts');
-      await window.api.ensureDir(folder + '/assets');
-      await window.api.ensureDir(folder + '/sounds');
-      if (mode === 'extension') {
-        await window.api.ensureDir(folder + '/extensions');
-      }
-
-      const config = {
-        name: projectName,
-        version: '1.0',
-        mode: mode,
-        renderMode: renderMode,
-        created: new Date().toISOString(),
-        stageWidth: 480,
-        stageHeight: 360,
-      };
-      await window.api.writeFile(folder + '/project.json', JSON.stringify(config, null, 2));
-      await window.api.writeFile(folder + '/scripts/main.json', '{}');
-
-      // 导航到编辑器
-      await window.api.openEditor(folder, mode, renderMode);
-
-      // 添加到最近项目
-      addRecentProject(folder);
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      i18n.applyToDOM();
-
-      // 语言切换
-      document.getElementById('home-lang-switch')?.addEventListener('click', () => {
-        i18n.setLocale(i18n.isEnglish() ? 'zh-CN' : 'en');
-      });
-
-      // 新建项目
-      document.getElementById('home-btn-new').addEventListener('click', showModeDialog);
-
-      // 打开项目（通过来源选择弹窗）
-      document.getElementById('home-btn-open').addEventListener('click', showOpenSourceDialog);
-
-      // 来源弹窗标签切换
-      document.querySelectorAll('#os-tabs .os-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-          document.querySelectorAll('#os-tabs .os-tab').forEach(t => t.classList.remove('active'));
-          tab.classList.add('active');
-          const src = tab.dataset.source;
-          document.getElementById('os-cloud-panel').style.display = src === 'cloud' ? '' : 'none';
-          document.getElementById('os-local-panel').style.display = src === 'local' ? '' : 'none';
-          document.getElementById('os-url-panel').style.display = src === 'url' ? '' : 'none';
-        });
-      });
-      document.getElementById('os-cancel').addEventListener('click', hideOpenSourceDialog);
-
-      // 本地 ZIP 打开
-      document.getElementById('os-local-btn').addEventListener('click', () => {
-        const fileInput = document.getElementById('os-local-file');
-        if (fileInput.files && fileInput.files[0]) {
-          hideOpenSourceDialog();
-          importZipFromLocalFile(fileInput.files[0]);
-        }
-      });
-
-      // 本地文件夹打开
-      document.getElementById('os-local-folder-btn').addEventListener('click', async () => {
-        const folderInput = document.getElementById('os-local-folder');
-        if (!folderInput.files || folderInput.files.length === 0) {
-          alert('请先选择一个文件夹');
-          return;
-        }
-        hideOpenSourceDialog();
-        try {
-          const folder = await importFolderToVFS(folderInput.files);
-          addRecentProject(folder);
-          var rm = '2d';
-          try {
-            var cfg = await window.api.readFile(folder + '/project.json');
-            if (cfg) rm = (JSON.parse(cfg).renderMode) || '2d';
-          } catch(e) {}
-          await window.api.openEditor(folder, 'normal', rm);
-        } catch (e) {
-          alert('导入文件夹失败: ' + e.message);
-        }
-      });
-
-      // URL 打开
-      document.getElementById('os-url-btn').addEventListener('click', () => {
-        const url = document.getElementById('os-url-input').value.trim();
-        if (!url) { alert('请输入网址'); return; }
-        if (!/\.zip($|\?|#)/i.test(url)) {
-          alert('网址必须以 .zip 结尾');
-          return;
-        }
-        hideOpenSourceDialog();
-        importZipFromUrl(url, url.split('/').pop().replace(/\.zip$/i, '').split('?')[0] || 'url_project');
-      });
-
-      // 模式选择
-      document.querySelectorAll('#mode-dialog .mode-card').forEach(card => {
-        card.addEventListener('click', () => {
-          const mode = card.dataset.mode;
-          if (mode === 'normal') {
-            // 普通创作显示渲染模式子选择
-            hideModeDialog();
-            showRenderModeDialog();
-          } else {
-            createNewProject(mode, '2d');
-          }
-        });
-      });
-      document.getElementById('mode-cancel').addEventListener('click', hideModeDialog);
-
-      // 渲染模式子选择
-      document.querySelectorAll('#render-mode-dialog .mode-card').forEach(card => {
-        card.addEventListener('click', () => {
-          hideRenderModeDialog();
-          createNewProject('normal', card.dataset.render);
-        });
-      });
-      document.getElementById('render-mode-cancel').addEventListener('click', hideRenderModeDialog);
-
-      // 渲染项目列表
-      renderPinnedProjects();
-      renderRecentProjects();
-
-      // 检查 URL 参数是否指定创建模式
-      const urlMode = new URLSearchParams(window.location.search).get('mode');
-      const urlRender = new URLSearchParams(window.location.search).get('render') || '2d';
-      if (urlMode === 'extension') {
-        createNewProject(urlMode, '2d');
-      } else if (urlMode === 'normal') {
-        createNewProject(urlMode, urlRender);
-      }
-
-      // ============ 社区登录 ============
-      const btnLogin = document.getElementById('home-btn-login');
-      const userMenu = document.getElementById('user-menu');
-      const menuOpenCommunity = document.getElementById('menu-open-community');
-      const menuLogout = document.getElementById('menu-logout');
-      const menuDeleteAccount = document.getElementById('menu-delete-account');
-      const loginRegisterLink = document.getElementById('login-register-link');
-
-      btnLogin.addEventListener('click', (e) => {
-        if (typeof CommunityAPI === 'undefined') {
-          alert('社区模块未加载');
-          return;
-        }
-        const user = CommunityAPI.getUser();
-        if (user) {
-          e.stopPropagation();
-          userMenu.classList.toggle('hidden');
-        } else {
-          showLoginDialog();
-        }
-      });
-
-      document.addEventListener('click', () => { userMenu.classList.add('hidden'); });
-      userMenu.addEventListener('click', (e) => e.stopPropagation());
-
-      menuLogout.addEventListener('click', async () => {
-        userMenu.classList.add('hidden');
-        if (confirm('确定要登出吗？')) {
-          await CommunityAPI.signOut();
-          refreshCommunityUI();
-        }
-      });
-
-      // 注销账户
-      menuDeleteAccount.addEventListener('click', async () => {
-        userMenu.classList.add('hidden');
-        if (typeof CommunityAPI === 'undefined' || !CommunityAPI.getUser()) return;
-        const user = CommunityAPI.getUser();
-        const password = prompt(
-          `确定要注销账户 "${user.email}" 吗？\n\n此操作不可撤销！你的所有数据（作品、帖子等）将被永久删除。\n\n请输入密码确认：`
-        );
-        if (!password) return;
-        const res = await CommunityAPI.deleteAccount(password);
-        if (res.error) {
-          alert('注销失败: ' + res.error);
-        } else {
-          alert('账户已注销。');
-          refreshCommunityUI();
-        }
-      });
-
-      function refreshCommunityUI() {
-        if (typeof CommunityAPI === 'undefined') return;
-        const user = CommunityAPI.getUser();
-        const profile = CommunityAPI.getProfile();
-        if (user) {
-          btnLogin.textContent = '✅ ' + (profile?.username || user.email || '已登录');
-          btnLogin.title = '点击打开菜单';
-        } else {
-          btnLogin.textContent = '👤 登录';
-          btnLogin.title = '登录社区';
-        }
-      }
-
-      function showLoginDialog() {
-        if (typeof CommunityAPI === 'undefined') {
-          alert('社区模块未加载');
-          return;
-        }
-        if (!CommunityAPI.isConfigured()) {
-          CommunityAPI.init();
-        }
-
-        const overlay = document.getElementById('community-login-dialog');
-        const emailInput = document.getElementById('login-email');
-        const passInput = document.getElementById('login-password');
-        const resultEl = document.getElementById('login-result');
-        const submitBtn = document.getElementById('login-submit');
-        const cancelBtn = document.getElementById('login-cancel');
-
-        // OTP elements
-        const tabPassword = document.getElementById('login-tab-password');
-        const tabOtp = document.getElementById('login-tab-otp');
-        const sectionPassword = document.getElementById('login-section-password');
-        const sectionOtp = document.getElementById('login-section-otp');
-        const otpEmailInput = document.getElementById('login-otp-email');
-        const otpCodeInput = document.getElementById('login-otp-code');
-        const otpSendBtn = document.getElementById('login-otp-send');
-
-        let currentTab = 'password';
-
-        emailInput.value = '';
-        passInput.value = '';
-        otpEmailInput.value = '';
-        otpCodeInput.value = '';
-        resultEl.textContent = '';
-        submitBtn.disabled = false;
-        submitBtn.textContent = '登录';
-        switchTab('password');
-
-        overlay.classList.remove('hidden');
-        setTimeout(function() { emailInput.focus(); }, 50);
-
-        function switchTab(tab) {
-          currentTab = tab;
-          resultEl.textContent = '';
-          if (tab === 'password') {
-            sectionPassword.style.display = '';
-            sectionOtp.style.display = 'none';
-            tabPassword.style.borderBottomColor = 'var(--accent)';
-            tabPassword.style.color = 'var(--text-primary)';
-            tabOtp.style.borderBottomColor = 'transparent';
-            tabOtp.style.color = 'var(--text-muted)';
-            submitBtn.textContent = '登录';
-            submitBtn.disabled = false;
-          } else {
-            sectionPassword.style.display = 'none';
-            sectionOtp.style.display = '';
-            tabOtp.style.borderBottomColor = 'var(--accent)';
-            tabOtp.style.color = 'var(--text-primary)';
-            tabPassword.style.borderBottomColor = 'transparent';
-            tabPassword.style.color = 'var(--text-muted)';
-            submitBtn.textContent = '验证并登录';
-            submitBtn.disabled = false;
-          }
-        }
-
-        tabPassword.onclick = () => switchTab('password');
-        tabOtp.onclick = () => switchTab('otp');
-
-        function close() {
-          overlay.classList.add('hidden');
-          submitBtn.onclick = null;
-          cancelBtn.onclick = null;
-          otpSendBtn.onclick = null;
-          tabPassword.onclick = null;
-          tabOtp.onclick = null;
-        }
-
-        cancelBtn.onclick = close;
-        overlay.onclick = function(e) { if (e.target === overlay) close(); };
-
-        // ---- 密码登录 ----
-        async function doLogin() {
-          var email = emailInput.value.trim();
-          var password = passInput.value;
-          if (!email || !password) {
-            resultEl.style.color = 'var(--red)';
-            resultEl.textContent = '请输入邮箱和密码';
-            return;
-          }
-          submitBtn.disabled = true;
-          submitBtn.textContent = '...';
-          resultEl.style.color = 'var(--text-secondary)';
-          resultEl.textContent = '登录中...';
-
-          var res = await CommunityAPI.signIn(email, password);
-          submitBtn.disabled = false;
-          submitBtn.textContent = '登录';
-
-          if (res.error) {
-            resultEl.style.color = 'var(--red)';
-            resultEl.textContent = res.error.message || res.error;
-            return;
-          }
-          resultEl.style.color = 'var(--green)';
-          resultEl.textContent = '登录成功！';
-          submitBtn.textContent = '完成';
-          submitBtn.onclick = function() { close(); refreshCommunityUI(); };
-          cancelBtn.textContent = '关闭';
-        }
-
-        // ---- OTP 验证码登录 ----
-        let otpCooldown = 0;
-        async function doSendOtp() {
-          var email = otpEmailInput.value.trim();
-          if (!email) {
-            resultEl.style.color = 'var(--red)';
-            resultEl.textContent = '请输入邮箱';
-            return;
-          }
-          if (otpCooldown > 0) {
-            resultEl.style.color = 'var(--text-muted)';
-            resultEl.textContent = '请等待 ' + otpCooldown + '秒';
-            return;
-          }
-          otpSendBtn.disabled = true;
-          otpSendBtn.textContent = '...';
-          resultEl.style.color = 'var(--text-secondary)';
-          resultEl.textContent = '发送中...';
-
-          var res = await CommunityAPI.sendLoginOtp(email);
-          if (res.error) {
-            resultEl.style.color = 'var(--red)';
-            resultEl.textContent = res.error.message || res.error;
-            otpSendBtn.disabled = false;
-            otpSendBtn.textContent = '发送验证码';
-            return;
-          }
-          resultEl.style.color = 'var(--green)';
-          resultEl.textContent = '验证码已发送！请查看邮箱。';
-          otpSendBtn.disabled = false;
-          otpSendBtn.textContent = '重新发送';
-
-          otpCooldown = 60;
-          otpSendBtn.disabled = true;
-          const cdTimer = setInterval(() => {
-            otpCooldown--;
-            otpSendBtn.textContent = '重新发送(' + otpCooldown + 's)';
-            if (otpCooldown <= 0) {
-              clearInterval(cdTimer);
-              otpSendBtn.disabled = false;
-              otpSendBtn.textContent = '重新发送';
-            }
-          }, 1000);
-        }
-
-        async function doOtpLogin() {
-          var email = otpEmailInput.value.trim();
-          var code = otpCodeInput.value.trim();
-          if (!email || !code) {
-            resultEl.style.color = 'var(--red)';
-            resultEl.textContent = '请输入邮箱和验证码';
-            return;
-          }
-          submitBtn.disabled = true;
-          submitBtn.textContent = '...';
-          resultEl.style.color = 'var(--text-secondary)';
-          resultEl.textContent = '验证中...';
-
-          var res = await CommunityAPI.verifyLoginOtp(email, code);
-          submitBtn.disabled = false;
-          submitBtn.textContent = '验证并登录';
-
-          if (res.error) {
-            resultEl.style.color = 'var(--red)';
-            resultEl.textContent = res.error.message || res.error;
-            return;
-          }
-          resultEl.style.color = 'var(--green)';
-          resultEl.textContent = '登录成功！';
-          submitBtn.textContent = '完成';
-          submitBtn.onclick = function() { close(); refreshCommunityUI(); };
-          cancelBtn.textContent = '关闭';
-        }
-
-        otpSendBtn.onclick = doSendOtp;
-        submitBtn.onclick = function() {
-          if (currentTab === 'password') doLogin();
-          else doOtpLogin();
-        };
-        passInput.onkeydown = function(e) {
-          if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
-          else if (e.key === 'Escape') { e.preventDefault(); close(); }
-        };
-        emailInput.onkeydown = function(e) {
-          if (e.key === 'Enter') { e.preventDefault(); passInput.focus(); }
-          else if (e.key === 'Escape') { e.preventDefault(); close(); }
-        };
-        otpCodeInput.onkeydown = function(e) {
-          if (e.key === 'Enter') { e.preventDefault(); doOtpLogin(); }
-          else if (e.key === 'Escape') { e.preventDefault(); close(); }
-        };
-        otpEmailInput.onkeydown = function(e) {
-          if (e.key === 'Enter') { e.preventDefault(); otpCodeInput.focus(); }
-          else if (e.key === 'Escape') { e.preventDefault(); close(); }
-        };
-      }
-
-      if (typeof CommunityAPI !== 'undefined') {
-        CommunityAPI.init();
-        CommunityAPI.restoreSession().then(() => refreshCommunityUI());
-      }
-    });
-  })();
-  </script>
+  <!-- 重命名弹窗 -->
+  <div id="rename-dialog" class="custom-prompt-overlay hidden">
+    <div class="custom-prompt-box" style="max-width:360px;">
+      <div class="custom-prompt-title" id="rename-title">✏️ 重命名</div>
+      <input id="rename-input" type="text" class="custom-prompt-input" placeholder="输入新名称" />
+      <div class="custom-prompt-actions">
+        <button id="rename-cancel" class="tb-btn">取消</button>
+        <button id="rename-ok" class="tb-btn tb-run">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 项目卡片右键菜单 -->
+  <div id="project-context-menu" class="ctx-menu hidden">
+    <div class="ctx-item" data-action="open">📂 打开项目</div>
+    <div class="ctx-item" data-action="rename">✏️ 重命名</div>
+    <div class="ctx-item" data-action="pin" id="ctx-pin-item">📌 固定</div>
+    <div class="ctx-divider"></div>
+    <div class="ctx-item ctx-danger" data-action="delete">🗑️ 删除</div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>

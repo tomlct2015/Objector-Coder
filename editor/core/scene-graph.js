@@ -59,7 +59,51 @@ const SceneGraph = (function () {
       defaultProps: { x: 2, y: 4, z: 2, color: '#ffffff', intensity: 1, range: 10 },
       canAddChild: false,
     },
+    // ===== Control UI 节点类型 =====
+    SceneUI: {
+      icon: '🖼️', desc: 'Control UI 场景',
+      defaultProps: {},
+      canAddChild: true,
+      validChildren: ['NodeUI', 'ButtonUI', 'LabelUI', 'ImageUI', 'PanelUI'],
+    },
+    NodeUI: {
+      icon: '⬛', desc: 'UI 容器节点',
+      defaultProps: { x: 0, y: 0, width: 100, height: 40 },
+      canAddChild: true,
+      validChildren: ['NodeUI', 'ButtonUI', 'LabelUI', 'ImageUI', 'PanelUI'],
+    },
+    ButtonUI: {
+      icon: '🔘', desc: '按钮',
+      defaultProps: { x: 10, y: 10, width: 120, height: 36, text: '按钮', color: '#89b4fa', textColor: '#1e1e2e' },
+      canAddChild: false,
+    },
+    LabelUI: {
+      icon: '📝', desc: '文本标签',
+      defaultProps: { x: 10, y: 10, text: '文本', fontSize: 16, color: '#cdd6f4' },
+      canAddChild: false,
+    },
+    ImageUI: {
+      icon: '🖼️', desc: '图片',
+      defaultProps: { x: 10, y: 10, width: 64, height: 64, src: '' },
+      canAddChild: false,
+    },
+    PanelUI: {
+      icon: '🪟', desc: '面板',
+      defaultProps: { x: 10, y: 10, width: 200, height: 120, bgColor: '#313244', borderColor: '#45475a' },
+      canAddChild: true,
+      validChildren: ['NodeUI', 'ButtonUI', 'LabelUI', 'ImageUI', 'PanelUI'],
+    },
+    // ===== 场景引用节点 =====
+    SceneRef: {
+      icon: '🔗', desc: '引用其他场景（实例化）',
+      defaultProps: { scenePath: '' },
+      canAddChild: false,
+    },
   };
+
+  // 场景根节点模式列表
+  const SCENE_MODES = ['Scene2D', 'Scene3D', 'SceneUI'];
+  const SCENE_MODE_LABELS = { Scene2D: '2D', Scene3D: '3D', SceneUI: 'UI' };
 
   /** 生成唯一ID */
   function _genId() {
@@ -95,7 +139,7 @@ const SceneGraph = (function () {
     _nextId = 1;
     _selectedId = null;
 
-    const sceneType = renderMode === '3d' ? 'Scene3D' : 'Scene2D';
+    const sceneType = renderMode === '3d' ? 'Scene3D' : (renderMode === 'ui' ? 'SceneUI' : 'Scene2D');
     _rootId = _createNode(sceneType, '主场景', null);
 
     // 添加一个默认精灵
@@ -380,6 +424,70 @@ const SceneGraph = (function () {
     }
   }
 
+  /** 获取根节点的当前模式 */
+  function getRootMode() {
+    const root = _nodes[_rootId];
+    return root ? root.type : null;
+  }
+
+  /** 切换根节点的场景模式（2D/3D/UI） */
+  function switchRootMode(newMode) {
+    if (!SCENE_MODES.includes(newMode)) return false;
+    const root = _nodes[_rootId];
+    if (!root) return false;
+    if (root.type === newMode) return false;
+    root.type = newMode;
+    return true;
+  }
+
+  /** 获取所有场景模式 */
+  function getSceneModes() { return SCENE_MODES; }
+  function getSceneModeLabels() { return SCENE_MODE_LABELS; }
+
+  /** 列出项目中所有已保存的场景文件（用于 SceneRef 选择） */
+  async function listScenes() {
+    if (!window.api || !window.api.listDir || typeof EditorState === 'undefined' || !EditorState.projectPath) return [];
+    const scenes = [];
+    try {
+      let scenesDir;
+      if (window.api.pathJoin) {
+        scenesDir = await window.api.pathJoin(EditorState.projectPath, 'scenes');
+      } else {
+        scenesDir = EditorState.projectPath.replace(/[\\/]+$/, '') + '/scenes';
+      }
+      const items = await window.api.listDir(scenesDir);
+      if (Array.isArray(items)) {
+        for (const name of items) {
+          if (name.endsWith('.scene.json')) {
+            let fullPath;
+            if (window.api.pathJoin) {
+              fullPath = await window.api.pathJoin(scenesDir, name);
+            } else {
+              fullPath = scenesDir + '/' + name;
+            }
+            scenes.push({ name, path: fullPath });
+          }
+        }
+      }
+    } catch (e) {
+      // scenes 目录不存在时不报错
+    }
+    return scenes;
+  }
+
+  /** 加载被引用的场景数据（SceneRef） */
+  async function loadReferencedScene(filePath) {
+    if (!filePath || !window.api || !window.api.readFile) return null;
+    try {
+      const content = await window.api.readFile(filePath);
+      if (!content || !content.trim()) return null;
+      return JSON.parse(content);
+    } catch (e) {
+      console.warn('[SceneGraph] 加载引用场景失败:', filePath, e);
+      return null;
+    }
+  }
+
   return {
     init, addNode, removeNode, moveNode,
     getNode, getNodeChildren, getRoot, getRootId,
@@ -389,5 +497,7 @@ const SceneGraph = (function () {
     duplicateNode, renameNode, updateProperty,
     toggleExpand, setVisible, setLocked,
     toJSON, fromJSON,
+    getRootMode, switchRootMode, getSceneModes, getSceneModeLabels,
+    listScenes, loadReferencedScene,
   };
 })();
