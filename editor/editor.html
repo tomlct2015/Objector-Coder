@@ -176,6 +176,7 @@
           <div class="panel-header">
             <span class="panel-title">文件系统</span>
             <div style="display:flex;gap:2px;">
+              <button id="btn-new-scene" class="tb-btn tb-btn-small" title="新建场景">🎬+</button>
               <button id="btn-new-file" class="tb-btn tb-btn-small" title="新建文件">📄+</button>
               <button id="btn-new-folder" class="tb-btn tb-btn-small" title="新建文件夹">📁+</button>
               <button id="btn-refresh-fs" class="tb-btn tb-btn-small" title="刷新">↻</button>
@@ -232,7 +233,7 @@
   <div id="context-menu" class="hidden">
     <div class="ctx-item" data-action="duplicate" data-i18n="contextMenu.duplicate">复制积木</div>
     <div class="ctx-item" data-action="delete" data-i18n="contextMenu.delete">删除积木</div>
-    <div class="ctx-item" data-action="disconnect" data-i18n="contextMenu.disconnect">断开连接</div>
+    <div class="ctx-item" data-action="disconnect" data-i18n="contextMenu.disconnect">断开连接 ▸</div>
     <div class="ctx-item" data-action="toggle-collapse" data-i18n="contextMenu.collapse">📌 折叠/展开后续代码</div>
     <div class="ctx-item" data-action="toggle-important" data-i18n="contextMenu.important">⭐ 标记/取消重要代码</div>
     <div class="ctx-item" data-action="add-list-item" data-i18n="contextMenu.addListItem">+ 添加列表项</div>
@@ -240,6 +241,20 @@
     <div class="ctx-item" data-action="edit-comment" data-i18n="contextMenu.comment">💬 添加批注</div>
     <div class="ctx-item dev-only hidden" data-action="toggle-breakpoint" data-i18n="contextMenu.breakpoint">🔴 设置/取消断点</div>
     <div class="ctx-item dev-only hidden" data-action="run-to-here" data-i18n="contextMenu.runToHere">▶ 运行到此处</div>
+  </div>
+
+  <!-- 积木右键菜单（高级模式专用，避免与场景树/文件系统菜单冲突） -->
+  <div id="block-context-menu" class="hidden" style="position:fixed;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius);padding:4px 0;z-index:1000;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:120px;">
+    <div class="ctx-item" data-action="duplicate">复制积木</div>
+    <div class="ctx-item" data-action="delete">删除积木</div>
+    <div class="ctx-item" data-action="disconnect">断开连接 ▸</div>
+    <div class="ctx-item" data-action="toggle-collapse">📌 折叠/展开后续代码</div>
+    <div class="ctx-item" data-action="toggle-important">⭐ 标记/取消重要代码</div>
+    <div class="ctx-item" data-action="add-list-item">+ 添加列表项</div>
+    <div class="ctx-item" data-action="remove-list-item">- 移除最后一项</div>
+    <div class="ctx-item" data-action="edit-comment">💬 添加批注</div>
+    <div class="ctx-item dev-only hidden" data-action="toggle-breakpoint">🔴 设置/取消断点</div>
+    <div class="ctx-item dev-only hidden" data-action="run-to-here">▶ 运行到此处</div>
   </div>
 
   <!-- 参数编辑输入框 -->

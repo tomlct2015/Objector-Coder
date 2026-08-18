@@ -15,6 +15,7 @@ const Stage3D = (function () {
     var _initialized = false;
     var W = 480, H = 360;
     var SCENE_SIZE = 50;
+    var _sgMeshes = new Map(); // SceneGraph 节点的 node_id -> THREE.Mesh
 
     /** 初始化 3D 舞台 */
     function init(canvas) {
@@ -163,6 +164,100 @@ const Stage3D = (function () {
         mesh.visible = sprite.visible !== false;
     }
 
+    /** 根据 meshType 创建 Three.js 几何体 */
+    function _createSGGeometry(meshType, props) {
+        switch (meshType) {
+            case 'sphere': return new THREE.SphereGeometry(2, 16, 16);
+            case 'cylinder': return new THREE.CylinderGeometry(2, 2, 4, 16);
+            case 'cone': return new THREE.ConeGeometry(2, 4, 16);
+            case 'plane': return new THREE.PlaneGeometry(4, 4);
+            case 'torus': return new THREE.TorusGeometry(2, 0.6, 8, 24);
+            default: return new THREE.BoxGeometry(4, 4, 4); // box
+        }
+    }
+
+    /** 从 SceneGraph 同步 Mesh3D 节点到 3D 场景 */
+    function syncMeshesFromSceneGraph() {
+        if (typeof SceneGraph === 'undefined') return;
+
+        // 清理旧的 SG 网格
+        _sgMeshes.forEach(function (mesh) {
+            scene.remove(mesh);
+            if (mesh.geometry) mesh.geometry.dispose();
+            if (mesh.material) mesh.material.dispose();
+        });
+        _sgMeshes.clear();
+
+        // 遍历所有节点，查找 Mesh3D 类型
+        var nodes = SceneGraph.toJSON().nodes;
+        if (!nodes) return;
+
+        Object.keys(nodes).forEach(function (nodeId) {
+            var node = nodes[nodeId];
+            if (node.type !== 'Mesh3D') return;
+
+            var p = node.properties || {};
+            var meshType = p.meshType || 'box';
+            var geometry = _createSGGeometry(meshType, p);
+            var material = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(p.color || '#4C97FF'),
+                side: THREE.DoubleSide
+            });
+
+            var mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(
+                Number(p.x) || 0,
+                Number(p.y) || 0,
+                Number(p.z) || 0
+            );
+            mesh.rotation.set(
+                Number(p.rx || 0) * Math.PI / 180,
+                Number(p.ry || 0) * Math.PI / 180,
+                Number(p.rz || 0) * Math.PI / 180
+            );
+            var s = Number(p.scale) || 1;
+            mesh.scale.set(s, s, s);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.visible = node.visible !== false;
+            mesh._sgNodeId = nodeId;
+
+            scene.add(mesh);
+            _sgMeshes.set(nodeId, mesh);
+        });
+    }
+
+    /** 更新 SceneGraph Mesh3D 节点的 Three.js 渲染 */
+    function _updateSGMeshes() {
+        if (typeof SceneGraph === 'undefined' || _sgMeshes.size === 0) return;
+        var nodes = SceneGraph.toJSON().nodes;
+        if (!nodes) return;
+
+        _sgMeshes.forEach(function (mesh, nodeId) {
+            var node = nodes[nodeId];
+            if (!node) return;
+            var p = node.properties || {};
+
+            mesh.position.set(
+                Number(p.x) || 0,
+                Number(p.y) || 0,
+                Number(p.z) || 0
+            );
+            mesh.rotation.set(
+                Number(p.rx || 0) * Math.PI / 180,
+                Number(p.ry || 0) * Math.PI / 180,
+                Number(p.rz || 0) * Math.PI / 180
+            );
+            var s = Number(p.scale) || 1;
+            mesh.scale.set(s, s, s);
+            mesh.visible = node.visible !== false;
+
+            if (mesh.material && mesh.material.color && p.color) {
+                mesh.material.color.set(String(p.color));
+            }
+        });
+    }
+
     /** 渲染循环 */
     function renderLoop() {
         if (!_initialized) return;
@@ -192,6 +287,10 @@ const Stage3D = (function () {
                 }
             });
         }
+
+        // 更新 SceneGraph 中的 Mesh3D 节点
+        _updateSGMeshes();
+
         renderer.render(scene, camera);
     }
 
@@ -355,6 +454,13 @@ const Stage3D = (function () {
         spriteMeshes.clear();
         spriteTextures.clear();
         clearCreatedMeshes();
+        // 清理 SG 网格
+        _sgMeshes.forEach(function (mesh) {
+            scene.remove(mesh);
+            if (mesh.geometry) mesh.geometry.dispose();
+            if (mesh.material) mesh.material.dispose();
+        });
+        _sgMeshes.clear();
         if (renderer) renderer.dispose();
     }
 
@@ -374,6 +480,7 @@ const Stage3D = (function () {
         getMeshProperty: getMeshProperty,
         setSkyColor: setSkyColor,
         setGroundColor: setGroundColor,
-        setGridVisible: setGridVisible
+        setGridVisible: setGridVisible,
+        syncMeshesFromSceneGraph: syncMeshesFromSceneGraph
     };
 })();

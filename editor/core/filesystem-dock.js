@@ -40,6 +40,12 @@ const FileSystemDock = (function () {
       refreshBtn.addEventListener('click', refresh);
     }
 
+    // 绑定新建场景按钮
+    const newSceneBtn = document.getElementById('btn-new-scene');
+    if (newSceneBtn) {
+      newSceneBtn.addEventListener('click', _createNewScene);
+    }
+
     // 绑定新建文件按钮
     const newFileBtn = document.getElementById('btn-new-file');
     if (newFileBtn) {
@@ -50,12 +56,6 @@ const FileSystemDock = (function () {
     const newFolderBtn = document.getElementById('btn-new-folder');
     if (newFolderBtn) {
       newFolderBtn.addEventListener('click', _createNewFolder);
-    }
-
-    // 绑定创建新场景按钮
-    const newSceneBtn = document.getElementById('btn-new-scene');
-    if (newSceneBtn) {
-      newSceneBtn.addEventListener('click', _createNewScene);
     }
 
     // 左侧分割条拖拽
@@ -270,17 +270,30 @@ const FileSystemDock = (function () {
       const sceneData = JSON.parse(content);
       if ((sceneData.rootId || sceneData.nodes) && typeof SceneGraph !== 'undefined') {
         SceneGraph.fromJSON(sceneData);
-        // 根据场景模式切换渲染器
-        const sceneMode = SceneGraph.getRootMode();
-        if (sceneMode && typeof window.switchRendererForMode === 'function') {
-          window.switchRendererForMode(sceneMode);
-        }
         if (typeof StageManager !== 'undefined') StageManager.syncFromSceneGraph();
         if (typeof SceneTree !== 'undefined') SceneTree.refresh();
         if (typeof Inspector !== 'undefined') {
           const root = SceneGraph.getRoot();
           if (root) Inspector.showNode(root.id);
         }
+
+        // 3D 和 UI 场景仅支持 JS 脚本，隐藏积木 tab 并自动切换到 JS
+        if (typeof SceneGraph !== 'undefined' && SceneGraph.isJsOnly && SceneGraph.isJsOnly()) {
+          const blocksTab = document.querySelector('.script-tab[data-tab="blocks"]');
+          const jsTab = document.querySelector('.script-tab[data-tab="js"]');
+          if (blocksTab) blocksTab.classList.add('hidden');
+          if (jsTab && !jsTab.classList.contains('active')) jsTab.click();
+
+          // 3D 场景：同步 Mesh3D 节点到 Three.js 渲染
+          const sceneType = SceneGraph.getSceneType ? SceneGraph.getSceneType() : null;
+          if (sceneType === 'Scene3D' && typeof Stage3D !== 'undefined' && Stage3D.isInitialized && Stage3D.isInitialized()) {
+            Stage3D.syncMeshesFromSceneGraph();
+          }
+        } else {
+          const blocksTab = document.querySelector('.script-tab[data-tab="blocks"]');
+          if (blocksTab) blocksTab.classList.remove('hidden');
+        }
+
         document.getElementById('status-text').textContent = '已加载场景: ' + (sceneData.name || filePath);
       } else {
         alert('无效的场景文件格式');
@@ -322,6 +335,257 @@ const FileSystemDock = (function () {
     } catch (e) {
       console.error('[FileSystem] 预览图片失败:', e);
     }
+  }
+
+  // ===================== 创建场景 =====================
+
+  /** 创建新场景文件 */
+  async function _createNewScene() {
+    if (!_projectPath) {
+      alert('请先打开项目');
+      return;
+    }
+    const result = await _showSceneTypeDialog();
+    if (!result) return;
+
+    const { sceneType, sceneName } = result;
+    const safeName = sceneName.trim().replace(/[<>:"/\\|?*]/g, '_');
+    if (!safeName) return;
+
+    try {
+      if (!window.api || !window.api.writeFile || !window.api.ensureDir || !window.api.pathJoin) {
+        alert('文件系统 API 不可用');
+        return;
+      }
+
+      // 确保 scenes 目录存在
+      const scenesDir = await window.api.pathJoin(_projectPath, 'scenes');
+      await window.api.ensureDir(scenesDir);
+
+      // 确保 scripts 目录存在
+      const scriptsDir = await window.api.pathJoin(_projectPath, 'scripts');
+      await window.api.ensureDir(scriptsDir);
+
+      // 构建场景模板数据
+      const sceneData = _buildSceneTemplate(sceneType, safeName);
+      const sceneFilePath = await window.api.pathJoin(scenesDir, safeName + '.scene.json');
+
+      // 写入场景文件
+      const writeResult = await window.api.writeFile(sceneFilePath, JSON.stringify(sceneData, null, 2));
+      if (writeResult && writeResult.error) {
+        alert('创建场景文件失败: ' + writeResult.error);
+        return;
+      }
+
+      // 写入对应 JS 脚本文件
+      const jsFilePath = await window.api.pathJoin(scriptsDir, safeName + '.js');
+      const jsTemplate = _buildSceneJsTemplate(sceneType, safeName);
+      await window.api.writeFile(jsFilePath, jsTemplate);
+
+      // 刷新文件列表
+      _expandedFolders.add(scenesDir);
+      _expandedFolders.add(scriptsDir);
+      await refresh();
+
+      document.getElementById('status-text').textContent = '已创建场景: ' + safeName + ' (' + (sceneType === '3d' ? '3D' : sceneType === 'ui' ? 'UI' : '2D') + ')';
+    } catch (e) {
+      console.error('[FileSystem] 创建场景失败:', e);
+      alert('创建场景失败: ' + e.message);
+    }
+  }
+
+  /** 构建场景模板数据 */
+  function _buildSceneTemplate(sceneType, name) {
+    let rootType, rootName, childNode;
+
+    if (sceneType === '3d') {
+      rootType = 'Scene3D';
+      rootName = name + ' 场景';
+      childNode = {
+        id: 'node_2', type: 'Mesh3D', name: '网格体1',
+        parent: 'node_1', children: [],
+        properties: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, meshType: 'box', color: '#4C97FF', scale: 1 },
+        spriteRef: null, script: '', blocks: {}, expanded: true, visible: true, locked: false,
+      };
+    } else if (sceneType === '2d') {
+      rootType = 'Scene2D';
+      rootName = name + ' 场景';
+      childNode = {
+        id: 'node_2', type: 'Sprite2D', name: '精灵1',
+        parent: 'node_1', children: [],
+        properties: { x: 0, y: 0, direction: 90, size: 100, color: '#4C97FF', costumeName: '', rotationStyle: 'allAround' },
+        spriteRef: null, script: '', blocks: {}, expanded: true, visible: true, locked: false,
+      };
+    } else {
+      rootType = 'SceneUI';
+      rootName = name + ' UI 场景';
+      childNode = {
+        id: 'node_2', type: 'UIPanel', name: '面板',
+        parent: 'node_1', children: [],
+        properties: { x: 0, y: 0, width: 200, height: 150, bgColor: '#313244', borderRadius: 6, opacity: 1 },
+        spriteRef: null, script: '', blocks: {}, expanded: true, visible: true, locked: false,
+      };
+    }
+
+    return {
+      name: name,
+      sceneType: sceneType,
+      rootId: 'node_1',
+      nextId: 3,
+      nodes: {
+        'node_1': {
+          id: 'node_1', type: rootType, name: rootName,
+          parent: null, children: ['node_2'],
+          properties: {}, spriteRef: null, script: '', blocks: {},
+          expanded: true, visible: true, locked: false,
+        },
+        'node_2': childNode,
+      },
+    };
+  }
+
+  /** 构建场景 JS 脚本模板 */
+  function _buildSceneJsTemplate(sceneType, name) {
+    if (sceneType === '3d') {
+      return '// ' + name + ' 3D 场景脚本\n'
+        + '// 可用对象：scene（当前场景）、THREE（Three.js 库）\n'
+        + '// 可用方法：scene.add(mesh)、scene.remove(mesh)、scene.update(fn)\n'
+        + '\n'
+        + '// 场景初始化\n'
+        + 'function onStart() {\n'
+        + '  console.log("' + name + ' 3D 场景已启动");\n'
+        + '}\n'
+        + '\n'
+        + '// 每帧更新（约 60fps）\n'
+        + 'function onUpdate(deltaTime) {\n'
+        + '  // 在这里编写每帧执行的逻辑\n'
+        + '}\n';
+    } else if (sceneType === '2d') {
+      return '// ' + name + ' 2D 场景脚本\n'
+        + '// 可用对象：sprite（当前精灵）、stage（舞台）\n'
+        + '// 可用方法：sprite.x、sprite.y、sprite.move(steps)、sprite.say(text)\n'
+        + '\n'
+        + '// 场景初始化\n'
+        + 'function onStart() {\n'
+        + '  console.log("' + name + ' 2D 场景已启动");\n'
+        + '}\n'
+        + '\n'
+        + '// 每帧更新（约 60fps）\n'
+        + 'function onUpdate(deltaTime) {\n'
+        + '  // 在这里编写每帧执行的逻辑\n'
+        + '}\n';
+    } else {
+      return '// ' + name + ' UI 场景脚本\n'
+        + '// 可用对象：ui（当前 UI 场景）、document（DOM）\n'
+        + '// 可用方法：ui.createButton()、ui.createText()、ui.createPanel()\n'
+        + '\n'
+        + '// UI 初始化\n'
+        + 'function onStart() {\n'
+        + '  console.log("' + name + ' UI 场景已加载");\n'
+        + '\n'
+        + '  // 示例：创建按钮\n'
+        + '  // const btn = ui.createButton({ text: "点击我", x: 100, y: 50 });\n'
+        + '  // btn.onClick(() => { console.log("按钮被点击了！"); });\n'
+        + '}\n'
+        + '\n'
+        + '// UI 事件处理\n'
+        + 'function onEvent(eventName, data) {\n'
+        + '  switch (eventName) {\n'
+        + '    case "click":\n'
+        + '      console.log("点击事件:", data);\n'
+        + '      break;\n'
+        + '  }\n'
+        + '}\n';
+    }
+  }
+
+  /** 显示场景类型选择对话框 */
+  function _showSceneTypeDialog() {
+    return new Promise((resolve) => {
+      let selectedType = null;
+
+      const overlay = document.createElement('div');
+      overlay.className = 'scene-type-dialog';
+      overlay.innerHTML = `
+        <div class="scene-type-dialog-box">
+          <h3>🎬 新建场景</h3>
+          <p>选择场景类型：</p>
+          <div class="scene-type-cards">
+            <div class="scene-type-card" data-type="2d">
+              <div class="scene-type-card-icon">🎬</div>
+              <div class="scene-type-card-name">2D 场景</div>
+              <div class="scene-type-card-desc">经典 2D 平面创作<br>精灵、运动、物理系统</div>
+              <div class="scene-type-card-badge" style="background:rgba(249,226,175,0.2);color:#f9e2af;">积木 + JS</div>
+            </div>
+            <div class="scene-type-card" data-type="3d">
+              <div class="scene-type-card-icon">🌐</div>
+              <div class="scene-type-card-name">3D 场景</div>
+              <div class="scene-type-card-desc">使用 Three.js 渲染<br>3D 网格、相机、灯光</div>
+              <div class="scene-type-card-badge" style="background:rgba(137,180,250,0.2);color:#89b4fa;">仅 JS 脚本</div>
+            </div>
+            <div class="scene-type-card" data-type="ui">
+              <div class="scene-type-card-icon">🖥️</div>
+              <div class="scene-type-card-name">UI 场景</div>
+              <div class="scene-type-card-desc">界面布局与设计<br>面板、按钮、文本、图片</div>
+              <div class="scene-type-card-badge" style="background:rgba(166,227,161,0.2);color:#a6e3a1;">仅 JS 脚本</div>
+            </div>
+          </div>
+          <p>场景名称：</p>
+          <input type="text" id="scene-name-input" value="new-scene" />
+          <div class="scene-type-dialog-actions">
+            <button id="scene-dialog-cancel" class="tb-btn" style="background:var(--bg-surface,#313244);color:var(--text-primary,#cdd6f4);border:1px solid var(--border,#45475a);border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer;">取消</button>
+            <button id="scene-dialog-ok" class="tb-btn" style="background:var(--accent,#89b4fa);color:#1e1e2e;border:none;border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer;font-weight:600;" disabled>创建</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      const cards = overlay.querySelectorAll('.scene-type-card');
+      const okBtn = overlay.querySelector('#scene-dialog-ok');
+      const cancelBtn = overlay.querySelector('#scene-dialog-cancel');
+      const nameInput = overlay.querySelector('#scene-name-input');
+
+      cards.forEach(card => {
+        card.addEventListener('click', () => {
+          cards.forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          selectedType = card.dataset.type;
+          okBtn.disabled = false;
+        });
+      });
+
+      nameInput.focus();
+      nameInput.select();
+
+      cancelBtn.addEventListener('click', () => {
+        document.body.removeChild(overlay);
+        resolve(null);
+      });
+
+      okBtn.addEventListener('click', () => {
+        if (!selectedType) return;
+        const name = nameInput.value.trim();
+        if (!name) { nameInput.focus(); return; }
+        document.body.removeChild(overlay);
+        resolve({ sceneType: selectedType, sceneName: name });
+      });
+
+      nameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && selectedType) {
+          okBtn.click();
+        }
+        if (e.key === 'Escape') {
+          cancelBtn.click();
+        }
+      });
+
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          document.body.removeChild(overlay);
+          resolve(null);
+        }
+      });
+    });
   }
 
   // ===================== 创建文件/文件夹 =====================
@@ -507,6 +771,7 @@ const FileSystemDock = (function () {
     if (!menu) return;
 
     menu.innerHTML = `
+      <div class="ctx-item" data-action="new-scene">🎬 新建场景</div>
       <div class="ctx-item" data-action="new-file">📄 新建文件</div>
       <div class="ctx-item" data-action="new-folder">📁 新建文件夹</div>
       <div class="ctx-item" data-action="rename">✏️ 重命名</div>
@@ -575,6 +840,9 @@ const FileSystemDock = (function () {
   /** 处理文件夹操作 */
   async function _handleFolderAction(action, entry) {
     switch (action) {
+      case 'new-scene':
+        _createNewScene();
+        break;
       case 'new-file': {
         const fileName = await _showInputDialog('新建文件', '在 ' + entry.name + '/ 下创建文件:', 'untitled.js');
         if (!fileName || !fileName.trim()) return;
@@ -646,178 +914,6 @@ const FileSystemDock = (function () {
     }
   }
 
-  // ===================== 创建新场景 =====================
-
-  /** 创建新场景文件（带模式选择） */
-  async function _createNewScene() {
-    if (!_projectPath) {
-      alert('请先打开项目');
-      return;
-    }
-    if (!window.api || !window.api.writeFile || !window.api.ensureDir) {
-      alert('文件系统 API 不可用');
-      return;
-    }
-
-    // 显示创建场景对话框
-    await _showCreateSceneDialog();
-  }
-
-  /** 显示创建场景对话框 */
-  async function _showCreateSceneDialog() {
-    const overlay = document.createElement('div');
-    overlay.className = 'dialog-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;';
-    overlay.innerHTML = `
-      <div style="background:var(--bg-secondary,#181825);border:1px solid var(--border,#45475a);border-radius:10px;padding:20px;min-width:360px;max-width:440px;">
-        <h3 style="margin:0 0 14px;font-size:14px;color:var(--accent,#89b4fa);">🎬 创建新场景</h3>
-        <p style="margin:0 0 8px;font-size:12px;color:var(--text-secondary,#a6adc8);">场景名称：</p>
-        <input type="text" id="scene-name-input" value="new-scene" placeholder="例如: enemy, ui-menu" style="width:100%;padding:8px 10px;background:var(--bg-surface,#313244);border:1px solid var(--border,#45475a);border-radius:6px;color:var(--text-primary,#cdd6f4);font-size:13px;outline:none;margin-bottom:12px;" />
-        <p style="margin:0 0 8px;font-size:12px;color:var(--text-secondary,#a6adc8);">场景模式：</p>
-        <div style="display:flex;gap:8px;margin-bottom:14px;">
-          <button class="scene-mode-btn active" data-mode="Scene2D" style="flex:1;padding:10px;background:var(--bg-surface,#313244);border:2px solid var(--accent,#89b4fa);border-radius:8px;cursor:pointer;text-align:center;color:var(--text-primary,#cdd6f4);">
-            <div style="font-size:20px;">🎬</div>
-            <div style="font-size:12px;font-weight:600;">2D</div>
-            <div style="font-size:10px;opacity:0.7;">2D 场景</div>
-          </button>
-          <button class="scene-mode-btn" data-mode="Scene3D" style="flex:1;padding:10px;background:var(--bg-surface,#313244);border:2px solid var(--border,#45475a);border-radius:8px;cursor:pointer;text-align:center;color:var(--text-primary,#cdd6f4);">
-            <div style="font-size:20px;">🌐</div>
-            <div style="font-size:12px;font-weight:600;">3D</div>
-            <div style="font-size:10px;opacity:0.7;">3D 场景</div>
-          </button>
-          <button class="scene-mode-btn" data-mode="SceneUI" style="flex:1;padding:10px;background:var(--bg-surface,#313244);border:2px solid var(--border,#45475a);border-radius:8px;cursor:pointer;text-align:center;color:var(--text-primary,#cdd6f4);">
-            <div style="font-size:20px;">🖼️</div>
-            <div style="font-size:12px;font-weight:600;">UI</div>
-            <div style="font-size:10px;opacity:0.7;">Control UI</div>
-          </button>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end;">
-          <button id="scene-dialog-cancel" class="tb-btn" style="background:var(--bg-surface,#313244);color:var(--text-primary,#cdd6f4);border:1px solid var(--border,#45475a);border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer;">取消</button>
-          <button id="scene-dialog-ok" class="tb-btn" style="background:var(--accent,#89b4fa);color:#1e1e2e;border:none;border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer;font-weight:600;">创建</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-
-    const input = overlay.querySelector('#scene-name-input');
-    input.focus();
-    input.select();
-
-    let selectedMode = 'Scene2D';
-
-    // 模式按钮交互
-    overlay.querySelectorAll('.scene-mode-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        overlay.querySelectorAll('.scene-mode-btn').forEach(b => {
-          b.style.borderColor = 'var(--border,#45475a)';
-          b.classList.remove('active');
-        });
-        btn.style.borderColor = 'var(--accent,#89b4fa)';
-        btn.classList.add('active');
-        selectedMode = btn.dataset.mode;
-      });
-    });
-
-    overlay.querySelector('#scene-dialog-cancel').addEventListener('click', () => {
-      document.body.removeChild(overlay);
-    });
-
-    overlay.querySelector('#scene-dialog-ok').addEventListener('click', async () => {
-      const sceneName = input.value.trim();
-      if (!sceneName) {
-        alert('请输入场景名称');
-        return;
-      }
-      document.body.removeChild(overlay);
-      await _doCreateScene(sceneName, selectedMode);
-    });
-
-    input.addEventListener('keydown', async (e) => {
-      if (e.key === 'Enter') {
-        const sceneName = input.value.trim();
-        if (!sceneName) {
-          alert('请输入场景名称');
-          return;
-        }
-        document.body.removeChild(overlay);
-        await _doCreateScene(sceneName, selectedMode);
-      }
-      if (e.key === 'Escape') {
-        document.body.removeChild(overlay);
-      }
-    });
-
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) {
-        document.body.removeChild(overlay);
-      }
-    });
-  }
-
-  /** 执行创建场景文件 */
-  async function _doCreateScene(sceneName, modeType) {
-    if (!window.api || !window.api.writeFile || !window.api.ensureDir || !window.api.pathJoin) {
-      alert('文件系统 API 不可用');
-      return;
-    }
-
-    try {
-      // 构建路径
-      const scenesDir = await window.api.pathJoin(_projectPath, 'scenes');
-      const filePath = await window.api.pathJoin(scenesDir, sceneName + '.scene.json');
-
-      // 检查文件是否已存在
-      try {
-        const existing = await window.api.readFile(filePath);
-        if (existing !== null && existing !== undefined) {
-          if (!confirm('场景文件 "' + sceneName + '.scene.json" 已存在，是否覆盖？')) {
-            return;
-          }
-        }
-      } catch (e) {
-        // 文件不存在，继续创建
-      }
-
-      // 创建临时 SceneGraph 来生成新场景数据
-      // 使用 SceneGraph.getNodeType 获取模式的默认属性
-      const modeInfo = typeof SceneGraph !== 'undefined' ? SceneGraph.getNodeType(modeType) : null;
-      const rootNodeId = 'node_1';
-      const sceneData = {
-        name: sceneName,
-        rootId: rootNodeId,
-        nextId: 2,
-        nodes: {
-          [rootNodeId]: {
-            id: rootNodeId,
-            type: modeType,
-            name: sceneName,
-            parent: null,
-            children: [],
-            properties: modeInfo ? { ...modeInfo.defaultProps } : {},
-            spriteRef: null,
-            script: '',
-            blocks: {},
-            expanded: true,
-            visible: true,
-            locked: false,
-          }
-        }
-      };
-
-      // 确保目录存在并写入文件
-      await window.api.ensureDir(scenesDir);
-      await window.api.writeFile(filePath, JSON.stringify(sceneData, null, 2));
-
-      // 刷新文件列表
-      await refresh();
-
-      document.getElementById('status-text').textContent = '已创建场景: ' + sceneName + ' (' + modeType + ')';
-    } catch (e) {
-      console.error('[FileSystem] 创建场景失败:', e);
-      alert('创建场景失败: ' + e.message);
-    }
-  }
-
   /** 保存当前场景到文件 */
   async function saveCurrentScene(name) {
     if (typeof SceneGraph === 'undefined' || typeof EditorState === 'undefined') return;
@@ -854,6 +950,5 @@ const FileSystemDock = (function () {
     init,
     refresh,
     saveCurrentScene,
-    createNewScene: _createNewScene,
   };
 })();

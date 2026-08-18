@@ -17,10 +17,11 @@ const SceneGraph = (function () {
       validChildren: ['Node2D', 'Sprite2D', 'Camera2D'],
     },
     Scene3D: {
-      icon: '🌐', desc: '3D 场景',
+      icon: '🌐', desc: '3D 场景（仅支持 JS 脚本）',
       defaultProps: {},
       canAddChild: true,
       validChildren: ['Node3D', 'Mesh3D', 'Camera3D', 'Light3D'],
+      jsOnly: true,
     },
     Node2D: {
       icon: '⬜', desc: '2D 空节点（分组/容器）',
@@ -59,51 +60,36 @@ const SceneGraph = (function () {
       defaultProps: { x: 2, y: 4, z: 2, color: '#ffffff', intensity: 1, range: 10 },
       canAddChild: false,
     },
-    // ===== Control UI 节点类型 =====
+    // ===== UI 场景节点 =====
     SceneUI: {
-      icon: '🖼️', desc: 'Control UI 场景',
-      defaultProps: {},
+      icon: '🖥️', desc: 'UI 场景（仅支持 JS 脚本）',
+      defaultProps: { width: 480, height: 360 },
       canAddChild: true,
-      validChildren: ['NodeUI', 'ButtonUI', 'LabelUI', 'ImageUI', 'PanelUI'],
+      validChildren: ['UIPanel', 'UIButton', 'UIText', 'UIImage'],
+      jsOnly: true,
     },
-    NodeUI: {
-      icon: '⬛', desc: 'UI 容器节点',
-      defaultProps: { x: 0, y: 0, width: 100, height: 40 },
+    UIPanel: {
+      icon: '🗂️', desc: 'UI 面板（容器）',
+      defaultProps: { x: 0, y: 0, width: 200, height: 150, bgColor: '#313244', borderRadius: 6, opacity: 1 },
       canAddChild: true,
-      validChildren: ['NodeUI', 'ButtonUI', 'LabelUI', 'ImageUI', 'PanelUI'],
+      validChildren: ['UIPanel', 'UIButton', 'UIText', 'UIImage'],
     },
-    ButtonUI: {
-      icon: '🔘', desc: '按钮',
-      defaultProps: { x: 10, y: 10, width: 120, height: 36, text: '按钮', color: '#89b4fa', textColor: '#1e1e2e' },
+    UIButton: {
+      icon: '🔘', desc: 'UI 按钮',
+      defaultProps: { x: 0, y: 0, width: 120, height: 36, text: '按钮', fontSize: 14, textColor: '#cdd6f4', bgColor: '#89b4fa', borderRadius: 6 },
       canAddChild: false,
     },
-    LabelUI: {
-      icon: '📝', desc: '文本标签',
-      defaultProps: { x: 10, y: 10, text: '文本', fontSize: 16, color: '#cdd6f4' },
+    UIText: {
+      icon: '📝', desc: 'UI 文本',
+      defaultProps: { x: 0, y: 0, text: '文本内容', fontSize: 16, color: '#cdd6f4', bold: false, italic: false },
       canAddChild: false,
     },
-    ImageUI: {
-      icon: '🖼️', desc: '图片',
-      defaultProps: { x: 10, y: 10, width: 64, height: 64, src: '' },
-      canAddChild: false,
-    },
-    PanelUI: {
-      icon: '🪟', desc: '面板',
-      defaultProps: { x: 10, y: 10, width: 200, height: 120, bgColor: '#313244', borderColor: '#45475a' },
-      canAddChild: true,
-      validChildren: ['NodeUI', 'ButtonUI', 'LabelUI', 'ImageUI', 'PanelUI'],
-    },
-    // ===== 场景引用节点 =====
-    SceneRef: {
-      icon: '🔗', desc: '引用其他场景（实例化）',
-      defaultProps: { scenePath: '' },
+    UIImage: {
+      icon: '🖼️', desc: 'UI 图片',
+      defaultProps: { x: 0, y: 0, width: 100, height: 100, src: '', opacity: 1 },
       canAddChild: false,
     },
   };
-
-  // 场景根节点模式列表
-  const SCENE_MODES = ['Scene2D', 'Scene3D', 'SceneUI'];
-  const SCENE_MODE_LABELS = { Scene2D: '2D', Scene3D: '3D', SceneUI: 'UI' };
 
   /** 生成唯一ID */
   function _genId() {
@@ -142,14 +128,44 @@ const SceneGraph = (function () {
     const sceneType = renderMode === '3d' ? 'Scene3D' : (renderMode === 'ui' ? 'SceneUI' : 'Scene2D');
     _rootId = _createNode(sceneType, '主场景', null);
 
-    // 添加一个默认精灵
-    const spriteId = _createNode('Sprite2D', '精灵1', _rootId);
-    if (_rootId && _nodes[_rootId]) {
-      _nodes[_rootId].children.push(spriteId);
+    // 根据场景类型添加不同的默认子节点
+    if (sceneType === 'Scene2D') {
+      const spriteId = _createNode('Sprite2D', '精灵1', _rootId);
+      if (_rootId && _nodes[_rootId]) {
+        _nodes[_rootId].children.push(spriteId);
+      }
+      _selectedId = spriteId;
+    } else if (sceneType === 'Scene3D') {
+      const meshId = _createNode('Mesh3D', '网格体1', _rootId);
+      if (_rootId && _nodes[_rootId]) {
+        _nodes[_rootId].children.push(meshId);
+      }
+      _selectedId = meshId;
+    } else if (sceneType === 'SceneUI') {
+      const panelId = _createNode('UIPanel', '面板', _rootId);
+      if (_rootId && _nodes[_rootId]) {
+        _nodes[_rootId].children.push(panelId);
+      }
+      _selectedId = panelId;
     }
 
-    _selectedId = spriteId;
     return _rootId;
+  }
+
+  /** 获取当前场景类型 */
+  function getSceneType() {
+    if (_rootId && _nodes[_rootId]) {
+      return _nodes[_rootId].type;
+    }
+    return null;
+  }
+
+  /** 当前场景是否仅支持 JS 脚本 */
+  function isJsOnly() {
+    const type = getSceneType();
+    if (!type) return false;
+    const info = NODE_TYPES[type];
+    return info && info.jsOnly === true;
   }
 
   /** 添加节点 */
@@ -424,70 +440,6 @@ const SceneGraph = (function () {
     }
   }
 
-  /** 获取根节点的当前模式 */
-  function getRootMode() {
-    const root = _nodes[_rootId];
-    return root ? root.type : null;
-  }
-
-  /** 切换根节点的场景模式（2D/3D/UI） */
-  function switchRootMode(newMode) {
-    if (!SCENE_MODES.includes(newMode)) return false;
-    const root = _nodes[_rootId];
-    if (!root) return false;
-    if (root.type === newMode) return false;
-    root.type = newMode;
-    return true;
-  }
-
-  /** 获取所有场景模式 */
-  function getSceneModes() { return SCENE_MODES; }
-  function getSceneModeLabels() { return SCENE_MODE_LABELS; }
-
-  /** 列出项目中所有已保存的场景文件（用于 SceneRef 选择） */
-  async function listScenes() {
-    if (!window.api || !window.api.listDir || typeof EditorState === 'undefined' || !EditorState.projectPath) return [];
-    const scenes = [];
-    try {
-      let scenesDir;
-      if (window.api.pathJoin) {
-        scenesDir = await window.api.pathJoin(EditorState.projectPath, 'scenes');
-      } else {
-        scenesDir = EditorState.projectPath.replace(/[\\/]+$/, '') + '/scenes';
-      }
-      const items = await window.api.listDir(scenesDir);
-      if (Array.isArray(items)) {
-        for (const name of items) {
-          if (name.endsWith('.scene.json')) {
-            let fullPath;
-            if (window.api.pathJoin) {
-              fullPath = await window.api.pathJoin(scenesDir, name);
-            } else {
-              fullPath = scenesDir + '/' + name;
-            }
-            scenes.push({ name, path: fullPath });
-          }
-        }
-      }
-    } catch (e) {
-      // scenes 目录不存在时不报错
-    }
-    return scenes;
-  }
-
-  /** 加载被引用的场景数据（SceneRef） */
-  async function loadReferencedScene(filePath) {
-    if (!filePath || !window.api || !window.api.readFile) return null;
-    try {
-      const content = await window.api.readFile(filePath);
-      if (!content || !content.trim()) return null;
-      return JSON.parse(content);
-    } catch (e) {
-      console.warn('[SceneGraph] 加载引用场景失败:', filePath, e);
-      return null;
-    }
-  }
-
   return {
     init, addNode, removeNode, moveNode,
     getNode, getNodeChildren, getRoot, getRootId,
@@ -496,8 +448,7 @@ const SceneGraph = (function () {
     getNodeType, getNodeTypes, getValidChildTypes,
     duplicateNode, renameNode, updateProperty,
     toggleExpand, setVisible, setLocked,
+    getSceneType, isJsOnly,
     toJSON, fromJSON,
-    getRootMode, switchRootMode, getSceneModes, getSceneModeLabels,
-    listScenes, loadReferencedScene,
   };
 })();

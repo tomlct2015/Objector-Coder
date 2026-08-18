@@ -81,21 +81,6 @@ const SceneTree = (function () {
     name.className = 'scene-node-name';
     name.textContent = node.name;
 
-    // 场景模式徽章（仅根节点）
-    const isSceneRoot = !node.parent && ['Scene2D', 'Scene3D', 'SceneUI'].includes(node.type);
-    if (isSceneRoot) {
-      const labels = SceneGraph.getSceneModeLabels();
-      const badge = document.createElement('span');
-      badge.className = 'scene-mode-badge';
-      badge.textContent = labels[node.type] || '?';
-      badge.title = '点击切换场景模式';
-      badge.addEventListener('click', (e) => {
-        e.stopPropagation();
-        _showModeSwitchMenu(e, node.id);
-      });
-      name.appendChild(badge);
-    }
-
     // 可见性
     const vis = document.createElement('span');
     vis.className = 'scene-node-vis';
@@ -223,13 +208,17 @@ const SceneTree = (function () {
 
   /** 选中节点 */
   function selectNode(id) {
-    // 保存当前精灵的代码
+    // 保存当前节点的代码
     const prevId = SceneGraph.getSelectedId();
     if (prevId && typeof EditorApp !== 'undefined' && EditorApp.getJsEditor) {
       const prevNode = SceneGraph.getNode(prevId);
-      if (prevNode && prevNode.type === 'Sprite2D') {
-        const editor = EditorApp.getJsEditor();
-        if (editor) EditorApp.setSpriteScript(prevNode.spriteRef, editor.getValue());
+      const editor = EditorApp.getJsEditor();
+      if (prevNode && editor) {
+        if (prevNode.type === 'Sprite2D') {
+          EditorApp.setSpriteScript(prevNode.spriteRef, editor.getValue());
+        } else if (EditorApp.setNodeScript) {
+          EditorApp.setNodeScript(prevId, editor.getValue());
+        }
       }
     }
 
@@ -241,20 +230,30 @@ const SceneTree = (function () {
       Inspector.showNode(id);
     }
 
-    // 如果是 Sprite2D，同步 StageManager 选中
+    // 同步 StageManager 并加载脚本
     const node = SceneGraph.getNode(id);
-    if (node && node.type === 'Sprite2D' && typeof StageManager !== 'undefined') {
+    if (!node) return;
+
+    if (node.type === 'Sprite2D' && typeof StageManager !== 'undefined') {
       StageManager.syncFromSceneGraph();
       if (node.spriteRef !== null) {
         StageManager.setActiveSprite(node.spriteRef);
       }
-      // 加载对应脚本
-      if (typeof EditorApp !== 'undefined' && EditorApp.getJsEditor) {
-        const editor = EditorApp.getJsEditor();
-        if (editor) {
-          const script = EditorApp.getSpriteScript(node.spriteRef) || '// 在此编写 JavaScript 代码\n';
-          editor.setValue(script);
+    }
+
+    // 加载对应脚本（精灵用 spriteRef，其他节点用 nodeId）
+    if (typeof EditorApp !== 'undefined' && EditorApp.getJsEditor) {
+      const editor = EditorApp.getJsEditor();
+      if (editor) {
+        let script;
+        if (node.type === 'Sprite2D') {
+          script = EditorApp.getSpriteScript(node.spriteRef) || '// 在此编写 JavaScript 代码\n';
+        } else if (EditorApp.getNodeScript) {
+          script = EditorApp.getNodeScript(id) || '// 在此编写 JavaScript 代码\n';
+        } else {
+          script = '// 在此编写 JavaScript 代码\n';
         }
+        editor.setValue(script);
       }
     }
   }
@@ -386,57 +385,6 @@ const SceneTree = (function () {
     let count = node.children.length;
     node.children.forEach(cid => { count += _countDescendants(cid); });
     return count;
-  }
-
-  /** 显示场景模式切换菜单 */
-  function _showModeSwitchMenu(e, nodeId) {
-    const node = SceneGraph.getNode(nodeId);
-    if (!node) return;
-
-    const modes = SceneGraph.getSceneModes();
-    const labels = SceneGraph.getSceneModeLabels();
-    const icons = { Scene2D: '🎬', Scene3D: '🌐', SceneUI: '🖼️' };
-
-    const menu = document.createElement('div');
-    menu.className = 'mode-switch-menu';
-    menu.innerHTML = modes.map(m => `
-      <div class="mode-switch-item ${m === node.type ? 'active' : ''}" data-mode="${m}">
-        <span class="mode-switch-icon">${icons[m] || '❓'}</span>
-        <span class="mode-switch-label">${labels[m] || m}</span>
-        <span class="mode-switch-desc">${SceneGraph.getNodeType(m)?.desc || ''}</span>
-      </div>
-    `).join('');
-
-    // 定位
-    menu.style.cssText = `position:fixed;left:${e.clientX}px;top:${e.clientY}px;z-index:10000;
-      background:var(--bg-secondary,#181825);border:1px solid var(--border,#313244);
-      border-radius:8px;padding:4px 0;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.4);`;
-
-    document.body.appendChild(menu);
-
-    menu.querySelectorAll('.mode-switch-item').forEach(item => {
-      item.addEventListener('click', () => {
-        const newMode = item.dataset.mode;
-        if (newMode !== node.type) {
-          SceneGraph.switchRootMode(newMode);
-          // 切换实际渲染器
-          if (typeof window.switchRendererForMode === 'function') {
-            window.switchRendererForMode(newMode);
-          }
-          if (typeof StageManager !== 'undefined') StageManager.syncFromSceneGraph();
-          refresh();
-          if (typeof Inspector !== 'undefined') Inspector.showNode(nodeId);
-        }
-        document.body.removeChild(menu);
-      });
-    });
-
-    // 点击外部关闭
-    const closeMenu = () => {
-      if (document.body.contains(menu)) document.body.removeChild(menu);
-      document.removeEventListener('click', closeMenu);
-    };
-    setTimeout(() => document.addEventListener('click', closeMenu), 0);
   }
 
   return {

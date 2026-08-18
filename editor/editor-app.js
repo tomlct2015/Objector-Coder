@@ -884,6 +884,7 @@ window.EditorApp = (function () {
   // ============================================================
   let _codeMirrorInstance = null;
   let _spriteScripts = {}; // index -> JS code
+  let _nodeScripts = {};   // nodeId -> JS code（非 Sprite2D 节点的脚本）
   let _advancedInitialized = false;
 
   function initAdvancedMode() {
@@ -944,11 +945,17 @@ window.EditorApp = (function () {
         autoCloseBrackets: true,
         value: '// 在此编写 JavaScript 代码\n// 可用对象：sprite（当前角色）、globalVars（全局变量）\n// 示例：\n// sprite.x = 100;\n// sprite.say("Hello!");\n',
       });
-      // 实时保存代码到 _spriteScripts
+      // 实时保存代码：精灵节点用 index，其他节点用 nodeId
       _codeMirrorInstance.on('change', () => {
+        const selId = (typeof SceneGraph !== 'undefined') ? SceneGraph.getSelectedId() : null;
         const selIdx = (typeof SceneTree !== 'undefined') ? SceneTree.getSelectedIndex() : -1;
-        if (selIdx >= 0) {
+        const node = selId ? SceneGraph.getNode(selId) : null;
+        const isSprite = node && node.type === 'Sprite2D';
+
+        if (isSprite && selIdx >= 0) {
           _spriteScripts[selIdx] = _codeMirrorInstance.getValue();
+        } else if (selId) {
+          _nodeScripts[selId] = _codeMirrorInstance.getValue();
         }
       });
     }
@@ -968,38 +975,83 @@ window.EditorApp = (function () {
       });
     });
 
-    // ⧉ 新窗口编辑代码
+    // 3D 和 UI 场景仅支持 JS 脚本，隐藏积木 tab
+    if (typeof SceneGraph !== 'undefined' && SceneGraph.isJsOnly && SceneGraph.isJsOnly()) {
+      const blocksTab = document.querySelector('.script-tab[data-tab="blocks"]');
+      const jsTab = document.querySelector('.script-tab[data-tab="js"]');
+      if (blocksTab) blocksTab.classList.add('hidden');
+      if (jsTab) jsTab.click();
+    }
+
+    // ⧉ 新窗口编辑代码（支持任意节点类型）
     const popoutBtn = document.getElementById('btn-popout-js');
     if (popoutBtn && window.api && window.api.openJsEditor) {
       popoutBtn.addEventListener('click', () => {
-        // 获取当前选中精灵的脚本
+        // 获取当前选中节点
+        const selId = (typeof SceneGraph !== 'undefined') ? SceneGraph.getSelectedId() : null;
         const selIdx = (typeof SceneTree !== 'undefined') ? SceneTree.getSelectedIndex() : -1;
-        if (selIdx < 0) {
-          alert('请先在场景树中选择一个 Sprite2D 节点');
+
+        if (!selId) {
+          alert('请先在场景树中选择一个节点');
           return;
         }
-        const sprite = (typeof StageManager !== 'undefined') ? StageManager.getSprites()[selIdx] : null;
-        const name = sprite ? sprite.name : ('角色' + (selIdx + 1));
+
+        const node = (typeof SceneGraph !== 'undefined') ? SceneGraph.getNode(selId) : null;
+        const isSprite = node && node.type === 'Sprite2D';
+        const name = node ? node.name : '脚本';
+
         // 先保存当前编辑器内容
         if (_codeMirrorInstance) {
-          EditorApp.setSpriteScript(selIdx, _codeMirrorInstance.getValue());
+          // 精灵节点用 spriteIdx，其他节点用 nodeId
+          if (isSprite && selIdx >= 0) {
+            EditorApp.setSpriteScript(selIdx, _codeMirrorInstance.getValue());
+          } else {
+            _nodeScripts[selId] = _codeMirrorInstance.getValue();
+          }
         }
-        const code = _spriteScripts[selIdx] || '// 在此编写 JavaScript 代码\n';
-        window.api.openJsEditor({ spriteIdx: selIdx, name: name + '.js', code: code });
+
+        // 获取代码：优先用节点 ID 存储，回退到精灵索引
+        let code;
+        if (_nodeScripts[selId] !== undefined) {
+          code = _nodeScripts[selId];
+        } else if (isSprite && selIdx >= 0) {
+          code = _spriteScripts[selIdx] || '// 在此编写 JavaScript 代码\n';
+        } else {
+          code = '// 在此编写 JavaScript 代码\n';
+        }
+
+        // 传递 nodeId 和 spriteIdx 用于回调识别
+        window.api.openJsEditor({
+          spriteIdx: selId,  // 用节点 ID 作为标识
+          name: name + '.js',
+          code: code
+        });
       });
 
       // 监听外部窗口保存的代码
-      window.api.onJsEditorCodeUpdated((spriteIdx, code) => {
-        _spriteScripts[spriteIdx] = code;
-        // 如果当前正在编辑这个角色，同步到内嵌编辑器
+      window.api.onJsEditorCodeUpdated((nodeId, code) => {
+        // 判断是精灵节点还是其他节点
+        const node = (typeof SceneGraph !== 'undefined') ? SceneGraph.getNode(nodeId) : null;
+        const isSprite = node && node.type === 'Sprite2D';
         const selIdx = (typeof SceneTree !== 'undefined') ? SceneTree.getSelectedIndex() : -1;
-        if (selIdx === spriteIdx && _codeMirrorInstance) {
+
+        if (isSprite && selIdx >= 0) {
+          _spriteScripts[selIdx] = code;
+        } else {
+          _nodeScripts[nodeId] = code;
+        }
+
+        // 如果当前正在编辑这个节点，同步到内嵌编辑器
+        const curSelId = (typeof SceneGraph !== 'undefined') ? SceneGraph.getSelectedId() : null;
+        if (curSelId === nodeId && _codeMirrorInstance) {
           const cursor = _codeMirrorInstance.getCursor();
           _codeMirrorInstance.setValue(code);
           _codeMirrorInstance.setCursor(cursor);
         }
-        document.getElementById('status-text').textContent = '已保存代码: 角色 ' + (spriteIdx + 1);
-        console.log('[JS Editor] 外部窗口保存代码，角色:', spriteIdx);
+
+        const nodeName = node ? node.name : nodeId;
+        document.getElementById('status-text').textContent = '已保存代码: ' + nodeName;
+        console.log('[JS Editor] 外部窗口保存代码:', nodeName);
       });
     }
 
@@ -1137,7 +1189,17 @@ window.EditorApp = (function () {
     return _codeMirrorInstance;
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  /** 获取节点的 JS 脚本（非 Sprite2D 节点） */
+  function getNodeScript(nodeId) {
+    return _nodeScripts[nodeId] || '';
+  }
+
+  /** 设置节点的 JS 脚本（非 Sprite2D 节点） */
+  function setNodeScript(nodeId, code) {
+    _nodeScripts[nodeId] = code;
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
     // 全局错误捕获（帮助定位问题）
     window.addEventListener('error', (e) => {
       console.error('[全局错误]', e.message, e.filename, e.lineno);
@@ -1194,9 +1256,15 @@ window.EditorApp = (function () {
     // 初始化扩展计时器
     window.__extTimerStart = Date.now();
 
-    // 获取 URL 参数中的项目路径和模式
-    const projectPath = params.get('path');
-    const projectMode = params.get('mode') || 'normal';
+    // 获取项目路径和模式：优先从 IPC 获取（避免 file:// URL 中文编码问题），回退到 URL 参数
+    let initData = null;
+    try {
+      if (window.api && window.api.getEditorInit) {
+        initData = await window.api.getEditorInit();
+      }
+    } catch(e) {}
+    const projectPath = (initData && initData.path) || params.get('path');
+    const projectMode = (initData && initData.mode) || params.get('mode') || 'normal';
 
     // 高级模式初始化
     if (projectMode === 'advanced') {
@@ -1695,6 +1763,10 @@ window.EditorApp = (function () {
               switchRendererForMode(sceneMode);
             }
             if (typeof StageManager !== 'undefined') StageManager.syncFromSceneGraph();
+            // 3D 场景：同步 Mesh3D 节点到 Three.js 渲染
+            if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized && Stage3D.isInitialized()) {
+              Stage3D.syncMeshesFromSceneGraph();
+            }
             sceneLoaded = true;
             console.log('[高级模式] 已从场景文件加载:', sceneFilePath, '模式:', sceneMode);
           }
@@ -1712,6 +1784,10 @@ window.EditorApp = (function () {
           switchRendererForMode(sceneMode);
         }
         if (typeof StageManager !== 'undefined') StageManager.syncFromSceneGraph();
+        // 3D 场景：同步 Mesh3D 节点到 Three.js 渲染
+        if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized && Stage3D.isInitialized()) {
+          Stage3D.syncMeshesFromSceneGraph();
+        }
         // 保存为场景文件（迁移到文件系统）
         try {
           await window.api.ensureDir(scenesDir);
@@ -1758,6 +1834,17 @@ window.EditorApp = (function () {
         } else if (root) {
           Inspector.showNode(root.id);
         }
+      }
+
+      // 3D 和 UI 场景仅支持 JS 脚本，隐藏积木 tab
+      if (typeof SceneGraph !== 'undefined' && SceneGraph.isJsOnly && SceneGraph.isJsOnly()) {
+        const blocksTab = document.querySelector('.script-tab[data-tab="blocks"]');
+        const jsTab = document.querySelector('.script-tab[data-tab="js"]');
+        if (blocksTab) blocksTab.classList.add('hidden');
+        if (jsTab && !jsTab.classList.contains('active')) jsTab.click();
+      } else {
+        const blocksTab = document.querySelector('.script-tab[data-tab="blocks"]');
+        if (blocksTab) blocksTab.classList.remove('hidden');
       }
     }
 
@@ -1974,6 +2061,8 @@ window.EditorApp = (function () {
     setSpriteScript,
     getAllSpriteScripts,
     setAllSpriteScripts,
+    getNodeScript,
+    setNodeScript,
     initAdvancedMode,
     runAdvancedScripts,
   };
