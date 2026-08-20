@@ -295,65 +295,155 @@
     return filePath;
   }
 
-  // ============ 项目选择器 UI ============
+  // ============ 打开项目：导入 ZIP 或本地文件夹 ============
 
   let _pickerResolve = null;
 
+  /** 打开项目：弹出对话框让用户选择导入 zip 或文件夹 */
   function _showProjectPicker() {
     return new Promise((resolve) => {
       _pickerResolve = resolve;
-      const overlay = document.getElementById('web-project-picker');
-      if (!overlay) { resolve(null); return; }
-      _refreshPickerList();
-      overlay.classList.remove('hidden');
+      const overlay = document.createElement('div');
+      overlay.id = '_import-project-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;';
+      overlay.innerHTML = `
+        <div style="background:var(--bg-secondary,#181825);border:1px solid var(--border,#45475a);border-radius:12px;padding:24px;min-width:340px;max-width:420px;">
+          <h3 style="margin:0 0 16px;font-size:15px;color:var(--accent,#89b4fa);">📂 打开项目</h3>
+          <p style="margin:0 0 16px;font-size:12px;color:var(--text-secondary,#a6adc8);">选择打开方式：</p>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <button id="_import-zip-btn" style="display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--bg-surface,#313244);border:1px solid var(--border,#45475a);border-radius:8px;cursor:pointer;transition:all .15s;color:var(--text-primary,#cdd6f4);font-size:13px;text-align:left;">
+              <span style="font-size:24px">📦</span>
+              <div><div style="font-weight:600;">导入 ZIP 压缩包</div><div style="font-size:11px;color:var(--text-muted,#6c7086);margin-top:2px;">选择本地的 .zip 项目文件</div></div>
+            </button>
+            <button id="_import-folder-btn" style="display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--bg-surface,#313244);border:1px solid var(--border,#45475a);border-radius:8px;cursor:pointer;transition:all .15s;color:var(--text-primary,#cdd6f4);font-size:13px;text-align:left;">
+              <span style="font-size:24px">📁</span>
+              <div><div style="font-weight:600;">选择本地文件夹</div><div style="font-size:11px;color:var(--text-muted,#6c7086);margin-top:2px;">直接打开电脑上的项目文件夹</div></div>
+            </button>
+          </div>
+          <div style="margin-top:16px;text-align:right;">
+            <button id="_import-cancel-btn" style="background:transparent;color:var(--text-muted,#6c7086);border:none;cursor:pointer;padding:6px 12px;font-size:12px;">取消</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      overlay.querySelector('#_import-cancel-btn').addEventListener('click', () => {
+        document.body.removeChild(overlay);
+        resolve(null);
+      });
+
+      overlay.querySelector('#_import-zip-btn').addEventListener('click', () => {
+        document.body.removeChild(overlay);
+        _importZipFile().then(resolve);
+      });
+
+      overlay.querySelector('#_import-folder-btn').addEventListener('click', () => {
+        document.body.removeChild(overlay);
+        _importFolder().then(resolve);
+      });
+
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) { document.body.removeChild(overlay); resolve(null); }
+      });
     });
   }
 
-  function _refreshPickerList() {
-    const list = document.getElementById('picker-project-list');
-    if (!list) return;
-    list.innerHTML = '';
+  /** 导入 ZIP 文件到 VFS */
+  async function _importZipFile() {
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.zip';
+      input.onchange = async () => {
+        const file = input.files[0];
+        if (!file) { resolve(null); return; }
 
-    // 从 VFS 中查找所有项目（查找 project.json）
-    const projects = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key.startsWith(VFS_PREFIX) && key.endsWith('/project.json')) {
-        const projPath = key.slice(VFS_PREFIX.length).replace('/project.json', '');
         try {
-          const config = JSON.parse(localStorage.getItem(key));
-          projects.push({ path: projPath, name: config.name || projPath.split('/').pop() });
-        } catch {
-          projects.push({ path: projPath, name: projPath.split('/').pop() });
+          const arrayBuffer = await file.arrayBuffer();
+          const zip = await JSZip.loadAsync(arrayBuffer);
+          const zipName = file.name.replace(/\.zip$/i, '');
+          const basePath = '/projects/' + zipName;
+
+          const entries = [];
+          zip.forEach((relativePath, zipEntry) => {
+            if (!zipEntry.dir) {
+              entries.push({ path: relativePath, entry: zipEntry });
+            }
+          });
+
+          for (const { path: relPath, entry } of entries) {
+            const vfsPath = norm(basePath + '/' + relPath);
+            if (/\.(png|jpg|jpeg|gif|bmp|webp|svg|ico|mp3|wav|ogg)$/i.test(relPath)) {
+              const b64 = await entry.async('base64');
+              localStorage.setItem(BINARY_PREFIX + vfsPath, 'data:application/octet-stream;base64,' + b64);
+            } else {
+              const text = await entry.async('string');
+              localStorage.setItem(VFS_PREFIX + vfsPath, text);
+            }
+          }
+
+          ensureDir(basePath);
+          console.log('[WebShim] ZIP imported:', basePath, entries.length, 'files');
+          resolve(basePath);
+        } catch (e) {
+          alert('ZIP 导入失败: ' + e.message);
+          resolve(null);
         }
-      }
-    }
-
-    if (projects.length === 0) {
-      list.innerHTML = '<div style="color:var(--text-muted);padding:16px;text-align:center;">' +
-        (i18n.isEnglish() ? 'No projects yet. Create one first!' : '还没有项目，请先新建一个！') + '</div>';
-      return;
-    }
-
-    projects.forEach(p => {
-      const div = document.createElement('div');
-      div.className = 'picker-item';
-      div.innerHTML = '<span style="font-size:18px">📁</span><span>' + p.name + '</span>';
-      div.onclick = () => {
-        _closePicker();
-        if (_pickerResolve) { _pickerResolve(p.path); _pickerResolve = null; }
       };
-      list.appendChild(div);
+      input.click();
     });
   }
 
-  function _closePicker() {
-    const overlay = document.getElementById('web-project-picker');
-    if (overlay) overlay.classList.add('hidden');
+  /** 导入本地文件夹到 VFS */
+  async function _importFolder() {
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.webkitdirectory = true;
+      input.directory = true;
+      input.multiple = true;
+      input.onchange = async () => {
+        const files = input.files;
+        if (!files || files.length === 0) { resolve(null); return; }
+
+        try {
+          const firstPath = files[0].webkitRelativePath;
+          const rootName = firstPath.split('/')[0];
+          const basePath = '/projects/' + rootName;
+
+          for (const file of files) {
+            const relPath = file.webkitRelativePath.substring(rootName.length + 1);
+            if (!relPath) continue;
+            const vfsPath = norm(basePath + '/' + relPath);
+
+            if (/\.(png|jpg|jpeg|gif|bmp|webp|svg|ico|mp3|wav|ogg)$/i.test(relPath)) {
+              const reader = new FileReader();
+              const b64 = await new Promise((res) => {
+                reader.onload = () => res(reader.result);
+                reader.readAsDataURL(file);
+              });
+              localStorage.setItem(BINARY_PREFIX + vfsPath, b64);
+            } else {
+              const text = await file.text();
+              localStorage.setItem(VFS_PREFIX + vfsPath, text);
+            }
+          }
+
+          ensureDir(basePath);
+          console.log('[WebShim] Folder imported:', basePath, files.length, 'files');
+          resolve(basePath);
+        } catch (e) {
+          alert('文件夹导入失败: ' + e.message);
+          resolve(null);
+        }
+      };
+      input.click();
+    });
   }
 
   window._webPickerCancel = function () {
-    _closePicker();
+    const overlay = document.getElementById('_import-project-overlay');
+    if (overlay) document.body.removeChild(overlay);
     if (_pickerResolve) { _pickerResolve(null); _pickerResolve = null; }
   };
 
