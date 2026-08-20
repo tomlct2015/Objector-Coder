@@ -338,7 +338,7 @@
     projects.forEach(p => {
       const div = document.createElement('div');
       div.className = 'picker-item';
-      div.innerHTML = '<span>' + p.name + '</span>';
+      div.innerHTML = '<span style="font-size:18px">📁</span><span>' + p.name + '</span>';
       div.onclick = () => {
         _closePicker();
         if (_pickerResolve) { _pickerResolve(p.path); _pickerResolve = null; }
