@@ -220,11 +220,52 @@
     return selectFile('audio/*,.mp3,.wav,.ogg', 'binary');
   }
 
-  /** 选择文件夹（Web 版：弹出项目选择对话框） */
+  /** 选择文件夹（Web 版：弹出输入框让用户输入项目名称） */
   async function selectFolder() {
     return new Promise((resolve) => {
-      // 显示 Web 版项目选择/新建对话框
-      _showProjectPicker().then(resolve);
+      const overlay = document.createElement('div');
+      overlay.className = 'custom-prompt-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;';
+      overlay.innerHTML = `
+        <div style="background:var(--bg-secondary,#181825);border:1px solid var(--border,#45475a);border-radius:10px;padding:20px;min-width:320px;max-width:420px;">
+          <h3 style="margin:0 0 12px;font-size:14px;color:var(--accent,#89b4fa);">📁 输入项目名称</h3>
+          <p style="margin:0 0 8px;font-size:12px;color:var(--text-secondary,#a6adc8);">为新项目起一个名字：</p>
+          <input type="text" id="_web-folder-input" value="我的项目" style="width:100%;padding:8px 10px;background:var(--bg-surface,#313244);border:1px solid var(--border,#45475a);border-radius:6px;color:var(--text-primary,#cdd6f4);font-size:13px;outline:none;box-sizing:border-box;" />
+          <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end;">
+            <button id="_web-folder-cancel" style="background:var(--bg-surface,#313244);color:var(--text-primary,#cdd6f4);border:1px solid var(--border,#45475a);border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer;">取消</button>
+            <button id="_web-folder-ok" style="background:var(--accent,#89b4fa);color:#1e1e2e;border:none;border-radius:6px;padding:6px 16px;font-size:12px;cursor:pointer;font-weight:600;">确定</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      const input = overlay.querySelector('#_web-folder-input');
+      input.focus();
+      input.select();
+
+      overlay.querySelector('#_web-folder-cancel').addEventListener('click', () => {
+        document.body.removeChild(overlay);
+        resolve(null);
+      });
+
+      overlay.querySelector('#_web-folder-ok').addEventListener('click', () => {
+        const name = input.value.trim();
+        document.body.removeChild(overlay);
+        if (!name) { resolve(null); return; }
+        // 返回 VFS 路径
+        const vfsPath = '/projects/' + name;
+        ensureDir(vfsPath);
+        resolve(vfsPath);
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') overlay.querySelector('#_web-folder-ok').click();
+        if (e.key === 'Escape') overlay.querySelector('#_web-folder-cancel').click();
+      });
+
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) { document.body.removeChild(overlay); resolve(null); }
+      });
     });
   }
 
