@@ -312,8 +312,11 @@
     const parentFolder = await window.api.selectFolder();
     if (!parentFolder) return;
   
-    // 在选中的父文件夹下创建“我的作品”子目录
-    const folder = parentFolder + '/' + i18n.t('app.myWork');
+    // Web 版：selectFolder 返回的路径就是项目路径，不再追加子目录
+    // Electron 版：在选中的父文件夹下创建“我的作品”子目录
+    const isWeb = window.api && window.api._isWebShim;
+    const folder = isWeb ? parentFolder : parentFolder + '/' + i18n.t('app.myWork');
+    const projectName = isWeb ? folder.split('/').pop() : i18n.t('app.myWork');
   
     // 创建项目结构
     mode = mode || 'normal';
@@ -326,7 +329,6 @@
       await window.api.ensureDir(folder + '/extensions');
     }
   
-    const projectName = i18n.t('app.myWork');
     const config = {
       name: projectName,
       version: '1.0',
