@@ -365,7 +365,11 @@
     // 主页按钮事件
     document.getElementById('home-btn-new').addEventListener('click', showModeDialog);
     document.getElementById('home-btn-open').addEventListener('click', async () => {
-      const folder = await window.api.selectFolder();
+      // Web 版：选择已有项目；Electron 版：选择文件夹
+      const isWeb = window.api && window.api._isWebShim;
+      const folder = isWeb
+        ? await window.api.selectExistingProject()
+        : await window.api.selectFolder();
       if (folder) {
         await openProject(folder);
       }

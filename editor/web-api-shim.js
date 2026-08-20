@@ -478,6 +478,11 @@
     return null;
   }
 
+  /** 选择已有项目（Web 版：弹出项目选择列表） */
+  async function selectExistingProject() {
+    return _showProjectPicker();
+  }
+
   // ============ 注册 window.api ============
 
   window.api = {
@@ -486,7 +491,7 @@
     ensureDir, listDir, readDirRecursive,
     readFileBinary, copyFile, renameFolder,
     deleteFolder, isDir,
-    selectFolder, selectImageFile, selectExtensionFile, selectAudioFile,
+    selectFolder, selectExistingProject, selectImageFile, selectExtensionFile, selectAudioFile,
     saveFileDialog,
     pathJoin,
     openExtensionDocs, openEditor,
