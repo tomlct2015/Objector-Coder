@@ -9,7 +9,8 @@
   <script src="i18n/en.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="../docs/community/shared/community-api.js"></script>
+  <script src="web-api-shim.js"></script>
+  <script src="../community/shared/community-api.js"></script>
   <!-- CodeMirror 5 for JS editor in advanced mode -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/material-darker.min.css">
@@ -22,7 +23,7 @@
     <!-- 顶部标题栏（可拖拽） -->
     <header id="titlebar">
       <div class="titlebar-drag">
-        <img src="../Objector2.png" class="app-logo" alt="" />
+        <img src="../icon.svg" class="app-logo" alt="" />
         <span class="app-title">Objector</span>
         <span class="app-sep">|</span>
         <span id="project-name" class="project-name-editable" data-i18n-title="titlebar.rename">未命名项目</span>

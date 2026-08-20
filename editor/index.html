@@ -8,13 +8,14 @@
   <script src="i18n/zh-CN.js"></script>
   <script src="i18n/en.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="../docs/community/shared/community-api.js"></script>
+  <script src="web-api-shim.js"></script>
+  <script src="../community/shared/community-api.js"></script>
 </head>
 <body>
   <!-- 自定义标题栏 -->
   <header id="titlebar">
     <div class="titlebar-drag">
-      <img src="../Objector2.png" class="app-logo" alt="" />
+      <img src="../icon.svg" class="app-logo" alt="" />
       <span class="app-title">Objector</span>
     </div>
     <div class="titlebar-controls">
@@ -169,6 +170,17 @@
     <div class="ctx-item" data-action="pin" id="ctx-pin-item">📌 固定</div>
     <div class="ctx-divider"></div>
     <div class="ctx-item ctx-danger" data-action="delete">🗑️ 删除</div>
+  </div>
+
+  <!-- Web 版项目选择器 -->
+  <div id="web-project-picker" class="custom-prompt-overlay hidden">
+    <div class="custom-prompt-box" style="max-width:420px;">
+      <div class="custom-prompt-title">📂 选择项目</div>
+      <div id="picker-project-list" style="max-height:300px;overflow-y:auto;margin:8px 0;"></div>
+      <div class="custom-prompt-actions">
+        <button onclick="window._webPickerCancel()" class="tb-btn">取消</button>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>

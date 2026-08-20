@@ -248,17 +248,19 @@
   async function openProject(folder) {
     // 添加到最近项目
     addRecentProject(folder);
-    // 读取项目的 renderMode
+    // 读取项目的 renderMode 和 mode
     var renderMode = '2d';
+    var mode = 'normal';
     try {
       var configStr = await window.api.readFile(folder + '/project.json');
       if (configStr) {
         var config = JSON.parse(configStr);
         renderMode = config.renderMode || '2d';
+        mode = config.mode || 'normal';
       }
     } catch(e) {}
     // 打开编辑器窗口
-    await window.api.openEditor(folder, 'normal', renderMode);
+    await window.api.openEditor(folder, mode, renderMode);
   }
 
   /** 添加最近项目记录 */

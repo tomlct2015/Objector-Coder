@@ -378,6 +378,65 @@
     });
   })();
 
+  /** 删除文件夹（递归） */
+  async function deleteFolder(folderPath) {
+    folderPath = norm(folderPath);
+    const prefix = folderPath + '/';
+    try {
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if ((key.startsWith(VFS_PREFIX) || key.startsWith(BINARY_PREFIX)) && key.includes(prefix)) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      localStorage.removeItem(VFS_PREFIX + folderPath + '/__dir__');
+      return { ok: true };
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
+  /** 判断路径是否为目录 */
+  async function isDir(path) {
+    path = norm(path);
+    // 检查目录标记
+    if (localStorage.getItem(VFS_PREFIX + path + '/__dir__') === '1') return true;
+    // 检查是否有子文件
+    const prefix = path + '/';
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if ((key.startsWith(VFS_PREFIX) || key.startsWith(BINARY_PREFIX)) && key.slice(key.indexOf('/') + 1).startsWith(prefix)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** 打开社区登录（Web 版不需要） */
+  async function openCommunityLogin() {}
+
+  /** 打开外部链接 */
+  async function openExternal(url) {
+    window.open(url, '_blank');
+    return { ok: true };
+  }
+
+  /** 打开 JS 编辑器弹窗（Web 版不支持） */
+  async function openJsEditor() {
+    alert('Web 版暂不支持独立 JS 编辑器窗口，请在内嵌编辑器中编辑代码');
+    return { ok: true };
+  }
+
+  /** 监听 JS 编辑器代码更新（Web 版 no-op） */
+  function onJsEditorCodeUpdated() {}
+
+  /** 获取编辑器初始化数据（Web 版通过 URL 参数获取） */
+  async function getEditorInit() {
+    return null;
+  }
+
   // ============ 注册 window.api ============
 
   window.api = {
@@ -385,10 +444,13 @@
     readFile, writeFile, deleteFile,
     ensureDir, listDir, readDirRecursive,
     readFileBinary, copyFile, renameFolder,
+    deleteFolder, isDir,
     selectFolder, selectImageFile, selectExtensionFile, selectAudioFile,
     saveFileDialog,
     pathJoin,
     openExtensionDocs, openEditor,
+    openCommunityLogin, openExternal,
+    openJsEditor, onJsEditorCodeUpdated, getEditorInit,
     windowMinimize, windowMaximize, windowClose,
     onLoadProject,
   };
