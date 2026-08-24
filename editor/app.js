@@ -48,7 +48,7 @@
       card.className = 'recent-card pinned-card';
       card.innerHTML = `
         <div class="recent-card-name">📌 ${proj.name || i18n.t('app.unnamed')}</div>
-        <div class="recent-card-path">${proj.path}</div>
+        <div class="recent-card-path">${proj.path.replace(/\\/g, '/')}</div>
         <div class="recent-card-time">${formatTime(proj.lastOpened)}</div>
         <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
           <span class="recent-card-mode">${proj.mode === 'extension' ? i18n.t('app.extension') : i18n.t('app.normal')}</span>
@@ -90,7 +90,7 @@
       const isPinned = pinnedPaths.has(proj.path);
       card.innerHTML = `
         <div class="recent-card-name">${proj.name || i18n.t('app.unnamed')}</div>
-        <div class="recent-card-path">${proj.path}</div>
+        <div class="recent-card-path">${proj.path.replace(/\\/g, '/')}</div>
         <div class="recent-card-time">${formatTime(proj.lastOpened)}</div>
         <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
           <span class="recent-card-mode">${proj.mode === 'extension' ? i18n.t('app.extension') : i18n.t('app.normal')}</span>

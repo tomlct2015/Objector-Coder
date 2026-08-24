@@ -14,7 +14,8 @@ const ProjectManager = (function () {
 
     // 计算新目录路径（同父目录下重命名）
     const parentDir = oldPath.replace(/[\\/][^\\/]*$/, '');  // 去掉末尾目录名
-    const newPath = parentDir + '/' + trimmed;
+    const sep = parentDir.includes('\\') ? '\\' : '/';
+    const newPath = parentDir + sep + trimmed;
 
     // 如果目录名没变，只更新 project.json
     if (oldPath === newPath) {

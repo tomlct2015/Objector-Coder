@@ -10,6 +10,7 @@ const DataAnalysis = (function () {
   let _tableEl = null;
   let _chartCanvas = null;
   let _running = false;
+  let _initialized = false;
 
   const DEFAULT_CODE = `# 数据分析示例
 # 支持类似 Python 的语法
@@ -35,6 +36,8 @@ table.show(labels, data)
 
   /** 初始化数据分析模式 */
   function init() {
+    if (_initialized) return;
+    _initialized = true;
     // 显示数据分析布局，隐藏其他布局
     document.getElementById('main-layout')?.classList.add('hidden');
     document.getElementById('advanced-layout')?.classList.add('hidden');
