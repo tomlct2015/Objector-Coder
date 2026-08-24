@@ -39,8 +39,10 @@ table.show(labels, data)
     document.getElementById('main-layout')?.classList.add('hidden');
     document.getElementById('advanced-layout')?.classList.add('hidden');
     document.getElementById('data-layout')?.classList.remove('hidden');
-    // 隐藏积木面板和舞台
+    // 隐藏普通工具栏、积木面板和舞台
+    document.getElementById('toolbar')?.classList.add('hidden');
     document.getElementById('palette-panel')?.classList.add('hidden');
+    document.getElementById('stage-panel')?.classList.add('hidden');
 
     // 初始化 CodeMirror
     const editorEl = document.getElementById('data-editor');
