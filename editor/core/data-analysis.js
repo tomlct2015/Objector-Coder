@@ -73,6 +73,30 @@ table.show(labels, data)
     document.getElementById('data-clear-output')?.addEventListener('click', clearOutput);
     document.getElementById('data-import-csv')?.addEventListener('click', () => importFile('csv'));
     document.getElementById('data-import-json')?.addEventListener('click', () => importFile('json'));
+    document.getElementById('data-save-code')?.addEventListener('click', () => saveCode());
+
+    // 导出下拉菜单
+    const exportBtn = document.getElementById('data-export-btn');
+    const exportMenu = document.getElementById('data-export-menu');
+    if (exportBtn && exportMenu) {
+      exportBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        exportMenu.classList.toggle('hidden');
+      });
+      document.addEventListener('click', () => exportMenu.classList.add('hidden'));
+      exportMenu.querySelectorAll('.data-dropdown-item').forEach(item => {
+        item.addEventListener('click', () => {
+          exportMenu.classList.add('hidden');
+          const action = item.dataset.export;
+          if (action === 'chart-html') exportChartHTML();
+          else if (action === 'chart-png') exportChartPNG();
+          else if (action === 'table-csv') exportTableCSV();
+          else if (action === 'table-xlsx') exportTableXLSX();
+          else if (action === 'table-json') exportTableJSON();
+          else if (action === 'all-zip') exportAllZIP();
+        });
+      });
+    }
 
     // 输出 tab 切换
     document.querySelectorAll('#data-output-tabs .data-tab').forEach(tab => {
@@ -415,5 +439,187 @@ table.show(labels, data)
   /** 设置代码 */
   function setCode(code) { if (_editor) _editor.setValue(code); }
 
-  return { init, run, stop, clearOutput, importFile, getEditor, getCode, setCode };
+  // ============ 导出功能 ============
+
+  /** 导出图表为 HTML 交互页面 */
+  function exportChartHTML() {
+    if (!_chart) { alert('没有图表可导出，请先运行代码生成图表'); return; }
+    const chartConfig = JSON.stringify(_chart.config);
+    const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Objector 数据分析图表</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script>
+<style>
+body{margin:0;padding:20px;background:#1e1e2e;font-family:'Segoe UI','Microsoft YaHei',sans-serif;color:#cdd6f4;display:flex;justify-content:center;align-items:center;min-height:100vh}
+.chart-wrap{width:90%;max-width:900px;background:#181825;border:1px solid #45475a;border-radius:16px;padding:24px;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+h1{font-size:18px;margin-bottom:16px;text-align:center;color:#89b4fa}
+</style>
+</head>
+<body>
+<div class="chart-wrap">
+<h1>Objector 数据分析图表</h1>
+<canvas id="chart"></canvas>
+</div>
+<script>
+new Chart(document.getElementById('chart'), ${chartConfig});
+<\/script>
+</body>
+</html>`;
+    _downloadFile(html, 'chart.html', 'text/html');
+  }
+
+  /** 导出图表为 PNG 图片 */
+  function exportChartPNG() {
+    if (!_chart || !_chartCanvas) { alert('没有图表可导出'); return; }
+    const dataURL = _chartCanvas.toDataURL('image/png');
+    _downloadDataURL(dataURL, 'chart.png');
+  }
+
+  /** 导出表格数据为 CSV */
+  function exportTableCSV() {
+    const tableData = _getTableData();
+    if (!tableData) return;
+    let csv = tableData.headers.join(',') + '\n';
+    tableData.rows.forEach(row => {
+      csv += row.map(cell => {
+        const s = String(cell);
+        return s.includes(',') || s.includes('"') || s.includes('\n') ? '"' + s.replace(/"/g, '""') + '"' : s;
+      }).join(',') + '\n';
+    });
+    _downloadFile(csv, 'data.csv', 'text/csv;charset=utf-8');
+  }
+
+  /** 导出表格数据为 Excel (.xlsx) */
+  function exportTableXLSX() {
+    if (typeof XLSX === 'undefined') { alert('SheetJS 库未加载，无法导出 Excel'); return; }
+    const tableData = _getTableData();
+    if (!tableData) return;
+    const ws = XLSX.utils.aoa_to_sheet([tableData.headers, ...tableData.rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '数据');
+    XLSX.writeFile(wb, 'data.xlsx');
+  }
+
+  /** 导出原始数据为 JSON */
+  function exportTableJSON() {
+    if (Object.keys(_dataStore).length === 0) { alert('没有数据可导出，请先运行代码'); return; }
+    const json = JSON.stringify(_dataStore, null, 2);
+    _downloadFile(json, 'data.json', 'application/json');
+  }
+
+  /** 导出全部为 ZIP */
+  function exportAllZIP() {
+    if (typeof JSZip === 'undefined') { alert('JSZip 库未加载'); return; }
+    const zip = new JSZip();
+    // 代码
+    if (_editor) zip.file('analysis.js', _editor.getValue());
+    // 数据
+    if (Object.keys(_dataStore).length > 0) {
+      zip.file('data.json', JSON.stringify(_dataStore, null, 2));
+    }
+    // 图表
+    if (_chart && _chartCanvas) {
+      const dataURL = _chartCanvas.toDataURL('image/png');
+      const base64 = dataURL.split(',')[1];
+      zip.file('chart.png', base64, { base64: true });
+      // HTML
+      const chartConfig = JSON.stringify(_chart.config);
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Chart</title><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script><style>body{margin:0;padding:20px;background:#1e1e2e;display:flex;justify-content:center;align-items:center;min-height:100vh}.wrap{width:90%;max-width:900px;background:#181825;border-radius:16px;padding:24px}h1{color:#89b4fa;text-align:center}</style></head><body><div class="wrap"><h1>Objector Chart</h1><canvas id="c"></canvas></div><script>new Chart(document.getElementById('c'),${chartConfig})<\/script></body></html>`;
+      zip.file('chart.html', html);
+    }
+    // CSV
+    const tableData = _getTableData(true);
+    if (tableData) {
+      let csv = tableData.headers.join(',') + '\n';
+      tableData.rows.forEach(row => {
+        csv += row.map(c => String(c)).join(',') + '\n';
+      });
+      zip.file('data.csv', csv);
+    }
+    // 生成 ZIP
+    zip.generateAsync({ type: 'blob' }).then(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'analysis-export.zip';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+
+  /** 获取表格数据（从 DOM 或 _dataStore） */
+  function _getTableData(silent) {
+    // 优先从 DOM 表格获取
+    const tableEl = document.querySelector('#data-table table');
+    if (tableEl) {
+      const headers = [];
+      const rows = [];
+      tableEl.querySelectorAll('thead th').forEach((th, i) => {
+        if (i > 0) headers.push(th.textContent.trim()); // 跳过序号列
+      });
+      tableEl.querySelectorAll('tbody tr').forEach(tr => {
+        const row = [];
+        tr.querySelectorAll('td').forEach((td, i) => {
+          if (i > 0) row.push(td.textContent.trim());
+        });
+        if (row.length > 0) rows.push(row);
+      });
+      if (headers.length > 0) return { headers, rows };
+    }
+    // 回退到 _dataStore
+    if (Object.keys(_dataStore).length > 0) {
+      const headers = Object.keys(_dataStore);
+      const maxLen = Math.max(...headers.map(k => {
+        const v = _dataStore[k];
+        return Array.isArray(v) ? v.length : 1;
+      }));
+      const rows = [];
+      for (let i = 0; i < maxLen; i++) {
+        rows.push(headers.map(k => {
+          const v = _dataStore[k];
+          return Array.isArray(v) ? (v[i] !== undefined ? v[i] : '') : (i === 0 ? v : '');
+        }));
+      }
+      return { headers, rows };
+    }
+    if (!silent) alert('没有数据可导出，请先运行代码或导入数据');
+    return null;
+  }
+
+  /** 保存代码到项目 */
+  function saveCode() {
+    if (!_editor || !EditorState || !EditorState.projectPath) return;
+    const code = _editor.getValue();
+    window.api.writeFile(EditorState.projectPath + '/scripts/main.js', code).then(() => {
+      _appendLog('💾 代码已保存到 scripts/main.js', 'info');
+      document.getElementById('status-text').textContent = '数据分析代码已保存';
+    }).catch(e => {
+      _appendLog('❌ 保存失败: ' + e.message, 'error');
+    });
+  }
+
+  /** 通用下载文件 */
+  function _downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  /** 通用下载 DataURL */
+  function _downloadDataURL(dataURL, filename) {
+    const a = document.createElement('a');
+    a.href = dataURL;
+    a.download = filename;
+    a.click();
+  }
+
+  return { init, run, stop, clearOutput, importFile, getEditor, getCode, setCode,
+    exportChartHTML, exportChartPNG, exportTableCSV, exportTableXLSX, exportTableJSON, exportAllZIP, saveCode };
 })();

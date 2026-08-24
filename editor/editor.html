@@ -17,6 +17,8 @@
   <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
   <!-- Chart.js for data analysis charts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- SheetJS for Excel export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
   <!-- 编辑器界面 -->
@@ -230,7 +232,23 @@
         <span class="tb-sep"></span>
         <button id="data-import-csv" class="tb-btn">📂 导入 CSV</button>
         <button id="data-import-json" class="tb-btn">📂 导入 JSON</button>
+        <button id="data-save-code" class="tb-btn">💾 保存代码</button>
         <button id="data-clear-output" class="tb-btn">🗑️ 清除输出</button>
+        <span class="tb-sep"></span>
+        <div id="data-export-dropdown" style="position:relative;display:inline-block;">
+          <button id="data-export-btn" class="tb-btn">📤 导出 ▾</button>
+          <div id="data-export-menu" class="data-dropdown hidden">
+            <div class="data-dropdown-title">📊 导出图表</div>
+            <div class="data-dropdown-item" data-export="chart-html">📄 HTML 交互图表</div>
+            <div class="data-dropdown-item" data-export="chart-png">🖼️ PNG 图片</div>
+            <div class="data-dropdown-title">📋 导出数据</div>
+            <div class="data-dropdown-item" data-export="table-csv">📊 CSV (Excel 兼容)</div>
+            <div class="data-dropdown-item" data-export="table-xlsx">📗 Excel (.xlsx)</div>
+            <div class="data-dropdown-item" data-export="table-json">💾 JSON 数据</div>
+            <div class="data-dropdown-title">📝 导出全部</div>
+            <div class="data-dropdown-item" data-export="all-zip">📦 ZIP 打包全部</div>
+          </div>
+        </div>
         <span class="tb-sep"></span>
         <span id="data-info" style="font-size:11px;color:var(--text-secondary)"></span>
       </div>
