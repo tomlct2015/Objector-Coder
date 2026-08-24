@@ -9,13 +9,14 @@
   <script src="i18n/en.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="web-api-shim.js"></script>
-  <script src="../community/shared/community-api.js"></script>
+  <script src="../docs/community/shared/community-api.js"></script>
   <!-- CodeMirror 5 for JS editor in advanced mode -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/material-darker.min.css">
   <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
+  <!-- Chart.js for data analysis charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <!-- 编辑器界面 -->
@@ -23,7 +24,7 @@
     <!-- 顶部标题栏（可拖拽） -->
     <header id="titlebar">
       <div class="titlebar-drag">
-        <img src="../icon.svg" class="app-logo" alt="" />
+        <img src="../Objector2.png" class="app-logo" alt="" />
         <span class="app-title">Objector</span>
         <span class="app-sep">|</span>
         <span id="project-name" class="project-name-editable" data-i18n-title="titlebar.rename">未命名项目</span>
@@ -165,10 +166,7 @@
         <div id="scene-tree-panel">
           <div class="panel-header">
             <span class="panel-title">场景</span>
-            <div style="display:flex;gap:2px;">
-              <button id="btn-new-scene" class="tb-btn tb-btn-small" title="创建新场景">🎬+</button>
-              <button id="btn-add-scene-node" class="tb-btn tb-btn-small" title="添加节点">+</button>
-            </div>
+            <button id="btn-add-scene-node" class="tb-btn tb-btn-small" title="添加节点">+</button>
           </div>
           <div id="scene-tree"></div>
         </div>
@@ -221,6 +219,51 @@
           <p class="inspector-hint">选择场景树中的节点</p>
         </div>
       </aside>
+    </div>
+
+    <!-- 数据分析模式布局（默认隐藏） -->
+    <div id="data-layout" class="hidden">
+      <!-- 顶部工具栏 -->
+      <div id="data-toolbar">
+        <button id="data-run" class="tb-btn tb-run">▶ 运行</button>
+        <button id="data-stop" class="tb-btn tb-stop" disabled>⏹ 停止</button>
+        <span class="tb-sep"></span>
+        <button id="data-import-csv" class="tb-btn">📂 导入 CSV</button>
+        <button id="data-import-json" class="tb-btn">📂 导入 JSON</button>
+        <button id="data-clear-output" class="tb-btn">🗑️ 清除输出</button>
+        <span class="tb-sep"></span>
+        <span id="data-info" style="font-size:11px;color:var(--text-secondary)"></span>
+      </div>
+      <!-- 主体两栏 -->
+      <div id="data-main">
+        <!-- 左侧代码编辑器 -->
+        <div id="data-code-panel">
+          <div class="data-panel-header">
+            <span>📝 代码编辑器</span>
+            <span class="data-hint">类似 Python 的数据分析语法</span>
+          </div>
+          <div id="data-editor"></div>
+        </div>
+        <!-- 分割条 -->
+        <div id="data-divider"></div>
+        <!-- 右侧输出面板 -->
+        <div id="data-output-panel">
+          <div id="data-output-tabs">
+            <button class="data-tab active" data-tab="chart">📈 图表</button>
+            <button class="data-tab" data-tab="table">📋 数据表</button>
+            <button class="data-tab" data-tab="log">📝 输出</button>
+          </div>
+          <div id="data-chart-content" class="data-tab-content">
+            <canvas id="data-chart-canvas"></canvas>
+          </div>
+          <div id="data-table-content" class="data-tab-content hidden">
+            <div id="data-table"></div>
+          </div>
+          <div id="data-log-content" class="data-tab-content hidden">
+            <pre id="data-log"></pre>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 底部状态栏 -->
@@ -323,6 +366,7 @@
   <script src="core/add-node-dialog.js"></script>
   <script src="core/filesystem-dock.js"></script>
   <script src="core/inspector.js"></script>
+  <script src="core/data-analysis.js"></script>
   <script src="editor-app.js"></script>
 </body>
 </html>

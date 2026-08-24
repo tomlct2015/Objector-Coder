@@ -312,11 +312,8 @@
     const parentFolder = await window.api.selectFolder();
     if (!parentFolder) return;
   
-    // Web 版：selectFolder 返回的路径就是项目路径，不再追加子目录
-    // Electron 版：在选中的父文件夹下创建“我的作品”子目录
-    const isWeb = window.api && window.api._isWebShim;
-    const folder = isWeb ? parentFolder : parentFolder + '/' + i18n.t('app.myWork');
-    const projectName = isWeb ? folder.split('/').pop() : i18n.t('app.myWork');
+    // 在选中的父文件夹下创建“我的作品”子目录
+    const folder = parentFolder + '/' + i18n.t('app.myWork');
   
     // 创建项目结构
     mode = mode || 'normal';
@@ -329,6 +326,7 @@
       await window.api.ensureDir(folder + '/extensions');
     }
   
+    const projectName = i18n.t('app.myWork');
     const config = {
       name: projectName,
       version: '1.0',
@@ -365,11 +363,7 @@
     // 主页按钮事件
     document.getElementById('home-btn-new').addEventListener('click', showModeDialog);
     document.getElementById('home-btn-open').addEventListener('click', async () => {
-      // Web 版：选择已有项目；Electron 版：选择文件夹
-      const isWeb = window.api && window.api._isWebShim;
-      const folder = isWeb
-        ? await window.api.selectExistingProject()
-        : await window.api.selectFolder();
+      const folder = await window.api.selectFolder();
       if (folder) {
         await openProject(folder);
       }
@@ -386,6 +380,9 @@
         } else if (mode === 'advanced') {
           // 高级创作：默认 2D 模式，进入 Godot 式编辑器
           createNewProject('advanced', '2d');
+        } else if (mode === 'data') {
+          // 数据分析模式
+          createNewProject('data', '2d');
         } else {
           createNewProject(mode, '2d');
         }

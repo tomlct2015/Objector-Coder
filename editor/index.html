@@ -8,14 +8,13 @@
   <script src="i18n/zh-CN.js"></script>
   <script src="i18n/en.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="web-api-shim.js"></script>
-  <script src="../community/shared/community-api.js"></script>
+  <script src="../docs/community/shared/community-api.js"></script>
 </head>
 <body>
   <!-- 自定义标题栏 -->
   <header id="titlebar">
     <div class="titlebar-drag">
-      <img src="../icon.svg" class="app-logo" alt="" />
+      <img src="../Objector2.png" class="app-logo" alt="" />
       <span class="app-title">Objector</span>
     </div>
     <div class="titlebar-controls">
@@ -58,7 +57,7 @@
       </div>
     </main>
     <footer class="home-footer" style="text-align:center;padding:16px 0 8px;font-size:11px;color:var(--text-muted);opacity:0.6;">
-      Objector v1.0.18
+      Objector v1.0.19
     </footer>
   </div>
 
@@ -82,6 +81,11 @@
           <div class="mode-icon">🧩</div>
           <h3 data-i18n="mode.extension">扩展创作</h3>
           <p data-i18n="mode.extensionDesc">创建自定义扩展积木，为 Objector 增加新功能</p>
+        </div>
+        <div class="mode-card" data-mode="data">
+          <div class="mode-icon">📊</div>
+          <h3>数据分析</h3>
+          <p>类似 Python 的数据分析环境，支持图表、统计、数据处理</p>
         </div>
       </div>
       <button id="mode-cancel" class="tb-btn" data-i18n="mode.cancel">取消</button>
@@ -170,17 +174,6 @@
     <div class="ctx-item" data-action="pin" id="ctx-pin-item">📌 固定</div>
     <div class="ctx-divider"></div>
     <div class="ctx-item ctx-danger" data-action="delete">🗑️ 删除</div>
-  </div>
-
-  <!-- Web 版项目选择器 -->
-  <div id="web-project-picker" class="custom-prompt-overlay hidden">
-    <div class="custom-prompt-box" style="max-width:420px;">
-      <div class="custom-prompt-title">📂 选择项目</div>
-      <div id="picker-project-list" style="max-height:300px;overflow-y:auto;margin:8px 0;"></div>
-      <div class="custom-prompt-actions">
-        <button onclick="window._webPickerCancel()" class="tb-btn">取消</button>
-      </div>
-    </div>
   </div>
 
   <script src="app.js"></script>

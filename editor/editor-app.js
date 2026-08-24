@@ -916,11 +916,6 @@ window.EditorApp = (function () {
     const renderMode = (typeof EditorState !== 'undefined' && EditorState.renderMode) || '2d';
     if (typeof SceneGraph !== 'undefined') {
       SceneGraph.init(renderMode);
-      // 根据场景模式切换渲染器（画布已移动到高级布局，现在可以安全初始化 3D）
-      const currentMode = SceneGraph.getRootMode();
-      if (currentMode) {
-        switchRendererForMode(currentMode);
-      }
       // 同步到 StageManager
       if (typeof StageManager !== 'undefined') {
         StageManager.syncFromSceneGraph();
@@ -1164,6 +1159,14 @@ window.EditorApp = (function () {
     console.log('[高级模式] Godot 式编辑器已初始化');
   }
 
+  /** 初始化数据分析模式 */
+  function initDataMode() {
+    if (typeof DataAnalysis !== 'undefined') {
+      DataAnalysis.init();
+    }
+    console.log('[数据分析模式] 已初始化');
+  }
+
   /** 获取当前精灵的 JS 脚本 */
   function getSpriteScript(index) {
     return _spriteScripts[index] || '';
@@ -1269,6 +1272,11 @@ window.EditorApp = (function () {
     // 高级模式初始化
     if (projectMode === 'advanced') {
       initAdvancedMode();
+    }
+
+    // 数据分析模式初始化
+    if (projectMode === 'data') {
+      initDataMode();
     }
 
     if (projectPath) {
@@ -1485,8 +1493,6 @@ window.EditorApp = (function () {
   // ============================================================
   function switchTo3D() {
     if (typeof Stage3D === 'undefined') return false;
-    // 如果已经初始化了 3D，跳过
-    if (Stage3D.isInitialized && Stage3D.isInitialized()) return true;
     // 停止 2D 渲染循环
     StageCanvas.stop();
     // 替换 canvas 元素（2D context 无法转为 WebGL）
@@ -1496,8 +1502,6 @@ window.EditorApp = (function () {
     newCanvas.id = 'stage-canvas';
     newCanvas.width = 480;
     newCanvas.height = 360;
-    newCanvas.className = oldCanvas.className;
-    newCanvas.style.cssText = oldCanvas.style.cssText;
     oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
     // 初始化 3D 舞台
     var success = Stage3D.init(newCanvas);
@@ -1510,43 +1514,6 @@ window.EditorApp = (function () {
     }
     return success;
   }
-
-  /** 从 3D 切换回 2D 模式 */
-  function switchTo2D() {
-    // 如果 3D 没有初始化，说明已经在 2D 模式
-    if (typeof Stage3D === 'undefined' || !Stage3D.isInitialized || !Stage3D.isInitialized()) return true;
-    // 停止 3D 渲染
-    Stage3D.dispose();
-    // 替换 canvas 元素（WebGL canvas 无法获取 2D context）
-    var oldCanvas = document.getElementById('stage-canvas');
-    if (!oldCanvas) return false;
-    var newCanvas = document.createElement('canvas');
-    newCanvas.id = 'stage-canvas';
-    newCanvas.width = 480;
-    newCanvas.height = 360;
-    newCanvas.className = oldCanvas.className;
-    newCanvas.style.cssText = oldCanvas.style.cssText;
-    oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
-    // 重新初始化 2D 画布
-    StageCanvas.init();
-    // 重新绑定侦测输入
-    if (typeof SensingInput !== 'undefined') SensingInput.init(newCanvas);
-    console.log('[switchTo2D] 已切换到 2D 模式');
-    return true;
-  }
-
-  /** 根据场景模式切换渲染器（2D/3D/UI） */
-  function switchRendererForMode(sceneMode) {
-    if (sceneMode === 'Scene3D') {
-      return switchTo3D();
-    } else {
-      // Scene2D 和 SceneUI 都使用 2D 渲染
-      return switchTo2D();
-    }
-  }
-
-  // 暴露到全局，供 scene-tree.js 和 inspector.js 调用
-  window.switchRendererForMode = switchRendererForMode;
 
   // ============================================================
   // 社区作品在线预览：从社区 API 获取项目并加载到编辑器
@@ -1757,18 +1724,13 @@ window.EditorApp = (function () {
           const sceneData = JSON.parse(sceneContent);
           if (sceneData.rootId || sceneData.nodes) {
             SceneGraph.fromJSON(sceneData);
-            // 根据场景模式切换渲染器
-            const sceneMode = SceneGraph.getRootMode();
-            if (sceneMode) {
-              switchRendererForMode(sceneMode);
-            }
             if (typeof StageManager !== 'undefined') StageManager.syncFromSceneGraph();
             // 3D 场景：同步 Mesh3D 节点到 Three.js 渲染
             if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized && Stage3D.isInitialized()) {
               Stage3D.syncMeshesFromSceneGraph();
             }
             sceneLoaded = true;
-            console.log('[高级模式] 已从场景文件加载:', sceneFilePath, '模式:', sceneMode);
+            console.log('[高级模式] 已从场景文件加载:', sceneFilePath);
           }
         }
       } catch (e) {
@@ -1778,11 +1740,6 @@ window.EditorApp = (function () {
       if (!sceneLoaded && config.sceneGraph && typeof SceneGraph !== 'undefined') {
         // 旧项目回退：从 config.sceneGraph 加载
         SceneGraph.fromJSON(config.sceneGraph);
-        // 根据场景模式切换渲染器
-        const sceneMode = SceneGraph.getRootMode();
-        if (sceneMode) {
-          switchRendererForMode(sceneMode);
-        }
         if (typeof StageManager !== 'undefined') StageManager.syncFromSceneGraph();
         // 3D 场景：同步 Mesh3D 节点到 Three.js 渲染
         if (typeof Stage3D !== 'undefined' && Stage3D.isInitialized && Stage3D.isInitialized()) {
@@ -1846,6 +1803,18 @@ window.EditorApp = (function () {
         const blocksTab = document.querySelector('.script-tab[data-tab="blocks"]');
         if (blocksTab) blocksTab.classList.remove('hidden');
       }
+    }
+
+    // 数据分析模式：初始化
+    if (EditorState.projectMode === 'data') {
+      initDataMode();
+      // 尝试加载已保存的数据分析代码
+      try {
+        const codeStr = await window.api.readFile(folder + '/scripts/main.js');
+        if (codeStr && typeof DataAnalysis !== 'undefined') {
+          DataAnalysis.setCode(codeStr);
+        }
+      } catch(e) {}
     }
 
     // 加载声音
