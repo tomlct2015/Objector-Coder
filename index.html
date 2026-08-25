@@ -216,7 +216,7 @@ footer p{font-size:13px;color:var(--muted)}
     <div class="nav-logo"><img src="https://tomlct2015.github.io/Objector-Coder/icon.svg" width="25"> Objector</div>
     <div class="nav-links">
       <a href="#features">功能特性</a>
-      <a href="#whatsnew">v1.0.19 新特性</a>
+      <a href="#whatsnew">v1.0.20 新特性</a>
       <a href="#modules">积木模块</a>
       <a href="#modes">编辑模式</a>
       <a href="https://tomlct2015.github.io/Objector-Coder/blocks-guide/">📖 积木指南</a>
@@ -232,7 +232,7 @@ footer p{font-size:13px;color:var(--muted)}
   <div class="container">
     <div class="hero-badge">
       <span class="dot"></span>
-      <span>v1.0.19 桌面版 · 开源免费</span>
+      <span>v1.0.20 桌面版 · 开源免费</span>
     </div>
     <h1>用积木搭建<br><span class="gradient">无限创意</span></h1>
     <p class="hero-sub">Objector 是一款强大的图形化积木编程编辑器，让零基础用户也能创作动画、游戏和交互式程序。从入门到专业开发，一站搞定。</p>
@@ -354,11 +354,67 @@ footer p{font-size:13px;color:var(--muted)}
   </div>
 </section>
 
-<!-- What's New in v1.0.6 -->
+<!-- What's New in v1.0.20 -->
 <section id="whatsnew" style="background:linear-gradient(180deg,var(--bg2),var(--bg))">
   <div class="container">
     <div class="section-header reveal">
-      <div class="section-tag">🆕 v1.0.19 新特性</div>
+      <div class="section-tag">🆕 v1.0.20 新特性</div>
+      <h2 class="section-title">Minecraft 模组开发模式</h2>
+      <p class="section-desc">用积木生成 Minecraft 模组代码，支持基岩版、网易版、Java 版</p>
+    </div>
+    <div class="feature-grid">
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(0,210,211,.15)">⛏️</div>
+        <h3>MC 模组开发模式</h3>
+        <p>全新创作模式：拖拽 Minecraft 专用积木，实时预览生成的代码，一键导出为模组包。支持基岩版 (JavaScript)、网易版 (Python)、Java 版 (Fabric) 三大平台。</p>
+        <span class="feature-tag" style="background:rgba(0,210,211,.15);color:var(--cyan)">全新模式</span>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(162,155,254,.15)">🧩</div>
+        <h3>34 个 MC 专用积木</h3>
+        <p>事件系统（玩家加入、方块破坏）、命令执行（放置方块、生成实体、传送）、世界操作（时间、天气、游戏规则）等完整 Minecraft API 积木。</p>
+        <span class="feature-tag" style="background:rgba(162,155,254,.15);color:var(--accent2)">积木系统</span>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(0,184,148,.15)">📦</div>
+        <h3>智能代码生成</h3>
+        <p>积木自动转换为对应平台的代码：基岩版 Script API、网易版 ModSDK Python 2.7、Java 版 Fabric。支持平台切换实时预览。</p>
+        <span class="feature-tag" style="background:rgba(0,184,148,.15);color:var(--green)">代码生成</span>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(253,121,168,.15)">📤</div>
+        <h3>一键导出模组包</h3>
+        <p>导出为 .mcpack（基岩版）或 .zip（网易版/Java 版），包含完整的 manifest.json 和代码文件，可直接导入游戏使用。</p>
+        <span class="feature-tag" style="background:rgba(253,121,168,.15);color:var(--pink)">导出功能</span>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(253,203,110,.15)">📖</div>
+        <h3>Minecraft API 文档</h3>
+        <p>内置完整的 Minecraft API 文档，涵盖三个平台的详细教程、代码示例、最佳实践和常见问题解答。</p>
+        <span class="feature-tag" style="background:rgba(253,203,110,.15);color:var(--orange)">文档系统</span>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(116,185,255,.15)">🐛</div>
+        <h3>稳定性修复</h3>
+        <p>修复重命名项目卡片重复、网页版加载失败、导出功能失效等多项问题，提升整体稳定性。</p>
+        <span class="feature-tag" style="background:rgba(116,185,255,.15);color:var(--blue)">BUG 修复</span>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- What's New in v1.0.19 -->
+<section id="whatsnew" style="background:linear-gradient(180deg,var(--bg2),var(--bg))">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">📋 v1.0.19 新特性</div>
       <h2 class="section-title">多场景系统与编辑器增强</h2>
       <p class="section-desc">2D/3D/UI 三种场景类型，积木断开端口选择，JS 编辑器独立弹出</p>
     </div>
@@ -649,7 +705,7 @@ footer p{font-size:13px;color:var(--muted)}
     <div class="download-card reveal" style="padding:40px;">
       <div style="text-align:center;margin-bottom:32px;">
         <h3 style="margin-bottom:8px;">Objector</h3>
-        <div class="version">版本 1.0.19 · 发布于 2026</div>
+        <div class="version">版本 1.0.20 · 发布于 2026</div>
         <p style="margin-top:8px;">免费下载，无需注册。支持 Windows、Linux 和 macOS（网页版）平台。</p>
       </div>
 
@@ -661,15 +717,15 @@ footer p{font-size:13px;color:var(--muted)}
           <img src="WindowsIcon.png" alt="Windows" style="width:48px;height:48px;margin-bottom:16px;">
           <h4 style="color:var(--accent2);margin-bottom:4px;font-size:18px;">Windows</h4>
           <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px;">Windows 10 及以上 · x64</p>
-          <a href="https://gitee.com/Li-Chengtang-Tom/objector-coder/releases/download/v1.0.19/Objector-Setup-1.0.19.exe" class="download-btn" style="width:100%;justify-content:center;background:linear-gradient(to bottom,#8b5cf6,#ab93e4);">
+          <a href="https://gitee.com/Li-Chengtang-Tom/objector-coder/releases/download/v1.0.20/Objector-Setup-1.0.20.exe" class="download-btn" style="width:100%;justify-content:center;background:linear-gradient(to bottom,#8b5cf6,#ab93e4);">
             <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             安装包 (.exe) (国内下载)
           </a>
-          <a href="https://github.com/tomlct2015/Objector-Coder/releases/download/v1.0.19/Objector-Setup-1.0.19.exe" class="download-btn" style="width:100%;justify-content:center;background:linear-gradient(to bottom,#8b5cf6,#ab93e4);">
+          <a href="https://github.com/tomlct2015/Objector-Coder/releases/download/v1.0.20/Objector-Setup-1.0.20.exe" class="download-btn" style="width:100%;justify-content:center;background:linear-gradient(to bottom,#8b5cf6,#ab93e4);">
             <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             安装包 (.exe) (国外下载)
           </a>
-          <a href="https://github.com/tomlct2015/Objector-Coder/releases/download/v1.0.19/Objector-win32-x64-v1.0.19.zip" class="download-btn" style="width:100%;justify-content:center;margin-top:10px;font-size:14px;padding:10px 24px;background:linear-gradient(135deg,#2d3436,#636e72);">
+          <a href="https://github.com/tomlct2015/Objector-Coder/releases/download/v1.0.20/Objector-win32-x64-v1.0.20.zip" class="download-btn" style="width:100%;justify-content:center;margin-top:10px;font-size:14px;padding:10px 24px;background:linear-gradient(135deg,#2d3436,#636e72);">
             <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             免安装压缩包 (.zip)
           </a>
@@ -683,11 +739,11 @@ footer p{font-size:13px;color:var(--muted)}
           <img src="LinuxIcon.png" alt="Linux" style="width:48px;height:48px;margin-bottom:16px;">
           <h4 style="color:var(--orange);margin-bottom:4px;font-size:18px;">Linux</h4>
           <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px;">Ubuntu / Fedora / Arch · x64</p>
-          <a href="https://gitee.com/Li-Chengtang-Tom/objector-coder/releases/download/v1.0.19/Objector-linux-x64-v1.0.19.zip" class="download-btn" style="width:100%;justify-content:center;background:linear-gradient(135deg,#fdcb6e,#e17055);">
+          <a href="https://gitee.com/Li-Chengtang-Tom/objector-coder/releases/download/v1.0.20/Objector-linux-x64-v1.0.20.zip" class="download-btn" style="width:100%;justify-content:center;background:linear-gradient(135deg,#fdcb6e,#e17055);">
             <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             下载压缩包 (.zip) (国内下载)
           </a>
-          <a href="https://github.com/tomlct2015/Objector-Coder/releases/download/v1.0.19/Objector-linux-x64-v1.0.19.zip" class="download-btn" style="width:100%;justify-content:center;background:linear-gradient(135deg,#fdcb6e,#e17055);">
+          <a href="https://github.com/tomlct2015/Objector-Coder/releases/download/v1.0.20/Objector-linux-x64-v1.0.20.zip" class="download-btn" style="width:100%;justify-content:center;background:linear-gradient(135deg,#fdcb6e,#e17055);">
             <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             下载压缩包 (.zip) (国外下载)
           </a>
