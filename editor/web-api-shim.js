@@ -59,6 +59,21 @@
     }
   }
 
+  /** 写入二进制文件（Web 版：将 base64 存储到 BINARY_PREFIX） */
+  async function writeFileBinary(path, base64Content) {
+    path = norm(path);
+    try {
+      // 支持 data URL 格式
+      const b64 = base64Content.includes(',') ? base64Content : 'data:application/octet-stream;base64,' + base64Content;
+      localStorage.setItem(BINARY_PREFIX + path, b64);
+      const dir = path.replace(/\/[^/]*$/, '');
+      if (dir) ensureDir(dir);
+      return { ok: true };
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
   /** 删除文件 */
   async function deleteFile(path) {
     path = norm(path);
@@ -271,28 +286,8 @@
 
   /** 保存文件对话框（Web 版：触发浏览器下载） */
   async function saveFileDialog(defaultName, filters) {
-    // 获取当前编辑器中已保存的项目内容
-    if (!EditorState || !EditorState.projectPath) return null;
-
-    // 构造一个完整的虚拟路径用于下载
-    const filePath = EditorState.projectPath + '/' + defaultName;
-    let content = localStorage.getItem(VFS_PREFIX + norm(filePath));
-    if (!content) {
-      // 尝试生成 HTML 导出内容（由 html-exporter 调用）
-      content = localStorage.getItem(VFS_PREFIX + norm(filePath));
-    }
-    if (!content) return null;
-
-    // 触发浏览器下载
-    const blob = new Blob([content], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = defaultName;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    return filePath;
+    // Web 版：返回 null 让调用方使用 blob 回退
+    return null;
   }
 
   // ============ 打开项目：导入 ZIP 或本地文件夹 ============
@@ -577,7 +572,7 @@
 
   window.api = {
     _isWebShim: true,
-    readFile, writeFile, deleteFile,
+    readFile, writeFile, writeFileBinary, deleteFile,
     ensureDir, listDir, readDirRecursive,
     readFileBinary, copyFile, renameFolder,
     deleteFolder, isDir,

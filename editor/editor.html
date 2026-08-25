@@ -7,9 +7,20 @@
   <script src="core/i18n.js"></script>
   <script src="i18n/zh-CN.js"></script>
   <script src="i18n/en.js"></script>
+  <!-- Web 版条件加载 API shim（Electron 版由 preload.js 提供） -->
+  <script>if(!window.api){document.write('<script src="web-api-shim.js"><\/script>')}</script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="../docs/community/shared/community-api.js"></script>
+  <!-- 社区 API（自动检测路径，兼容 Electron 和 Web 部署） -->
+  <script>
+    (function(){
+      var s=document.createElement('script');
+      var p=new URLSearchParams(location.search);
+      if(p.get('preview')){s.src='../community/shared/community-api.js'}
+      else{s.onerror=function(){var f=document.createElement('script');f.src='../community/shared/community-api.js';document.head.appendChild(f)};s.src='../docs/community/shared/community-api.js'}
+      document.head.appendChild(s);
+    })();
+  </script>
   <!-- CodeMirror 5 for JS editor in advanced mode -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/material-darker.min.css">
@@ -284,6 +295,37 @@
       </div>
     </div>
 
+    <!-- Minecraft 模组开发模式布局（默认隐藏） -->
+    <div id="mc-layout" class="hidden">
+      <!-- 顶部工具栏 -->
+      <div id="mc-toolbar">
+        <span class="mc-title"><img src="../我的世界.png" style="width:24px;height:24px;vertical-align:middle;margin-right:4px;">Minecraft 模组开发</span>
+        <select id="mc-platform-select">
+          <option value="bedrock">基岩版 (JavaScript)</option>
+          <option value="netease">网易版 (Python)</option>
+          <option value="java">Java 版 (Fabric)</option>
+        </select>
+        <button id="mc-generate-btn" class="tb-btn">生成代码</button>
+        <button id="mc-export-btn" class="tb-btn tb-run">导出模组</button>
+        <button id="mc-help-btn" class="tb-btn">📖 帮助</button>
+        <span class="mc-status" id="mc-status"></span>
+      </div>
+      <!-- 主体两栏布局 -->
+      <div id="mc-main">
+        <!-- 左侧积木编辑区 -->
+        <div id="mc-editor-panel">
+          <!-- 积木面板会被复用 -->
+        </div>
+        <!-- 分割条 -->
+        <div id="mc-divider"></div>
+        <!-- 右侧代码预览区 -->
+        <div id="mc-code-panel">
+          <div id="mc-code-header">代码预览</div>
+          <div id="mc-code-preview"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- 底部状态栏 -->
     <footer id="statusbar">
       <span id="status-text" data-i18n="status.ready">就绪</span>
@@ -385,6 +427,8 @@
   <script src="core/filesystem-dock.js"></script>
   <script src="core/inspector.js"></script>
   <script src="core/data-analysis.js"></script>
+  <script src="core/block-types/minecraft.js"></script>
+  <script src="core/minecraft-mod.js"></script>
   <script src="editor-app.js"></script>
 </body>
 </html>

@@ -340,6 +340,9 @@ body { font-family: 'Segoe UI','Microsoft YaHei',sans-serif; background:var(--bg
 .pin-btn { background:transparent; border:1px solid var(--border); border-radius:4px; font-size:12px; cursor:pointer; padding:2px 6px; color:var(--text-muted); transition:all .15s; }
 .pin-btn:hover { border-color:var(--accent); color:var(--accent); }
 .pin-btn.pinned { color:var(--accent); border-color:var(--accent); }
+.card-del-btn { background:transparent; border:1px solid transparent; border-radius:4px; font-size:12px; cursor:pointer; padding:2px 6px; color:transparent; transition:all .15s; }
+.recent-card:hover .card-del-btn { color:var(--text-muted); border-color:var(--border); }
+.card-del-btn:hover { color:#f38ba8!important; border-color:#f38ba8!important; background:rgba(243,139,168,.1); }
 #no-projects { text-align:center; padding:48px; color:var(--text-muted); }
 
 /* Context Menu */
@@ -748,4 +751,93 @@ body { font-family: 'Segoe UI','Microsoft YaHei',sans-serif; background:var(--bg
 .data-dropdown-item:hover {
   background: var(--bg-hover);
   color: var(--accent);
+}
+
+/* ===== Minecraft Mod Development Mode ===== */
+#mc-layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+#mc-toolbar {
+  height: var(--toolbar-h);
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+}
+#mc-toolbar .mc-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-right: auto;
+}
+#mc-platform-select {
+  padding: 4px 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+}
+#mc-platform-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+#mc-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+#mc-editor-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+#mc-divider {
+  width: 4px;
+  background: var(--border);
+  cursor: col-resize;
+  flex-shrink: 0;
+}
+#mc-divider:hover {
+  background: var(--accent);
+}
+#mc-code-panel {
+  width: 500px;
+  min-width: 300px;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+#mc-code-header {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+#mc-code-preview {
+  flex: 1;
+  overflow: auto;
+}
+#mc-code-preview .CodeMirror {
+  height: 100%;
+  font-size: 13px;
+}
+.mc-status {
+  margin-left: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
 }

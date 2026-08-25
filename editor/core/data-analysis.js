@@ -447,7 +447,13 @@ table.show(labels, data)
   /** 导出图表为 HTML 交互页面 */
   function exportChartHTML() {
     if (!_chart) { alert('没有图表可导出，请先运行代码生成图表'); return; }
-    const chartConfig = JSON.stringify(_chart.config);
+    // Chart.js 4.x: _chart.config 含内部不可序列化属性，需手动提取
+    const cfg = {
+      type: _chart.config.type,
+      data: JSON.parse(JSON.stringify(_chart.data)),
+      options: JSON.parse(JSON.stringify(_chart.options)),
+    };
+    const chartConfig = JSON.stringify(cfg);
     const html = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -478,7 +484,7 @@ new Chart(document.getElementById('chart'), ${chartConfig});
   function exportChartPNG() {
     if (!_chart || !_chartCanvas) { alert('没有图表可导出'); return; }
     const dataURL = _chartCanvas.toDataURL('image/png');
-    _downloadDataURL(dataURL, 'chart.png');
+    _downloadBinary(dataURL, 'chart.png', 'image/png');
   }
 
   /** 导出表格数据为 CSV */
@@ -496,14 +502,25 @@ new Chart(document.getElementById('chart'), ${chartConfig});
   }
 
   /** 导出表格数据为 Excel (.xlsx) */
-  function exportTableXLSX() {
+  async function exportTableXLSX() {
     if (typeof XLSX === 'undefined') { alert('SheetJS 库未加载，无法导出 Excel'); return; }
     const tableData = _getTableData();
     if (!tableData) return;
     const ws = XLSX.utils.aoa_to_sheet([tableData.headers, ...tableData.rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '数据');
-    XLSX.writeFile(wb, 'data.xlsx');
+    if (window.api && window.api.saveFileDialog) {
+      const filePath = await window.api.saveFileDialog('data.xlsx', [
+        { name: 'Excel 文件', extensions: ['xlsx'] },
+        { name: '所有文件', extensions: ['*'] }
+      ]);
+      if (filePath) {
+        const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+        await window.api.writeFileBinary(filePath, wbout);
+      }
+    } else {
+      XLSX.writeFile(wb, 'data.xlsx');
+    }
   }
 
   /** 导出原始数据为 JSON */
@@ -529,7 +546,12 @@ new Chart(document.getElementById('chart'), ${chartConfig});
       const base64 = dataURL.split(',')[1];
       zip.file('chart.png', base64, { base64: true });
       // HTML
-      const chartConfig = JSON.stringify(_chart.config);
+      const cfg = {
+        type: _chart.config.type,
+        data: JSON.parse(JSON.stringify(_chart.data)),
+        options: JSON.parse(JSON.stringify(_chart.options)),
+      };
+      const chartConfig = JSON.stringify(cfg);
       const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Chart</title><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><\/script><style>body{margin:0;padding:20px;background:#1e1e2e;display:flex;justify-content:center;align-items:center;min-height:100vh}.wrap{width:90%;max-width:900px;background:#181825;border-radius:16px;padding:24px}h1{color:#89b4fa;text-align:center}</style></head><body><div class="wrap"><h1>Objector Chart</h1><canvas id="c"></canvas></div><script>new Chart(document.getElementById('c'),${chartConfig})<\/script></body></html>`;
       zip.file('chart.html', html);
     }
@@ -543,13 +565,22 @@ new Chart(document.getElementById('chart'), ${chartConfig});
       zip.file('data.csv', csv);
     }
     // 生成 ZIP
-    zip.generateAsync({ type: 'blob' }).then(blob => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'analysis-export.zip';
-      a.click();
-      URL.revokeObjectURL(url);
+    zip.generateAsync({ type: 'base64' }).then(async (base64) => {
+      if (window.api && window.api.saveFileDialog) {
+        const filePath = await window.api.saveFileDialog('analysis-export.zip', [
+          { name: 'ZIP 文件', extensions: ['zip'] },
+          { name: '所有文件', extensions: ['*'] }
+        ]);
+        if (filePath) {
+          await window.api.writeFileBinary(filePath, base64);
+        }
+      } else {
+        const url = 'data:application/zip;base64,' + base64;
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'analysis-export.zip';
+        a.click();
+      }
     });
   }
 
@@ -604,23 +635,47 @@ new Chart(document.getElementById('chart'), ${chartConfig});
     });
   }
 
-  /** 通用下载文件 */
-  function _downloadFile(content, filename, mimeType) {
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+  /** 通用下载文件（Electron 使用原生保存对话框，Web 回退到 blob） */
+  async function _downloadFile(content, filename, mimeType) {
+    if (window.api && window.api.saveFileDialog) {
+      // Electron: 使用系统保存文件对话框
+      const filters = [
+        { name: filename.split('.').pop().toUpperCase() + ' 文件', extensions: [filename.split('.').pop()] },
+        { name: '所有文件', extensions: ['*'] }
+      ];
+      const filePath = await window.api.saveFileDialog(filename, filters);
+      if (filePath) {
+        await window.api.writeFile(filePath, content);
+      }
+    } else {
+      // Web 回退: blob 下载
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   }
 
-  /** 通用下载 DataURL */
-  function _downloadDataURL(dataURL, filename) {
-    const a = document.createElement('a');
-    a.href = dataURL;
-    a.download = filename;
-    a.click();
+  /** 通用下载二进制数据（Electron 使用原生保存对话框） */
+  async function _downloadBinary(base64, filename, mimeType) {
+    if (window.api && window.api.saveFileDialog) {
+      const filters = [
+        { name: filename.split('.').pop().toUpperCase() + ' 文件', extensions: [filename.split('.').pop()] },
+        { name: '所有文件', extensions: ['*'] }
+      ];
+      const filePath = await window.api.saveFileDialog(filename, filters);
+      if (filePath) {
+        await window.api.writeFileBinary(filePath, base64);
+      }
+    } else {
+      const a = document.createElement('a');
+      a.href = base64;
+      a.download = filename;
+      a.click();
+    }
   }
 
   return { init, run, stop, clearOutput, importFile, getEditor, getCode, setCode,

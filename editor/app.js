@@ -51,10 +51,12 @@
         <div class="recent-card-path">${proj.path.replace(/\\/g, '/')}</div>
         <div class="recent-card-time">${formatTime(proj.lastOpened)}</div>
         <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
-          <span class="recent-card-mode">${proj.mode === 'extension' ? i18n.t('app.extension') : i18n.t('app.normal')}</span>
+          <span class="recent-card-mode">${proj.mode === 'extension' ? i18n.t('app.extension') : (proj.mode === 'data' ? '📊 数据分析' : (proj.mode === 'advanced' ? '🔧 高级' : (proj.mode === 'minecraft' ? '⛏️ MC 模组' : i18n.t('app.normal'))))}</span>
+          <button class="card-del-btn" title="删除项目">🗑️</button>
           <button class="pin-btn pinned" title="${i18n.t('app.unpin')}">✖</button>
         </div>
       `;
+      card.querySelector('.card-del-btn').onclick = (e) => { e.stopPropagation(); deleteProject(proj.path); };
       card.querySelector('.pin-btn').onclick = (e) => { e.stopPropagation(); togglePinProject(proj.path); };
       card.onclick = () => openProject(proj.path);
       card.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); showContextMenu(e, proj, true); });
@@ -93,10 +95,12 @@
         <div class="recent-card-path">${proj.path.replace(/\\/g, '/')}</div>
         <div class="recent-card-time">${formatTime(proj.lastOpened)}</div>
         <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
-          <span class="recent-card-mode">${proj.mode === 'extension' ? i18n.t('app.extension') : i18n.t('app.normal')}</span>
+          <span class="recent-card-mode">${proj.mode === 'extension' ? i18n.t('app.extension') : (proj.mode === 'data' ? '📊 数据分析' : (proj.mode === 'advanced' ? '🔧 高级' : (proj.mode === 'minecraft' ? '⛏️ MC 模组' : i18n.t('app.normal'))))}</span>
+          <button class="card-del-btn" title="删除项目">🗑️</button>
           <button class="pin-btn${isPinned ? ' pinned' : ''}" title="${isPinned ? i18n.t('app.unpin') : i18n.t('app.pin')}">${isPinned ? '📌' : '📍'}</button>
         </div>
       `;
+      card.querySelector('.card-del-btn').onclick = (e) => { e.stopPropagation(); deleteProject(proj.path); };
       card.querySelector('.pin-btn').onclick = (e) => { e.stopPropagation(); togglePinProject(proj.path); };
       card.onclick = () => openProject(proj.path);
       card.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); showContextMenu(e, proj, isPinned); });
@@ -263,16 +267,16 @@
     await window.api.openEditor(folder, mode, renderMode);
   }
 
-  /** 添加最近项目记录 */
+  /** 添加最近项目记录（修复竞态：在异步回调内读取最新列表） */
   function addRecentProject(folder) {
-    let list = [];
-    try { list = JSON.parse(localStorage.getItem('recent-projects') || '[]'); } catch {}
     const name = folder.split(/[\\/]/).pop();
 
-    // 读取项目配置获取模式
+    // 读取项目配置获取模式（在回调内读取 localStorage，防止竞态覆盖）
     window.api.readFile(folder + '/project.json').then(configStr => {
       if (!configStr) return;
       try {
+        let list = [];
+        try { list = JSON.parse(localStorage.getItem('recent-projects') || '[]'); } catch {}
         const config = JSON.parse(configStr);
         list = list.filter(p => p.path !== folder);
         list.unshift({
@@ -312,8 +316,9 @@
     const parentFolder = await window.api.selectFolder();
     if (!parentFolder) return;
   
-    // 在选中的父文件夹下创建“我的作品”子目录
-    const folder = parentFolder + '/' + i18n.t('app.myWork');
+    // 在选中的父文件夹下创建"我的作品"子目录（自动检测路径分隔符）
+    const sep = parentFolder.includes('\\') ? '\\' : '/';
+    const folder = parentFolder + sep + i18n.t('app.myWork');
   
     // 创建项目结构
     mode = mode || 'normal';
@@ -360,6 +365,12 @@
     document.getElementById('win-maximize')?.addEventListener('click', () => window.api.windowMaximize());
     document.getElementById('win-close')?.addEventListener('click', () => window.api.windowClose());
 
+    // 当窗口重新获得焦点时刷新项目列表（编辑器重命名/删除后同步）
+    window.addEventListener('focus', () => {
+      renderPinnedProjects();
+      renderRecentProjects();
+    });
+
     // 主页按钮事件
     document.getElementById('home-btn-new').addEventListener('click', showModeDialog);
     document.getElementById('home-btn-open').addEventListener('click', async () => {
@@ -383,6 +394,9 @@
         } else if (mode === 'data') {
           // 数据分析模式
           createNewProject('data', '2d');
+        } else if (mode === 'minecraft') {
+          // Minecraft 模组开发模式
+          createNewProject('minecraft', '2d');
         } else {
           createNewProject(mode, '2d');
         }

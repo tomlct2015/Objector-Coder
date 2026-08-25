@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft 模组开发 API 文档 - Objector</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: #1e1e2e;
+            color: #cdd6f4;
+            line-height: 1.8;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #181825;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        h1 {
+            color: #89b4fa;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        h1 img {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+        }
+        .subtitle {
+            color: #a6adc8;
+            font-size: 1.1em;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #45475a;
+        }
+        h2 {
+            color: #89b4fa;
+            font-size: 1.8em;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #45475a;
+        }
+        h3 {
+            color: #f9e2af;
+            font-size: 1.3em;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        h4 {
+            color: #a6e3a1;
+            font-size: 1.1em;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        p {
+            margin-bottom: 15px;
+            color: #cdd6f4;
+        }
+        ul, ol {
+            margin-left: 30px;
+            margin-bottom: 20px;
+        }
+        li {
+            margin-bottom: 10px;
+            color: #cdd6f4;
+        }
+        code {
+            background: #313244;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            color: #f38ba8;
+        }
+        pre {
+            background: #313244;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border-left: 4px solid #89b4fa;
+        }
+        pre code {
+            background: none;
+            padding: 0;
+            color: #cdd6f4;
+        }
+        .platform-card {
+            background: #1e1e2e;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #89b4fa;
+        }
+        .platform-card.bedrock {
+            border-left-color: #89b4fa;
+        }
+        .platform-card.netease {
+            border-left-color: #f38ba8;
+        }
+        .platform-card.java {
+            border-left-color: #a6e3a1;
+        }
+        .platform-card h3 {
+            margin-top: 0;
+        }
+        .tip {
+            background: #1e1e2e;
+            border-left: 4px solid #f9e2af;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .tip strong {
+            color: #f9e2af;
+        }
+        .warning {
+            background: #1e1e2e;
+            border-left: 4px solid #f38ba8;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .warning strong {
+            color: #f38ba8;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #89b4fa;
+            text-decoration: none;
+            font-size: 0.9em;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #45475a;
+        }
+        th {
+            background: #1e1e2e;
+            color: #89b4fa;
+            font-weight: 600;
+        }
+        td {
+            color: #cdd6f4;
+        }
+        tr:hover td {
+            background: #1e1e2e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../index.html" class="back-link">← 返回主页</a>
+        
+        <h1>
+            <img src="../我的世界.png" alt="Minecraft">
+            Minecraft 模组开发 API 文档
+        </h1>
+        <p class="subtitle">使用 Objector 积木快速生成 Minecraft 模组代码</p>
+
+        <h2>概述</h2>
+        <p>Objector 的 Minecraft 模组开发模式支持三个主流平台，让你通过拖拽积木的方式生成模组代码，无需手写复杂代码即可创建 Minecraft 模组。</p>
+
+        <div class="platform-card bedrock">
+            <h3>🌍 基岩版 (Bedrock Edition)</h3>
+            <p><strong>目标平台：</strong>Minecraft 基岩版（Windows 10/11、移动设备、主机）</p>
+            <p><strong>技术栈：</strong>JavaScript + Script API (@minecraft/server)</p>
+            <p><strong>导出格式：</strong>.mcpack 文件</p>
+            <p><strong>适用场景：</strong>国际版 Minecraft，功能丰富，API 现代化</p>
+        </div>
+
+        <div class="platform-card netease">
+            <h3>🇨🇳 网易版 (NetEase Edition)</h3>
+            <p><strong>目标平台：</strong>网易我的世界中国版</p>
+            <p><strong>技术栈：</strong>Python 2.7 + ModSDK</p>
+            <p><strong>导出格式：</strong>.zip 压缩包</p>
+            <p><strong>适用场景：</strong>中国市场，需要通过 MC Studio 发布</p>
+        </div>
+
+        <div class="platform-card java">
+            <h3>☕ Java 版 (Java Edition)</h3>
+            <p><strong>目标平台：</strong>Minecraft Java 版</p>
+            <p><strong>技术栈：</strong>Java + Fabric Mod Loader</p>
+            <p><strong>导出格式：</strong>.zip 压缩包</p>
+            <p><strong>适用场景：</strong>PC 玩家，模组生态最成熟</p>
+        </div>
+
+        <h2>基岩版 API 详解</h2>
+        
+        <h3>Script API 基础</h3>
+        <p>基岩版的 Script API 是微软官方提供的 JavaScript API，允许开发者通过脚本控制游戏行为。</p>
+
+        <h4>核心模块</h4>
+        <ul>
+            <li><code>@minecraft/server</code> - 服务端 API，控制游戏逻辑</li>
+            <li><code>@minecraft/server-ui</code> - UI API，创建表单和对话框</li>
+            <li><code>world</code> - 世界对象，访问游戏世界</li>
+            <li><code>system</code> - 系统对象，处理定时器和事件</li>
+        </ul>
+
+        <h4>事件系统</h4>
+        <pre><code>// 监听玩家加入事件
+world.afterEvents.playerJoin.subscribe((event) => {
+    const player = event.player;
+    player.sendMessage("欢迎加入游戏！");
+});
+
+// 监听方块被破坏事件
+world.afterEvents.blockBreak.subscribe((event) => {
+    const block = event.block;
+    const player = event.player;
+    console.log(`方块被破坏: ${block.typeId}`);
+});
+
+// 定时执行
+system.runInterval(() => {
+    // 每 20 tick（1秒）执行一次
+    console.log("定时任务执行");
+}, 20);</code></pre>
+
+        <h4>方块操作</h4>
+        <pre><code>// 放置方块
+const dimension = world.getDimension("overworld");
+dimension.runCommand(`setblock ${x} ${y} ${z} ${blockType}`);
+
+// 填充区域
+dimension.runCommand(`fill ${x1} ${y1} ${z1} ${x2} ${y2} ${z2} ${blockType}`);
+
+// 替换方块
+dimension.runCommand(`fill ${x1} ${y1} ${z1} ${x2} ${y2} ${z2} ${newBlock} replace ${oldBlock}`);
+
+// 清除区域
+dimension.runCommand(`fill ${x1} ${y1} ${z1} ${x2} ${y2} ${z2} air`);</code></pre>
+
+        <h4>实体操作</h4>
+        <pre><code>// 生成实体
+dimension.runCommand(`summon ${entityType} ${x} ${y} ${z}`);
+
+// 杀死附近实体
+dimension.runCommand(`kill @e[type=${type},r=${radius}]`);
+
+// 传送实体
+dimension.runCommand(`tp @e[type=${type}] ${x} ${y} ${z}`);</code></pre>
+
+        <h4>玩家操作</h4>
+        <pre><code>// 传送玩家
+dimension.runCommand(`tp @a ${x} ${y} ${z}`);
+
+// 给予物品
+dimension.runCommand(`give @a ${item} ${count}`);
+
+// 设置游戏模式
+dimension.runCommand(`gamemode ${mode} @a`);
+
+// 添加效果
+dimension.runCommand(`effect @a ${effect} ${duration} ${level}`);</code></pre>
+
+        <h4>世界设置</h4>
+        <pre><code>// 设置时间
+dimension.runCommand(`time set ${time}`);
+
+// 设置天气
+dimension.runCommand(`weather ${weather}`);
+
+// 设置游戏规则
+dimension.runCommand(`gamerule ${rule} ${value}`);
+
+// 发送消息
+dimension.runCommand(`say ${message}`);</code></pre>
+
+        <h3>manifest.json 配置</h3>
+        <p>每个基岩版模组都需要 manifest.json 文件来定义模组信息：</p>
+        <pre><code>{
+    "format_version": 2,
+    "header": {
+        "name": "模组名称",
+        "description": "模组描述",
+        "uuid": "随机生成的UUID",
+        "version": [1, 0, 0],
+        "min_engine_version": [1, 20, 0]
+    },
+    "modules": [
+        {
+            "type": "script",
+            "language": "javascript",
+            "uuid": "随机生成的UUID",
+            "entry": "scripts/main.js",
+            "version": [1, 0, 0]
+        }
+    ],
+    "dependencies": [
+        {
+            "module_name": "@minecraft/server",
+            "version": "1.9.0"
+        }
+    ]
+}</code></pre>
+
+        <h2>网易版 API 详解</h2>
+
+        <h3>ModSDK 基础</h3>
+        <p>网易版使用 Python 2.7 和 ModSDK 框架，需要遵循特定的项目结构。</p>
+
+        <h4>项目结构</h4>
+        <pre><code>MyMod/
+├── entities/              # 必需的空文件夹
+├── manifest.json          # 模组配置
+├── pack_icon.png          # 图标
+└── MyModScripts/          # 脚本文件夹（必须以Scripts结尾）
+    ├── __init__.py        # Python 包标识
+    └── modMain.py         # 入口文件（固定名称）</code></pre>
+
+        <h4>入口文件 modMain.py</h4>
+        <pre><code># -*- coding: utf-8 -*-
+import mod.client.extraClientApi as clientApi
+import mod.server.extraServerApi as serverApi
+
+# 注册模组
+ClientApi = clientApi.GetClientApi()
+ServerApi = serverApi.GetServerApi()
+
+def ClientInit():
+    ClientApi.RegisterSystem('MyMod', 'MyModClient', 'MyModScripts.MyClientSystem.MyClientSystem')
+
+def ServerInit():
+    ServerApi.RegisterSystem('MyMod', 'MyModServer', 'MyModScripts.MyServerSystem.MyServerSystem')</code></pre>
+
+        <h4>服务器系统</h4>
+        <pre><code># -*- coding: utf-8 -*-
+import mod.server.extraServerApi as serverApi
+
+ServerApi = serverApi.GetServerApi()
+compFactory = ServerApi.GetEngineCompFactory()
+
+class MyServerSystem(ServerApi.GetServerSystemCls()):
+    def __init__(self, namespace, systemName):
+        super(MyServerSystem, self).__init__(namespace, systemName)
+        
+        # 监听事件
+        self.ListenForEvent(
+            ServerApi.engine_namespace,
+            ServerApi.engine_system_name,
+            'ServerChatEvent',
+            self,
+            self.OnChatEvent
+        )
+    
+    def OnChatEvent(self, args):
+        playerId = args['username']
+        message = args['message']
+        
+        # 执行命令
+        comp = compFactory.CreateCommand(ServerApi.levelId)
+        comp.SetCommand('say ' + message)</code></pre>
+
+        <h4>常用命令</h4>
+        <pre><code># 执行命令
+comp = compFactory.CreateCommand(ServerApi.levelId)
+comp.SetCommand('setblock ~ ~ ~ stone')
+comp.SetCommand('give @a diamond 64')
+comp.SetCommand('time set day')
+comp.SetCommand('weather clear')
+
+# 获取玩家位置
+playerComp = compFactory.CreatePlayer(playerId)
+pos = playerComp.GetPlayerPos()
+x, y, z = pos['x'], pos['y'], pos['z']
+
+# 设置玩家位置
+playerComp.SetPlayerPos({'x': x, 'y': y, 'z': z})</code></pre>
+
+        <div class="warning">
+            <strong>⚠️ 重要提示：</strong>
+            <ul>
+                <li>网易版必须使用 Python 2.7 语法</li>
+                <li>modMain.py 文件名固定，不可更改</li>
+                <li>脚本文件夹必须以 Scripts 结尾</li>
+                <li>entities 文件夹必须存在（可以为空）</li>
+                <li>需要通过 MC Studio 进行发布</li>
+            </ul>
+        </div>
+
+        <h2>Java 版 API 详解</h2>
+
+        <h3>Fabric Mod 基础</h3>
+        <p>Java 版使用 Fabric Mod Loader，需要 Java 编程知识。</p>
+
+        <h4>项目结构</h4>
+        <pre><code>MyMod/
+├── build.gradle
+├── gradle.properties
+├── settings.gradle
+└── src/
+    └── main/
+        ├── java/
+        │   └── com/
+        │       └── example/
+        │           └── mymod/
+        │               └── MyMod.java
+        └── resources/
+            ├── fabric.mod.json
+            └── assets/
+                └── mymod/
+                    └── textures/</code></pre>
+
+        <h4>主类 MyMod.java</h4>
+        <pre><code>package com.example.mymod;
+
+import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.minecraft.server.MinecraftServer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class MyMod implements ModInitializer {
+    public static final String MOD_ID = "mymod";
+    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+
+    @Override
+    public void onInitialize() {
+        LOGGER.info("模组已加载！");
+        
+        // 注册服务器 tick 事件
+        ServerTickEvents.END_SERVER_TICK.register(this::onServerTick);
+    }
+    
+    private void onServerTick(MinecraftServer server) {
+        // 每 tick 执行
+    }
+}</code></pre>
+
+        <h4>fabric.mod.json</h4>
+        <pre><code>{
+    "schemaVersion": 1,
+    "id": "mymod",
+    "version": "1.0.0",
+    "name": "My Mod",
+    "description": "我的模组",
+    "authors": ["Author"],
+    "contact": {},
+    "license": "MIT",
+    "icon": "assets/mymod/icon.png",
+    "environment": "*",
+    "entrypoints": {
+        "main": ["com.example.mymod.MyMod"]
+    },
+    "depends": {
+        "fabricloader": ">=0.14.0",
+        "minecraft": "~1.20",
+        "java": ">=17"
+    }
+}</code></pre>
+
+        <div class="tip">
+            <strong>💡 提示：</strong>
+            <p>Java 版模组开发需要：</p>
+            <ul>
+                <li>JDK 17 或更高版本</li>
+                <li>Gradle 构建工具</li>
+                <li>Fabric Loom 插件</li>
+                <li>IDE（推荐 IntelliJ IDEA）</li>
+            </ul>
+        </div>
+
+        <h2>Objector 积木对应关系</h2>
+        <p>以下是 Objector 积木与三个平台 API 的对应关系：</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Objector 积木</th>
+                    <th>基岩版 (JavaScript)</th>
+                    <th>网易版 (Python)</th>
+                    <th>Java 版 (Java)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>当玩家加入时</td>
+                    <td><code>world.afterEvents.playerJoin</code></td>
+                    <td><code>ServerChatEvent</code></td>
+                    <td><code>ServerPlayConnectionEvents.JOIN</code></td>
+                </tr>
+                <tr>
+                    <td>放置方块</td>
+                    <td><code>setblock</code></td>
+                    <td><code>SetCommand('setblock')</code></td>
+                    <td><code>world.setBlockState()</code></td>
+                </tr>
+                <tr>
+                    <td>生成实体</td>
+                    <td><code>summon</code></td>
+                    <td><code>SetCommand('summon')</code></td>
+                    <td><code>EntityType.SPAWN</code></td>
+                </tr>
+                <tr>
+                    <td>给予物品</td>
+                    <td><code>give</code></td>
+                    <td><code>SetCommand('give')</code></td>
+                    <td><code>player.giveItemStack()</code></td>
+                </tr>
+                <tr>
+                    <td>设置时间</td>
+                    <td><code>time set</code></td>
+                    <td><code>SetCommand('time')</code></td>
+                    <td><code>world.setTimeOfDay()</code></td>
+                </tr>
+                <tr>
+                    <td>设置天气</td>
+                    <td><code>weather</code></td>
+                    <td><code>SetCommand('weather')</code></td>
+                    <td><code>world.setWeather()</code></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>最佳实践</h2>
+
+        <h3>1. 选择合适的平台</h3>
+        <ul>
+            <li><strong>基岩版：</strong>功能最丰富，API 现代化，适合新手</li>
+            <li><strong>网易版：</strong>中国市场必需，需要通过审核</li>
+            <li><strong>Java 版：</strong>生态最成熟，模组兼容性最好</li>
+        </ul>
+
+        <h3>2. 代码组织</h3>
+        <ul>
+            <li>使用 Objector 积木构建逻辑流程</li>
+            <li>生成代码后手动优化性能</li>
+            <li>添加适当的注释说明</li>
+            <li>测试所有功能再导出</li>
+        </ul>
+
+        <h3>3. 性能优化</h3>
+        <ul>
+            <li>避免在每 tick 执行复杂操作</li>
+            <li>使用定时器而不是每 tick 检查</li>
+            <li>限制实体搜索范围</li>
+            <li>缓存常用数据</li>
+        </ul>
+
+        <h3>4. 调试技巧</h3>
+        <ul>
+            <li>基岩版：使用 <code>console.log()</code></li>
+            <li>网易版：使用 <code>print</code>（Python 2.7）</li>
+            <li>Java 版：使用 <code>LOGGER.info()</code></li>
+            <li>Objector：使用"打印"积木</li>
+        </ul>
+
+        <h2>常见问题</h2>
+
+        <h3>Q: 为什么我的模组在网易版无法运行？</h3>
+        <p>A: 请检查：</p>
+        <ul>
+            <li>是否使用了 Python 2.7 语法（print 不加括号）</li>
+            <li>modMain.py 文件名是否正确</li>
+            <li>脚本文件夹是否以 Scripts 结尾</li>
+            <li>entities 文件夹是否存在</li>
+            <li>是否通过 MC Studio 正确发布</li>
+        </ul>
+
+        <h3>Q: 基岩版模组如何安装？</h3>
+        <p>A: 导出的 .mcpack 文件可以直接双击安装，或者手动解压到：</p>
+        <pre><code>Windows: %localappdata%\Packages\Microsoft.MinecraftUWP_8wekyb3d8bbwe\LocalState\games\com.mojang\behavior_packs\</code></pre>
+
+        <h3>Q: Java 版模组如何编译？</h3>
+        <p>A: 使用 Gradle 构建：</p>
+        <pre><code>./gradlew build</code></pre>
+        <p>编译后的 .jar 文件在 <code>build/libs/</code> 目录中。</p>
+
+        <h2>资源链接</h2>
+        <ul>
+            <li><a href="https://learn.microsoft.com/en-us/minecraft/creator/" style="color: #89b4fa;">Minecraft 官方创作者文档</a></li>
+            <li><a href="https://mc.163.com/dev/" style="color: #89b4fa;">网易我的世界开发者平台</a></li>
+            <li><a href="https://fabricmc.net/wiki/" style="color: #89b4fa;">Fabric Wiki</a></li>
+            <li><a href="https://github.com/FabricMC/fabric-example-mod" style="color: #89b4fa;">Fabric 示例模组</a></li>
+        </ul>
+
+        <div class="tip">
+            <strong>💡 提示：</strong>
+            <p>使用 Objector 生成代码后，建议：</p>
+            <ol>
+                <li>仔细阅读生成的代码，理解 API 用法</li>
+                <li>根据实际需求修改和优化代码</li>
+                <li>在开发环境中充分测试</li>
+                <li>添加自己的自定义功能</li>
+            </ol>
+        </div>
+    </div>
+</body>
+</html>

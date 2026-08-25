@@ -16,7 +16,15 @@ const Palette = (function () {
 
     // 渲染分类按钮
     const allCats = BlockRegistry.getCategories();
-    const filteredCats = (typeof DevMode !== 'undefined') ? DevMode.filterCategories(allCats) : allCats;
+    let filteredCats = (typeof DevMode !== 'undefined') ? DevMode.filterCategories(allCats) : allCats;
+    
+    // Minecraft 模式过滤：只在 Minecraft 模式下显示 minecraft 分类
+    const isMinecraftMode = typeof EditorState !== 'undefined' && EditorState.projectMode === 'minecraft';
+    filteredCats = filteredCats.filter(cat => {
+      if (cat.id === 'minecraft') return isMinecraftMode;
+      return true;
+    });
+    
     filteredCats.forEach(cat => {
       const btn = document.createElement('button');
       btn.className = 'cat-btn' + (cat.id === currentCategory ? ' active' : '');

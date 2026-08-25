@@ -8,6 +8,7 @@ const APP_ICON = path.join(__dirname, '..', 'Objector2.png');
 
 let mainWindow;
 let editorWindow;
+let _pendingEditorInit = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -53,11 +54,28 @@ function createEditorWindow(projectPath, mode, renderMode) {
     autoHideMenuBar: true,
   });
 
-  const url = `file://${path.join(__dirname, 'editor.html')}?path=${encodeURIComponent(projectPath)}&mode=${encodeURIComponent(mode || 'normal')}&render=${encodeURIComponent(renderMode || '2d')}`;
+  // Fix: 先存数据，再加载页面，渲染器就绪后主动拉取
+  _pendingEditorInit = {
+    path: projectPath,
+    mode: mode || 'normal',
+    render: renderMode || '2d',
+  };
+
+  const url = `file://${path.join(__dirname, 'editor.html')}`;
   editorWindow.loadURL(url);
+
+  // 隐藏主页窗口
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.hide();
+  }
 
   editorWindow.on('closed', () => {
     editorWindow = null;
+    // 编辑器关闭后恢复主页窗口
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
   });
 }
 
@@ -69,6 +87,13 @@ app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWind
 ipcMain.handle('open-editor', async (_e, projectPath, mode, renderMode) => {
   createEditorWindow(projectPath, mode, renderMode);
   return true;
+});
+
+// IPC: 渲染器请求获取编辑器初始化数据（解决中文路径编码问题）
+ipcMain.handle('get-editor-init', async () => {
+  const data = _pendingEditorInit;
+  _pendingEditorInit = null;  // 取出后清空，防止重复获取
+  return data;
 });
 
 // IPC: 打开文件夹选择对话框
@@ -121,6 +146,21 @@ ipcMain.handle('write-file', async (_e, filePath, content) => {
     return true;
   } catch (err) {
     console.error('[write-file] 写入失败:', filePath, err.message);
+    return { error: err.message };
+  }
+});
+
+// IPC: 写入二进制文件（base64 编码）
+ipcMain.handle('write-file-binary', async (_e, filePath, base64Content) => {
+  try {
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    // 支持 data URL 格式 (data:image/png;base64,...)
+    const base64 = base64Content.includes(',') ? base64Content.split(',')[1] : base64Content;
+    fs.writeFileSync(filePath, Buffer.from(base64, 'base64'));
+    return true;
+  } catch (err) {
+    console.error('[write-file-binary] 写入失败:', filePath, err.message);
     return { error: err.message };
   }
 });

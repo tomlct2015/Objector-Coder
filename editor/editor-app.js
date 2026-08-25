@@ -1167,6 +1167,14 @@ window.EditorApp = (function () {
     console.log('[数据分析模式] 已初始化');
   }
 
+  /** 初始化 Minecraft 模组开发模式 */
+  function initMinecraftMode() {
+    if (typeof MinecraftMod !== 'undefined') {
+      MinecraftMod.init();
+    }
+    console.log('[Minecraft 模组模式] 已初始化');
+  }
+
   /** 获取当前精灵的 JS 脚本 */
   function getSpriteScript(index) {
     return _spriteScripts[index] || '';
@@ -1277,6 +1285,11 @@ window.EditorApp = (function () {
     // 数据分析模式初始化
     if (projectMode === 'data') {
       initDataMode();
+    }
+
+    // Minecraft 模组开发模式初始化
+    if (projectMode === 'minecraft') {
+      initMinecraftMode();
     }
 
     if (projectPath) {
@@ -1805,9 +1818,18 @@ window.EditorApp = (function () {
       }
     }
 
-    // 数据分析模式：初始化
+    // 数据分析模式：初始化并重新应用布局（防止被其他模块覆盖）
     if (EditorState.projectMode === 'data') {
       initDataMode();
+      // 重新应用数据布局（即使已初始化，也要确保布局正确）
+      if (typeof DataAnalysis !== 'undefined') {
+        document.getElementById('main-layout')?.classList.add('hidden');
+        document.getElementById('advanced-layout')?.classList.add('hidden');
+        document.getElementById('data-layout')?.classList.remove('hidden');
+        document.getElementById('toolbar')?.classList.add('hidden');
+        document.getElementById('palette-panel')?.classList.add('hidden');
+        document.getElementById('stage-panel')?.classList.add('hidden');
+      }
       // 尝试加载已保存的数据分析代码
       try {
         const codeStr = await window.api.readFile(folder + '/scripts/main.js');
@@ -1815,6 +1837,19 @@ window.EditorApp = (function () {
           DataAnalysis.setCode(codeStr);
         }
       } catch(e) {}
+    }
+
+    // Minecraft 模组开发模式：初始化并重新应用布局
+    if (EditorState.projectMode === 'minecraft') {
+      initMinecraftMode();
+      if (typeof MinecraftMod !== 'undefined') {
+        document.getElementById('main-layout')?.classList.add('hidden');
+        document.getElementById('advanced-layout')?.classList.add('hidden');
+        document.getElementById('data-layout')?.classList.add('hidden');
+        document.getElementById('mc-layout')?.classList.remove('hidden');
+        document.getElementById('toolbar')?.classList.add('hidden');
+        document.getElementById('stage-panel')?.classList.add('hidden');
+      }
     }
 
     // 加载声音

@@ -7,8 +7,18 @@
   <script src="core/i18n.js"></script>
   <script src="i18n/zh-CN.js"></script>
   <script src="i18n/en.js"></script>
+  <!-- Web 版条件加载 API shim（Electron 版由 preload.js 提供） -->
+  <script>if(!window.api){document.write('<script src="web-api-shim.js"><\/script>')}</script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="../docs/community/shared/community-api.js"></script>
+  <!-- 社区 API（自动检测路径，兼容 Electron 和 Web 部署） -->
+  <script>
+    (function(){
+      var s=document.createElement('script');
+      s.onerror=function(){var f=document.createElement('script');f.src='../community/shared/community-api.js';document.head.appendChild(f)};
+      s.src='../docs/community/shared/community-api.js';
+      document.head.appendChild(s);
+    })();
+  </script>
 </head>
 <body>
   <!-- 自定义标题栏 -->
@@ -86,6 +96,11 @@
           <div class="mode-icon">📊</div>
           <h3>数据分析</h3>
           <p>类似 Python 的数据分析环境，支持图表、统计、数据处理</p>
+        </div>
+        <div class="mode-card" data-mode="minecraft">
+          <div class="mode-icon"><img src="../我的世界.png" style="width:48px;height:48px;object-fit:contain;"></div>
+          <h3>MC 模组开发</h3>
+          <p>使用积木生成 Minecraft 模组代码，支持基岩版、网易版、Java 版</p>
         </div>
       </div>
       <button id="mode-cancel" class="tb-btn" data-i18n="mode.cancel">取消</button>
