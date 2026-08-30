@@ -11,7 +11,7 @@
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Objector - 图形化积木编程编辑器</title>
+<title data-i18n="pageTitle">Objector - 图形化积木编程编辑器</title>
 <style>
 /* ===== Reset & Base ===== */
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -200,6 +200,13 @@ footer p{font-size:13px;color:var(--muted)}
 .scroll-indicator{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);animation:float 3s ease-in-out infinite}
 .scroll-indicator span{display:block;width:20px;height:30px;border:2px solid rgba(255,255,255,.3);border-radius:10px;position:relative}
 .scroll-indicator span::after{content:'';position:absolute;top:6px;left:50%;transform:translateX(-50%);width:3px;height:8px;background:var(--accent2);border-radius:2px;animation:pulse 2s infinite}
+
+/* ===== Language Switcher ===== */
+.lang-switcher{display:flex;gap:2px;background:rgba(255,255,255,.06);border-radius:6px;padding:2px;border:1px solid rgba(255,255,255,.1)}
+.lang-btn{padding:4px 10px;border-radius:4px;border:none;background:transparent;color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+.lang-btn.active{background:var(--accent);color:#fff}
+.lang-btn:hover:not(.active){background:rgba(255,255,255,.08)}
+html[lang="en"] .mode-card.featured::after{content:'Recommended'}
 </style>
 </head>
 <body>
@@ -214,15 +221,19 @@ footer p{font-size:13px;color:var(--muted)}
 <nav id="navbar">
   <div class="container">
     <div class="nav-logo"><img src="https://tomlct2015.github.io/Objector-Coder/icon.svg" width="25"> Objector</div>
+    <div class="lang-switcher">
+      <button class="lang-btn active" onclick="setLang('zh-CN')">中文</button>
+      <button class="lang-btn" onclick="setLang('en')">EN</button>
+    </div>
     <div class="nav-links">
-      <a href="#features">功能特性</a>
-      <a href="#whatsnew">v1.0.20 新特性</a>
-      <a href="#modules">积木模块</a>
-      <a href="#modes">编辑模式</a>
-      <a href="https://tomlct2015.github.io/Objector-Coder/blocks-guide/">📖 积木指南</a>
-      <a href="https://tomlct2015.github.io/Objector-Coder/extension-api">📖 扩展API</a>
-      <a href="https://tomlct2015.github.io/Objector-Coder/editor/" class="nav-web-btn">🌐 网页版</a>
-      <a href="#download" class="nav-cta">立即下载</a>
+      <a href="#features" data-i18n="nav.features">功能特性</a>
+      <a href="#v1020" data-i18n="nav.v1020">v1.0.20 新特性</a>
+      <a href="#modules" data-i18n="nav.modules">积木模块</a>
+      <a href="#modes" data-i18n="nav.modes">编辑模式</a>
+      <a href="https://tomlct2015.github.io/Objector-Coder/blocks-guide/" data-i18n="nav.blocksGuide">📖 积木指南</a>
+      <a href="https://tomlct2015.github.io/Objector-Coder/extension-api" data-i18n="nav.extensionApi">📖 扩展API</a>
+      <a href="https://tomlct2015.github.io/Objector-Coder/editor/" class="nav-web-btn" data-i18n="nav.webVersion">🌐 网页版</a>
+      <a href="#download" class="nav-cta" data-i18n="nav.download">立即下载</a>
     </div>
   </div>
 </nav>
@@ -232,40 +243,40 @@ footer p{font-size:13px;color:var(--muted)}
   <div class="container">
     <div class="hero-badge">
       <span class="dot"></span>
-      <span>v1.0.20 桌面版 · 开源免费</span>
+      <span data-i18n="hero.badge">v1.0.20 桌面版 · 开源免费</span>
     </div>
-    <h1>用积木搭建<br><span class="gradient">无限创意</span></h1>
-    <p class="hero-sub">Objector 是一款强大的图形化积木编程编辑器，让零基础用户也能创作动画、游戏和交互式程序。从入门到专业开发，一站搞定。</p>
+    <h1 data-i18n="hero.title">用积木搭建<br><span class="gradient">无限创意</span></h1>
+    <p class="hero-sub" data-i18n="hero.sub">Objector 是一款强大的图形化积木编程编辑器，让零基础用户也能创作动画、游戏和交互式程序。从入门到专业开发，一站搞定。</p>
     <div class="hero-actions">
       <a href="#download" class="btn-primary">
         <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        免费下载
+        <span data-i18n="hero.download">免费下载</span>
       </a>
       <a href="https://tomlct2015.github.io/Objector-Coder/editor/" class="btn-secondary" style="border-color:rgba(0,210,211,.5);color:var(--cyan)">
         <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-        🌐 在线体验网页版
+        <span data-i18n="hero.online">🌐 在线体验网页版</span>
       </a>
       <a href="#features" class="btn-secondary">
         <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-        了解更多
+        <span data-i18n="hero.learnMore">了解更多</span>
       </a>
     </div>
     <div class="hero-stats">
       <div class="stat">
         <div class="stat-num">120+</div>
-        <div class="stat-label">积木块</div>
+        <div class="stat-label" data-i18n="hero.blocks">积木块</div>
       </div>
       <div class="stat">
         <div class="stat-num">12</div>
-        <div class="stat-label">功能模块</div>
+        <div class="stat-label" data-i18n="hero.modules">功能模块</div>
       </div>
       <div class="stat">
         <div class="stat-num">3</div>
-        <div class="stat-label">编辑模式</div>
+        <div class="stat-label" data-i18n="hero.editModes">编辑模式</div>
       </div>
       <div class="stat">
         <div class="stat-num">∞</div>
-        <div class="stat-label">可能性</div>
+        <div class="stat-label" data-i18n="hero.possibilities">可能性</div>
       </div>
     </div>
   </div>
@@ -281,73 +292,73 @@ footer p{font-size:13px;color:var(--muted)}
 <section id="features" class="features">
   <div class="container">
     <div class="section-header reveal">
-      <div class="section-tag">✨ 核心特性</div>
-      <h2 class="section-title">为创造力而生的编辑器</h2>
-      <p class="section-desc">不仅仅是 Scratch 的复刻，更是面向专业开发者的全面进化</p>
+      <div class="section-tag" data-i18n="features.tag">✨ 核心特性</div>
+      <h2 class="section-title" data-i18n="features.title">为创造力而生的编辑器</h2>
+      <p class="section-desc" data-i18n="features.desc">不仅仅是 Scratch 的复刻，更是面向专业开发者的全面进化</p>
     </div>
     <div class="feature-grid">
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(108,92,231,.15)">🧩</div>
-        <h3>可视化积木编程</h3>
-        <p>拖拽式积木操作，所见即所得。支持流程连接、参数嵌入、子代码块，直观的可视化让编程学习零门槛。</p>
-        <span class="feature-tag" style="background:rgba(108,92,231,.15);color:var(--accent2)">核心引擎</span>
+        <h3 data-i18n="features.c1.title">可视化积木编程</h3>
+        <p data-i18n="features.c1.desc">拖拽式积木操作，所见即所得。支持流程连接、参数嵌入、子代码块，直观的可视化让编程学习零门槛。</p>
+        <span class="feature-tag" style="background:rgba(108,92,231,.15);color:var(--accent2)" data-i18n="features.c1.tag">核心引擎</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(0,210,211,.15)">🐛</div>
-        <h3>专业调试系统</h3>
-        <p>开发者模式下支持断点设置、单步执行、变量监视面板。精确追踪每一行代码的执行状态，像真正的 IDE 一样调试。</p>
-        <span class="feature-tag" style="background:rgba(0,210,211,.15);color:var(--cyan)">开发者级</span>
+        <h3 data-i18n="features.c2.title">专业调试系统</h3>
+        <p data-i18n="features.c2.desc">开发者模式下支持断点设置、单步执行、变量监视面板。精确追踪每一行代码的执行状态，像真正的 IDE 一样调试。</p>
+        <span class="feature-tag" style="background:rgba(0,210,211,.15);color:var(--cyan)" data-i18n="features.c2.tag">开发者级</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(253,121,168,.15)">🏗️</div>
-        <h3>自定义函数</h3>
-        <p>支持多参数函数定义与调用，动态参数槽自动扩展。像写真正的代码一样封装可复用的逻辑模块。</p>
-        <span class="feature-tag" style="background:rgba(253,121,168,.15);color:var(--pink)">高级功能</span>
+        <h3 data-i18n="features.c3.title">自定义函数</h3>
+        <p data-i18n="features.c3.desc">支持多参数函数定义与调用，动态参数槽自动扩展。像写真正的代码一样封装可复用的逻辑模块。</p>
+        <span class="feature-tag" style="background:rgba(253,121,168,.15);color:var(--pink)" data-i18n="features.c3.tag">高级功能</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(0,184,148,.15)">⚡</div>
-        <h3>物理运动系统</h3>
-        <p>超越 Scratch：内置速度、加速度、重力、摩擦力、碰撞反弹等物理特性。轻松实现真实物理效果的动画和游戏。</p>
-        <span class="feature-tag" style="background:rgba(0,184,148,.15);color:var(--green)">超越 Scratch</span>
+        <h3 data-i18n="features.c4.title">物理运动系统</h3>
+        <p data-i18n="features.c4.desc">超越 Scratch：内置速度、加速度、重力、摩擦力、碰撞反弹等物理特性。轻松实现真实物理效果的动画和游戏。</p>
+        <span class="feature-tag" style="background:rgba(0,184,148,.15);color:var(--green)" data-i18n="features.c4.tag">超越 Scratch</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(253,203,110,.15)">🎨</div>
-        <h3>全局造型库</h3>
-        <p>图片上传到项目统一管理，多个角色共享同一造型文件。智能资源复用，节省存储空间和内存。</p>
-        <span class="feature-tag" style="background:rgba(253,203,110,.15);color:var(--orange)">资源管理</span>
+        <h3 data-i18n="features.c5.title">全局造型库</h3>
+        <p data-i18n="features.c5.desc">图片上传到项目统一管理，多个角色共享同一造型文件。智能资源复用，节省存储空间和内存。</p>
+        <span class="feature-tag" style="background:rgba(253,203,110,.15);color:var(--orange)" data-i18n="features.c5.tag">资源管理</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(116,185,255,.15)">🧪</div>
-        <h3>扩展系统</h3>
-        <p>通过 JSON/JS 扩展文件自定义积木类型，为编辑器添加无限新功能。打造属于你自己的编程工具箱。</p>
-        <span class="feature-tag" style="background:rgba(116,185,255,.15);color:var(--blue)">可扩展</span>
+        <h3 data-i18n="features.c6.title">扩展系统</h3>
+        <p data-i18n="features.c6.desc">通过 JSON/JS 扩展文件自定义积木类型，为编辑器添加无限新功能。打造属于你自己的编程工具箱。</p>
+        <span class="feature-tag" style="background:rgba(116,185,255,.15);color:var(--blue)" data-i18n="features.c6.tag">可扩展</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(162,155,254,.15)">📝</div>
-        <h3>积木批注</h3>
-        <p>为任何积木添加注释说明，提升代码可读性。特别适合教学场景和团队协作。</p>
-        <span class="feature-tag" style="background:rgba(162,155,254,.15);color:var(--accent2)">教学友好</span>
+        <h3 data-i18n="features.c7.title">积木批注</h3>
+        <p data-i18n="features.c7.desc">为任何积木添加注释说明，提升代码可读性。特别适合教学场景和团队协作。</p>
+        <span class="feature-tag" style="background:rgba(162,155,254,.15);color:var(--accent2)" data-i18n="features.c7.tag">教学友好</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(253,121,168,.15)">🌐</div>
-        <h3>导出 HTML</h3>
-        <p>一键将项目导出为可独立运行的 HTML 文件。无需安装任何软件即可在任何浏览器中运行你的作品。</p>
-        <span class="feature-tag" style="background:rgba(253,121,168,.15);color:var(--pink)">分享便捷</span>
+        <h3 data-i18n="features.c8.title">导出 HTML</h3>
+        <p data-i18n="features.c8.desc">一键将项目导出为可独立运行的 HTML 文件。无需安装任何软件即可在任何浏览器中运行你的作品。</p>
+        <span class="feature-tag" style="background:rgba(253,121,168,.15);color:var(--pink)" data-i18n="features.c8.tag">分享便捷</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(0,210,211,.15)">🎵</div>
-        <h3>声音系统</h3>
-        <p>支持加载和播放音频文件，通过声音积木为角色添加音效。让你的作品更加生动有趣。</p>
-        <span class="feature-tag" style="background:rgba(0,210,211,.15);color:var(--cyan)">多媒体</span>
+        <h3 data-i18n="features.c9.title">声音系统</h3>
+        <p data-i18n="features.c9.desc">支持加载和播放音频文件，通过声音积木为角色添加音效。让你的作品更加生动有趣。</p>
+        <span class="feature-tag" style="background:rgba(0,210,211,.15);color:var(--cyan)" data-i18n="features.c9.tag">多媒体</span>
       </div>
 
     </div>
@@ -355,55 +366,55 @@ footer p{font-size:13px;color:var(--muted)}
 </section>
 
 <!-- What's New in v1.0.20 -->
-<section id="whatsnew" style="background:linear-gradient(180deg,var(--bg2),var(--bg))">
+<section id="v1020" style="background:linear-gradient(180deg,var(--bg2),var(--bg))">
   <div class="container">
     <div class="section-header reveal">
-      <div class="section-tag">🆕 v1.0.20 新特性</div>
-      <h2 class="section-title">Minecraft 模组开发模式</h2>
-      <p class="section-desc">用积木生成 Minecraft 模组代码，支持基岩版、网易版、Java 版</p>
+      <div class="section-tag" data-i18n="v1020.tag">🆕 v1.0.20 新特性</div>
+      <h2 class="section-title" data-i18n="v1020.title">Minecraft 模组开发模式</h2>
+      <p class="section-desc" data-i18n="v1020.desc">用积木生成 Minecraft 模组代码，支持基岩版、网易版、Java 版</p>
     </div>
     <div class="feature-grid">
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(0,210,211,.15)">⛏️</div>
-        <h3>MC 模组开发模式</h3>
-        <p>全新创作模式：拖拽 Minecraft 专用积木，实时预览生成的代码，一键导出为模组包。支持基岩版 (JavaScript)、网易版 (Python)、Java 版 (Fabric) 三大平台。</p>
-        <span class="feature-tag" style="background:rgba(0,210,211,.15);color:var(--cyan)">全新模式</span>
+        <h3 data-i18n="v1020.c1.title">MC 模组开发模式</h3>
+        <p data-i18n="v1020.c1.desc">全新创作模式：拖拽 Minecraft 专用积木，实时预览生成的代码，一键导出为模组包。支持基岩版 (JavaScript)、网易版 (Python)、Java 版 (Fabric) 三大平台。</p>
+        <span class="feature-tag" style="background:rgba(0,210,211,.15);color:var(--cyan)" data-i18n="v1020.c1.tag">全新模式</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(162,155,254,.15)">🧩</div>
-        <h3>34 个 MC 专用积木</h3>
-        <p>事件系统（玩家加入、方块破坏）、命令执行（放置方块、生成实体、传送）、世界操作（时间、天气、游戏规则）等完整 Minecraft API 积木。</p>
-        <span class="feature-tag" style="background:rgba(162,155,254,.15);color:var(--accent2)">积木系统</span>
+        <h3 data-i18n="v1020.c2.title">34 个 MC 专用积木</h3>
+        <p data-i18n="v1020.c2.desc">事件系统（玩家加入、方块破坏）、命令执行（放置方块、生成实体、传送）、世界操作（时间、天气、游戏规则）等完整 Minecraft API 积木。</p>
+        <span class="feature-tag" style="background:rgba(162,155,254,.15);color:var(--accent2)" data-i18n="v1020.c2.tag">积木系统</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(0,184,148,.15)">📦</div>
-        <h3>智能代码生成</h3>
-        <p>积木自动转换为对应平台的代码：基岩版 Script API、网易版 ModSDK Python 2.7、Java 版 Fabric。支持平台切换实时预览。</p>
-        <span class="feature-tag" style="background:rgba(0,184,148,.15);color:var(--green)">代码生成</span>
+        <h3 data-i18n="v1020.c3.title">智能代码生成</h3>
+        <p data-i18n="v1020.c3.desc">积木自动转换为对应平台的代码：基岩版 Script API、网易版 ModSDK Python 2.7、Java 版 Fabric。支持平台切换实时预览。</p>
+        <span class="feature-tag" style="background:rgba(0,184,148,.15);color:var(--green)" data-i18n="v1020.c3.tag">代码生成</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(253,121,168,.15)">📤</div>
-        <h3>一键导出模组包</h3>
-        <p>导出为 .mcpack（基岩版）或 .zip（网易版/Java 版），包含完整的 manifest.json 和代码文件，可直接导入游戏使用。</p>
-        <span class="feature-tag" style="background:rgba(253,121,168,.15);color:var(--pink)">导出功能</span>
+        <h3 data-i18n="v1020.c4.title">一键导出模组包</h3>
+        <p data-i18n="v1020.c4.desc">导出为 .mcpack（基岩版）或 .zip（网易版/Java 版），包含完整的 manifest.json 和代码文件，可直接导入游戏使用。</p>
+        <span class="feature-tag" style="background:rgba(253,121,168,.15);color:var(--pink)" data-i18n="v1020.c4.tag">导出功能</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(253,203,110,.15)">📖</div>
-        <h3>Minecraft API 文档</h3>
-        <p>内置完整的 Minecraft API 文档，涵盖三个平台的详细教程、代码示例、最佳实践和常见问题解答。</p>
-        <span class="feature-tag" style="background:rgba(253,203,110,.15);color:var(--orange)">文档系统</span>
+        <h3 data-i18n="v1020.c5.title">Minecraft API 文档</h3>
+        <p data-i18n="v1020.c5.desc">内置完整的 Minecraft API 文档，涵盖三个平台的详细教程、代码示例、最佳实践和常见问题解答。</p>
+        <span class="feature-tag" style="background:rgba(253,203,110,.15);color:var(--orange)" data-i18n="v1020.c5.tag">文档系统</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(116,185,255,.15)">🐛</div>
-        <h3>稳定性修复</h3>
-        <p>修复重命名项目卡片重复、网页版加载失败、导出功能失效等多项问题，提升整体稳定性。</p>
-        <span class="feature-tag" style="background:rgba(116,185,255,.15);color:var(--blue)">BUG 修复</span>
+        <h3 data-i18n="v1020.c6.title">稳定性修复</h3>
+        <p data-i18n="v1020.c6.desc">修复重命名项目卡片重复、网页版加载失败、导出功能失效等多项问题，提升整体稳定性。</p>
+        <span class="feature-tag" style="background:rgba(116,185,255,.15);color:var(--blue)" data-i18n="v1020.c6.tag">BUG 修复</span>
       </div>
 
     </div>
@@ -411,41 +422,41 @@ footer p{font-size:13px;color:var(--muted)}
 </section>
 
 <!-- What's New in v1.0.19 -->
-<section id="whatsnew" style="background:linear-gradient(180deg,var(--bg2),var(--bg))">
+<section id="v1019" style="background:linear-gradient(180deg,var(--bg2),var(--bg))">
   <div class="container">
     <div class="section-header reveal">
-      <div class="section-tag">📋 v1.0.19 新特性</div>
-      <h2 class="section-title">多场景系统与编辑器增强</h2>
-      <p class="section-desc">2D/3D/UI 三种场景类型，积木断开端口选择，JS 编辑器独立弹出</p>
+      <div class="section-tag" data-i18n="v1019.tag">📋 v1.0.19 新特性</div>
+      <h2 class="section-title" data-i18n="v1019.title">多场景系统与编辑器增强</h2>
+      <p class="section-desc" data-i18n="v1019.desc">2D/3D/UI 三种场景类型，积木断开端口选择，JS 编辑器独立弹出</p>
     </div>
     <div class="feature-grid">
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(162,155,254,.15)">🎬</div>
-        <h3>多场景创建系统</h3>
-        <p>高级模式下支持创建 2D、3D、UI 三种类型的场景文件。2D 场景支持积木+JS 混合编程，3D/UI 场景使用纯 JS 脚本驱动。</p>
-        <span class="feature-tag" style="background:rgba(162,155,254,.15);color:var(--accent2)">场景系统</span>
+        <h3 data-i18n="v1019.c1.title">多场景创建系统</h3>
+        <p data-i18n="v1019.c1.desc">高级模式下支持创建 2D、3D、UI 三种类型的场景文件。2D 场景支持积木+JS 混合编程，3D/UI 场景使用纯 JS 脚本驱动。</p>
+        <span class="feature-tag" style="background:rgba(162,155,254,.15);color:var(--accent2)" data-i18n="v1019.c1.tag">场景系统</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(0,210,211,.15)">🧩</div>
-        <h3>积木断开端口选择</h3>
-        <p>右键积木“断开连接”展开端口列表，可精确选择断开流入/流出/参数连接/子代码槽，支持一键断开全部。</p>
-        <span class="feature-tag" style="background:rgba(0,210,211,.15);color:var(--cyan)">编辑器改进</span>
+        <h3 data-i18n="v1019.c2.title">积木断开端口选择</h3>
+        <p data-i18n="v1019.c2.desc">右键积木"断开连接"展开端口列表，可精确选择断开流入/流出/参数连接/子代码槽，支持一键断开全部。</p>
+        <span class="feature-tag" style="background:rgba(0,210,211,.15);color:var(--cyan)" data-i18n="v1019.c2.tag">编辑器改进</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(0,184,148,.15)">⧉</div>
-        <h3>JS 编辑器独立窗口</h3>
-        <p>JS 代码编辑器支持弹出独立窗口编辑任意节点类型的脚本，不再局限于 Sprite2D 角色。支持 3D 网格、UI 组件等所有节点。</p>
-        <span class="feature-tag" style="background:rgba(0,184,148,.15);color:var(--green)">代码编程</span>
+        <h3 data-i18n="v1019.c3.title">JS 编辑器独立窗口</h3>
+        <p data-i18n="v1019.c3.desc">JS 代码编辑器支持弹出独立窗口编辑任意节点类型的脚本，不再局限于 Sprite2D 角色。支持 3D 网格、UI 组件等所有节点。</p>
+        <span class="feature-tag" style="background:rgba(0,184,148,.15);color:var(--green)" data-i18n="v1019.c3.tag">代码编程</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(253,121,168,.15)">🌐</div>
-        <h3>3D 场景渲染修复</h3>
-        <p>修复 3D 场景中 Mesh3D 节点无法在 Three.js 视口中渲染的问题。加载 3D 场景文件时自动同步网格到渲染器。</p>
-        <span class="feature-tag" style="background:rgba(253,121,168,.15);color:var(--pink)">BUG 修复</span>
+        <h3 data-i18n="v1019.c4.title">3D 场景渲染修复</h3>
+        <p data-i18n="v1019.c4.desc">修复 3D 场景中 Mesh3D 节点无法在 Three.js 视口中渲染的问题。加载 3D 场景文件时自动同步网格到渲染器。</p>
+        <span class="feature-tag" style="background:rgba(253,121,168,.15);color:var(--pink)" data-i18n="v1019.c4.tag">BUG 修复</span>
       </div>
 
     </div>
@@ -453,34 +464,34 @@ footer p{font-size:13px;color:var(--muted)}
 </section>
 
 <!-- What's New in v1.0.17 -->
-<section style="background:linear-gradient(180deg,var(--bg2),var(--bg))">
+<section id="v1017" style="background:linear-gradient(180deg,var(--bg2),var(--bg))">
   <div class="container">
     <div class="section-header reveal">
-      <div class="section-tag">📋 v1.0.17 新特性</div>
-      <h2 class="section-title">高级编辑器与 JS 并行执行</h2>
-      <p class="section-desc">Godot 式专业编辑器，图形化与 JS 代码同时运行</p>
+      <div class="section-tag" data-i18n="v1017.tag">📋 v1.0.17 新特性</div>
+      <h2 class="section-title" data-i18n="v1017.title">高级编辑器与 JS 并行执行</h2>
+      <p class="section-desc" data-i18n="v1017.desc">Godot 式专业编辑器，图形化与 JS 代码同时运行</p>
     </div>
     <div class="feature-grid">
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(162,155,254,.15)">🎬</div>
-        <h3>Godot 式高级编辑器</h3>
-        <p>场景树、属性检查器、文件系统面板、积木与 JS 双模式编程。F11 全屏编辑，独立代码窗口，专业级创作体验。</p>
-        <span class="feature-tag" style="background:rgba(162,155,254,.15);color:var(--accent2)">专业编辑器</span>
+        <h3 data-i18n="v1017.c1.title">Godot 式高级编辑器</h3>
+        <p data-i18n="v1017.c1.desc">场景树、属性检查器、文件系统面板、积木与 JS 双模式编程。F11 全屏编辑，独立代码窗口，专业级创作体验。</p>
+        <span class="feature-tag" style="background:rgba(162,155,254,.15);color:var(--accent2)" data-i18n="v1017.c1.tag">专业编辑器</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(0,210,211,.15)">⚡</div>
-        <h3>JS 全功能 API</h3>
-        <p>JavaScript 编程支持所有积木功能：sprite.say()、sprite.move()、sprite.isTouchingEdge() 等完整 API 代理系统，与图形化积木并行执行。</p>
-        <span class="feature-tag" style="background:rgba(0,210,211,.15);color:var(--cyan)">代码编程</span>
+        <h3 data-i18n="v1017.c2.title">JS 全功能 API</h3>
+        <p data-i18n="v1017.c2.desc">JavaScript 编程支持所有积木功能：sprite.say()、sprite.move()、sprite.isTouchingEdge() 等完整 API 代理系统，与图形化积木并行执行。</p>
+        <span class="feature-tag" style="background:rgba(0,210,211,.15);color:var(--cyan)" data-i18n="v1017.c2.tag">代码编程</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(0,184,148,.15)">🔧</div>
-        <h3>BUG 修复与增强</h3>
-        <p>修复图形化与 JS 并发执行阻塞、JS 编辑器窗口控制失效、积木面板缺失等多项问题，运行更加稳定。</p>
-        <span class="feature-tag" style="background:rgba(0,184,148,.15);color:var(--green)">稳定性</span>
+        <h3 data-i18n="v1017.c3.title">BUG 修复与增强</h3>
+        <p data-i18n="v1017.c3.desc">修复图形化与 JS 并发执行阻塞、JS 编辑器窗口控制失效、积木面板缺失等多项问题，运行更加稳定。</p>
+        <span class="feature-tag" style="background:rgba(0,184,148,.15);color:var(--green)" data-i18n="v1017.c3.tag">稳定性</span>
       </div>
 
     </div>
@@ -488,34 +499,34 @@ footer p{font-size:13px;color:var(--muted)}
 </section>
 
 <!-- What's New in v1.0.16 -->
-<section style="background:linear-gradient(180deg,var(--bg2),var(--bg))">
+<section id="v1016" style="background:linear-gradient(180deg,var(--bg2),var(--bg))">
   <div class="container">
     <div class="section-header reveal">
-      <div class="section-tag">📋 v1.0.16 新特性</div>
-      <h2 class="section-title">3D 增强与社区升级</h2>
-      <p class="section-desc">更强大的 3D 能力，更完善的社区体验</p>
+      <div class="section-tag" data-i18n="v1016.tag">📋 v1.0.16 新特性</div>
+      <h2 class="section-title" data-i18n="v1016.title">3D 增强与社区升级</h2>
+      <p class="section-desc" data-i18n="v1016.desc">更强大的 3D 能力，更完善的社区体验</p>
     </div>
     <div class="feature-grid">
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(162,155,254,.15)">🎥</div>
-        <h3>3D Plus 扩展</h3>
-        <p>新增面向对象的摄像机系统：创建多个摄像机、轨道环绕、跟随物体、绑定到网格。支持物体分组绑定，多摄像机切换投影。</p>
-        <span class="feature-tag" style="background:rgba(162,155,254,.15);color:var(--accent2)">高级3D</span>
+        <h3 data-i18n="v1016.c1.title">3D Plus 扩展</h3>
+        <p data-i18n="v1016.c1.desc">新增面向对象的摄像机系统：创建多个摄像机、轨道环绕、跟随物体、绑定到网格。支持物体分组绑定，多摄像机切换投影。</p>
+        <span class="feature-tag" style="background:rgba(162,155,254,.15);color:var(--accent2)" data-i18n="v1016.c1.tag">高级3D</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(0,210,211,.15)">🌐</div>
-        <h3>社区 3D 预览</h3>
-        <p>社区作品在线预览支持 3D 模式，发布时自动保存渲染模式信息，预览时自动切换到正确的渲染模式。</p>
-        <span class="feature-tag" style="background:rgba(0,210,211,.15);color:var(--cyan)">社区增强</span>
+        <h3 data-i18n="v1016.c2.title">社区 3D 预览</h3>
+        <p data-i18n="v1016.c2.desc">社区作品在线预览支持 3D 模式，发布时自动保存渲染模式信息，预览时自动切换到正确的渲染模式。</p>
+        <span class="feature-tag" style="background:rgba(0,210,211,.15);color:var(--cyan)" data-i18n="v1016.c2.tag">社区增强</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(253,203,110,.15)">🐛</div>
-        <h3>Dropdown 修复</h3>
-        <p>修复 3D 物体属性下拉菜单无法正确显示标签和存储值的 BUG，属性读写更加稳定可靠。</p>
-        <span class="feature-tag" style="background:rgba(253,203,110,.15);color:var(--orange)">BUG修复</span>
+        <h3 data-i18n="v1016.c3.title">Dropdown 修复</h3>
+        <p data-i18n="v1016.c3.desc">修复 3D 物体属性下拉菜单无法正确显示标签和存储值的 BUG，属性读写更加稳定可靠。</p>
+        <span class="feature-tag" style="background:rgba(253,203,110,.15);color:var(--orange)" data-i18n="v1016.c3.tag">BUG修复</span>
       </div>
 
     </div>
@@ -523,20 +534,20 @@ footer p{font-size:13px;color:var(--muted)}
 </section>
 
 <!-- What's New in v1.0.15 -->
-<section style="background:linear-gradient(180deg,var(--bg),var(--bg2))">
+<section id="v1015" style="background:linear-gradient(180deg,var(--bg),var(--bg2))">
   <div class="container">
     <div class="section-header reveal">
-      <div class="section-tag">📋 v1.0.15 新特性</div>
-      <h2 class="section-title">3D 支持</h2>
-      <p class="section-desc">让Objector不再局限于平面</p>
+      <div class="section-tag" data-i18n="v1015.tag">📋 v1.0.15 新特性</div>
+      <h2 class="section-title" data-i18n="v1015.title">3D 支持</h2>
+      <p class="section-desc" data-i18n="v1015.desc">让Objector不再局限于平面</p>
     </div>
     <div class="feature-grid">
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(162,155,254,.15)">▶️</div>
-        <h3>3D 模块</h3>
-        <p>新增3D模块，支持3D对象创建、移动、旋转、缩放，以及3D相机设置。</p>
-        <span class="feature-tag" style="background:rgba(162,155,254,.15);color:var(--accent2)">元编程</span>
+        <h3 data-i18n="v1015.c1.title">3D 模块</h3>
+        <p data-i18n="v1015.c1.desc">新增3D模块，支持3D对象创建、移动、旋转、缩放，以及3D相机设置。</p>
+        <span class="feature-tag" style="background:rgba(162,155,254,.15);color:var(--accent2)" data-i18n="v1015.c1.tag">元编程</span>
       </div>
 
     </div>
@@ -547,9 +558,9 @@ footer p{font-size:13px;color:var(--muted)}
 <section id="modules">
   <div class="container">
     <div class="section-header reveal">
-      <div class="section-tag">🧱 积木模块</div>
-      <h2 class="section-title">12 大功能模块</h2>
-      <p class="section-desc">覆盖编程学习的方方面面</p>
+      <div class="section-tag" data-i18n="modules.tag">🧱 积木模块</div>
+      <h2 class="section-title" data-i18n="modules.title">12 大功能模块</h2>
+      <p class="section-desc" data-i18n="modules.desc">覆盖编程学习的方方面面</p>
     </div>
     <div class="modules-grid reveal">
       <div class="module-card">
@@ -620,45 +631,45 @@ footer p{font-size:13px;color:var(--muted)}
 <section id="modes" style="background:linear-gradient(180deg,var(--bg),var(--bg2))">
   <div class="container">
     <div class="section-header reveal">
-      <div class="section-tag">🎯 三种模式</div>
-      <h2 class="section-title">适合每一个人</h2>
-      <p class="section-desc">无论你是编程新手还是经验丰富的开发者</p>
+      <div class="section-tag" data-i18n="modes.tag">🎯 三种模式</div>
+      <h2 class="section-title" data-i18n="modes.title">适合每一个人</h2>
+      <p class="section-desc" data-i18n="modes.desc">无论你是编程新手还是经验丰富的开发者</p>
     </div>
     <div class="mode-cards">
       <div class="mode-card reveal">
         <div class="mode-emoji">🌱</div>
-        <div class="mode-name">新手模式</div>
-        <div class="mode-desc">专为零基础设计</div>
+        <div class="mode-name" data-i18n="modes.c1.name">新手模式</div>
+        <div class="mode-desc" data-i18n="modes.c1.desc">专为零基础设计</div>
         <ul class="mode-features">
-          <li>精简积木分类，降低复杂度</li>
-          <li>隐藏高级功能模块</li>
-          <li>分类引导提示</li>
-          <li>循序渐进的学习曲线</li>
+          <li data-i18n="modes.c1.f1">精简积木分类，降低复杂度</li>
+          <li data-i18n="modes.c1.f2">隐藏高级功能模块</li>
+          <li data-i18n="modes.c1.f3">分类引导提示</li>
+          <li data-i18n="modes.c1.f4">循序渐进的学习曲线</li>
         </ul>
       </div>
       <div class="mode-card featured reveal">
         <div class="mode-emoji">🚀</div>
-        <div class="mode-name">普通模式</div>
-        <div class="mode-desc">完整的创作体验</div>
+        <div class="mode-name" data-i18n="modes.c2.name">普通模式</div>
+        <div class="mode-desc" data-i18n="modes.c2.desc">完整的创作体验</div>
         <ul class="mode-features">
-          <li>全部 100+ 积木块</li>
-          <li>完整函数系统</li>
-          <li>代码折叠</li>
-          <li>积木批注</li>
-          <li>造型库管理</li>
-          <li>HTML 导出</li>
+          <li data-i18n="modes.c2.f1">全部 100+ 积木块</li>
+          <li data-i18n="modes.c2.f2">完整函数系统</li>
+          <li data-i18n="modes.c2.f3">代码折叠</li>
+          <li data-i18n="modes.c2.f4">积木批注</li>
+          <li data-i18n="modes.c2.f5">造型库管理</li>
+          <li data-i18n="modes.c2.f6">HTML 导出</li>
         </ul>
       </div>
       <div class="mode-card reveal">
         <div class="mode-emoji">🛠️</div>
-        <div class="mode-name">开发者模式</div>
-        <div class="mode-desc">专业调试工具</div>
+        <div class="mode-name" data-i18n="modes.c3.name">开发者模式</div>
+        <div class="mode-desc" data-i18n="modes.c3.desc">专业调试工具</div>
         <ul class="mode-features">
-          <li>断点设置与单步执行</li>
-          <li>变量实时监视面板</li>
-          <li>执行流可视化高亮</li>
-          <li>运行到此处功能</li>
-          <li>完整的调试工具链</li>
+          <li data-i18n="modes.c3.f1">断点设置与单步执行</li>
+          <li data-i18n="modes.c3.f2">变量实时监视面板</li>
+          <li data-i18n="modes.c3.f3">执行流可视化高亮</li>
+          <li data-i18n="modes.c3.f4">运行到此处功能</li>
+          <li data-i18n="modes.c3.f5">完整的调试工具链</li>
         </ul>
       </div>
     </div>
@@ -669,8 +680,8 @@ footer p{font-size:13px;color:var(--muted)}
 <section id="tech">
   <div class="container">
     <div class="section-header reveal">
-      <div class="section-tag">⚙️ 技术架构</div>
-      <h2 class="section-title">构建于现代技术之上</h2>
+      <div class="section-tag" data-i18n="tech.tag">⚙️ 技术架构</div>
+      <h2 class="section-title" data-i18n="tech.title">构建于现代技术之上</h2>
     </div>
     <div class="tech-stack reveal">
       <div class="tech-badge"><div class="tech-dot" style="background:#47848F"></div>Electron</div>
@@ -685,10 +696,10 @@ footer p{font-size:13px;color:var(--muted)}
     </div>
     <div style="text-align:center;margin-top:48px" class="reveal">
       <div class="feature-card" style="display:inline-block;max-width:600px;text-align:left">
-        <h3 style="margin-bottom:12px">🖥️ 系统要求</h3>
+        <h3 style="margin-bottom:12px" data-i18n="tech.sysReq">🖥️ 系统要求</h3>
         <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;font-size:14px;color:var(--text2)">
-          <span style="color:var(--muted)">操作系统</span><span>Windows 10+ / Linux x64 / macOS (网页版)</span>
-          <span style="color:var(--muted)">安装方式</span><span>绿色免安装 / 安装包</span>
+          <span style="color:var(--muted)" data-i18n="tech.os">操作系统</span><span data-i18n="tech.osVal">Windows 10+ / Linux x64 / macOS (网页版)</span>
+          <span style="color:var(--muted)" data-i18n="tech.install">安装方式</span><span data-i18n="tech.installVal">绿色免安装 / 安装包</span>
         </div>
       </div>
     </div>
@@ -699,14 +710,14 @@ footer p{font-size:13px;color:var(--muted)}
 <section id="download" class="download">
   <div class="container">
     <div class="section-header reveal">
-      <div class="section-tag">📥 立即下载</div>
-      <h2 class="section-title">开始你的创意之旅</h2>
+      <div class="section-tag" data-i18n="download.tag">📥 立即下载</div>
+      <h2 class="section-title" data-i18n="download.title">开始你的创意之旅</h2>
     </div>
     <div class="download-card reveal" style="padding:40px;">
       <div style="text-align:center;margin-bottom:32px;">
         <h3 style="margin-bottom:8px;">Objector</h3>
-        <div class="version">版本 1.0.20 · 发布于 2026</div>
-        <p style="margin-top:8px;">免费下载，无需注册。支持 Windows、Linux 和 macOS（网页版）平台。</p>
+        <div class="version" data-i18n="download.version">版本 1.0.20 · 发布于 2026</div>
+        <p style="margin-top:8px;" data-i18n="download.desc">免费下载，无需注册。支持 Windows、Linux 和 macOS（网页版）平台。</p>
       </div>
 
       <!-- 平台下载卡片 -->
@@ -716,17 +727,17 @@ footer p{font-size:13px;color:var(--muted)}
         <div style="background:rgba(108,92,231,.08);border:1px solid rgba(108,92,231,.25);border-radius:12px;padding:28px 24px;text-align:center;">
           <img src="WindowsIcon.png" alt="Windows" style="width:48px;height:48px;margin-bottom:16px;">
           <h4 style="color:var(--accent2);margin-bottom:4px;font-size:18px;">Windows</h4>
-          <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px;">Windows 10 及以上 · x64</p>
+          <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px;" data-i18n="download.winReq">Windows 10 及以上 · x64</p>
           <a href="https://github.com/tomlct2015/Objector-Coder/releases/download/v1.0.20/Objector-Setup-1.0.20.exe" class="download-btn" style="width:100%;justify-content:center;background:linear-gradient(to bottom,#8b5cf6,#ab93e4);">
             <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            安装包 (.exe)
+            <span data-i18n="download.installer">安装包 (.exe)</span>
           </a>
           <a href="https://github.com/tomlct2015/Objector-Coder/releases/download/v1.0.20/Objector-1.0.20-win.zip" class="download-btn" style="width:100%;justify-content:center;margin-top:10px;font-size:14px;padding:10px 24px;background:linear-gradient(135deg,#2d3436,#636e72);">
             <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            免安装压缩包 (.zip)
+            <span data-i18n="download.zip">免安装压缩包 (.zip)</span>
           </a>
           <p style="font-size:11px;color:var(--text-muted);margin-top:12px;">
-            <a href="https://www.alipan.com/s/oeB6VfTRmJp" style="color:var(--accent2);">下载太慢？试试阿里云盘 →</a>
+            <a href="https://www.alipan.com/s/oeB6VfTRmJp" style="color:var(--accent2);" data-i18n="download.aliyun">下载太慢？试试阿里云盘 →</a>
           </p>
         </div>
 
@@ -737,30 +748,28 @@ footer p{font-size:13px;color:var(--muted)}
           <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px;">Ubuntu / Fedora / Arch · x64</p>
           <div style="width:100%;justify-content:center;background:rgba(253,203,110,.2);border-radius:8px;padding:12px 20px;color:var(--text-muted);margin-bottom:10px;cursor:not-allowed;">
             <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:8px;opacity:0.5;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span>即将推出</span>
+            <span data-i18n="download.comingSoon">即将推出</span>
           </div>
-          <p style="font-size:11px;color:var(--text-muted);margin-top:12px;">
-            Linux 版本正在准备中，敬请期待
-          </p>
+          <p style="font-size:11px;color:var(--text-muted);margin-top:12px;" data-i18n="download.linuxPending">Linux 版本正在准备中，敬请期待</p>
         </div>
 
       </div>
-      <a href="versions.html" style="color:var(--accent2)">📜 历史版本下载</a>
+      <a href="versions.html" style="color:var(--accent2)" data-i18n="download.versions">📜 历史版本下载</a>
 
       <!-- 在线版 & 社区 -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
         <a href="https://tomlct2015.github.io/Objector-Coder/editor/" class="download-btn" style="justify-content:center;background:linear-gradient(135deg,var(--cyan),#00b894);">
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-          🌐 在线编辑器（无需安装）
+          <span data-i18n="download.onlineEditor">🌐 在线编辑器（无需安装）</span>
         </a>
         <a href="https://tomlct2015.github.io/Objector-Coder/community/" class="download-btn" style="justify-content:center;background:linear-gradient(135deg,var(--cyan),#00b894);">
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-          🌐 社区
+          <span data-i18n="download.community">🌐 社区</span>
         </a>
       </div>
 
       <div class="download-info" style="text-align:center;">
-        <a href="https://tomlct2015.github.io/Objector-Coder/blocks-guide/" style="color:var(--accent2)">📖 积木用法指南</a>
+        <a href="https://tomlct2015.github.io/Objector-Coder/blocks-guide/" style="color:var(--accent2)" data-i18n="download.guide">📖 积木用法指南</a>
       </div>
     </div>
   </div>
@@ -770,12 +779,12 @@ footer p{font-size:13px;color:var(--muted)}
 <footer>
   <div class="container">
     <div class="footer-links">
-      <a href="#features">功能特性</a>
-      <a href="#modules">积木模块</a>
-      <a href="#modes">编辑模式</a>
-      <a href="#download">下载</a>
+      <a href="#features" id="ft-features">功能特性</a>
+      <a href="#modules" id="ft-modules">积木模块</a>
+      <a href="#modes" id="ft-modes">编辑模式</a>
+      <a href="#download" id="ft-download">下载</a>
     </div>
-    <p>© 2026 Objector. 用积木搭建无限创意。</p>
+    <p id="ft-copyright">© 2026 Objector. 用积木搭建无限创意。</p>
   </div>
 </footer>
 
@@ -788,7 +797,6 @@ const observer = new IntersectionObserver((entries) => {
     }
   });
 }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
-
 document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
 // ===== Navbar scroll effect =====
@@ -815,6 +823,480 @@ window.addEventListener('mousemove', (e) => {
   document.querySelector('.bg-glow-2').style.transform = `translate(${-x * 30}px, ${-y * 30}px)`;
   document.querySelector('.bg-glow-3').style.transform = `translate(${(x - 0.5) * 50}px, ${(y - 0.5) * 50}px)`;
 });
+
+// ===== i18n Language Switching =====
+const translations = {
+  'en': {
+    'pageTitle': 'Objector - Visual Block Programming Editor',
+    'nav.features': 'Features',
+    'nav.v1020': 'v1.0.20 New',
+    'nav.modules': 'Block Modules',
+    'nav.modes': 'Edit Modes',
+    'nav.blocksGuide': '📖 Blocks Guide',
+    'nav.extensionApi': '📖 Extension API',
+    'nav.webVersion': '🌐 Web Version',
+    'nav.download': 'Download Now',
+    'hero.badge': 'v1.0.20 Desktop · Open Source Free',
+    'hero.title': 'Build with Blocks<br><span class="gradient">Unlimited Creativity</span>',
+    'hero.sub': 'Objector is a powerful visual block programming editor that enables users with zero coding experience to create animations, games, and interactive programs. From beginner to professional, all in one place.',
+    'hero.downloadBtn': 'Free Download',
+    'hero.webBtn': '🌐 Try Online Version',
+    'hero.learnBtn': 'Learn More',
+    'features.tag': '✨ Core Features',
+    'features.title': 'Editor Built for Creativity',
+    'features.desc': 'Not just a Scratch clone, but a comprehensive evolution for professional developers',
+    'features.c1.title': 'Visual Block Programming',
+    'features.c1.desc': 'Drag-and-drop blocks with WYSIWYG interface. Supports flow connections, parameter embedding, and sub-code blocks for intuitive visual programming with zero learning curve.',
+    'features.c1.tag': 'Core Engine',
+    'features.c2.title': 'Professional Debugging System',
+    'features.c2.desc': 'Developer mode supports breakpoints, step execution, and variable watch panels. Precisely track every line of code execution like a real IDE.',
+    'features.c2.tag': 'Developer Grade',
+    'features.c3.title': 'Custom Functions',
+    'features.c3.desc': 'Supports multi-parameter function definitions and calls with dynamic parameter slots. Encapsulate reusable logic modules just like real code.',
+    'features.c3.tag': 'Advanced Feature',
+    'features.c4.title': 'Physics Motion System',
+    'features.c4.desc': 'Beyond Scratch: Built-in velocity, acceleration, gravity, friction, collision rebound and other physics properties. Easily create animations and games with realistic physics.',
+    'features.c4.tag': 'Beyond Scratch',
+    'features.c5.title': 'Global Costume Library',
+    'features.c5.desc': 'Images uploaded to project are managed centrally, multiple sprites share the same costume files. Smart resource reuse saves storage space and memory.',
+    'features.c5.tag': 'Resource Management',
+    'features.c6.title': 'Extension System',
+    'features.c6.desc': 'Define custom block types through JSON/JS extension files to add unlimited new features to the editor. Build your own programming toolbox.',
+    'features.c6.tag': 'Extensible',
+    'features.c7.title': 'Block Annotations',
+    'features.c7.desc': 'Add comment annotations to any block to improve code readability. Especially useful for teaching scenarios and team collaboration.',
+    'features.c7.tag': 'Teaching Friendly',
+    'features.c8.title': 'Export to HTML',
+    'features.c8.desc': 'One-click export projects to standalone HTML files. Run your creations in any browser without installing any software.',
+    'features.c8.tag': 'Easy Sharing',
+    'features.c9.title': 'Sound System',
+    'features.c9.desc': 'Load and play audio files, add sound effects to sprites through sound blocks. Make your creations more vivid and engaging.',
+    'features.c9.tag': 'Multimedia',
+    'v1020.tag': '🆕 v1.0.20 New Features',
+    'v1020.title': 'Minecraft Mod Development Mode',
+    'v1020.desc': 'Generate Minecraft mod code with blocks, supporting Bedrock, Netease, and Java editions',
+    'v1020.c1.title': 'MC Mod Development Mode',
+    'v1020.c1.desc': 'New creation mode: drag Minecraft-specific blocks, real-time code preview, one-click export to mod packages. Supports Bedrock (JavaScript), Netease (Python 2.7), Java (Fabric).',
+    'v1020.c1.tag': 'New Mode',
+    'v1020.c2.title': '34 MC-Specific Blocks',
+    'v1020.c2.desc': 'Event system (player join, block break), command execution (place block, summon entity, teleport), world operations (time, weather, gamerules).',
+    'v1020.c2.tag': 'Block System',
+    'v1020.c3.title': 'Smart Code Generation',
+    'v1020.c3.desc': 'Blocks automatically convert to platform-specific code: Bedrock Script API, Netease ModSDK Python 2.7, Java Fabric. Real-time preview on platform switch.',
+    'v1020.c3.tag': 'Code Generation',
+    'v1020.c4.title': 'One-Click Mod Export',
+    'v1020.c4.desc': 'Export as .mcpack (Bedrock) or .zip (Netease/Java), including complete manifest.json and code files, ready to import into game.',
+    'v1020.c4.tag': 'Export Feature',
+    'v1020.c5.title': 'Minecraft API Docs',
+    'v1020.c5.desc': 'Complete API documentation for all three platforms with tutorials, code examples, best practices and FAQ.',
+    'v1020.c5.tag': 'Documentation',
+    'v1020.c6.title': 'Stability Fixes',
+    'v1020.c6.desc': 'Fixed duplicate project cards after rename, web version loading issues, export functionality bugs, and more. Improved overall stability.',
+    'v1020.c6.tag': 'Bug Fixes',
+    'modules.tag': '🧱 Block Modules',
+    'modules.title': '12 Major Feature Modules',
+    'modules.desc': 'Covering all aspects of programming learning',
+    'modes.tag': '🎯 Three Modes',
+    'modes.title': 'Suitable for Everyone',
+    'modes.desc': 'Whether you\'re a beginner or experienced developer',
+    'v1019.tag': '📋 v1.0.19 New Features',
+    'v1019.title': 'Multi-Scene System & Editor Enhancements',
+    'v1019.desc': '2D/3D/UI scene types, block disconnect port selection, independent JS editor',
+    'v1019.c1.title': 'Multi-Scene Creation System',
+    'v1019.c1.desc': 'Advanced mode supports creating 2D, 3D, and UI scene files. 2D scenes support blocks+JS hybrid programming, 3D/UI scenes use pure JS scripts.',
+    'v1019.c1.tag': 'Scene System',
+    'v1019.c2.title': 'Block Disconnect Port Selection',
+    'v1019.c2.desc': 'Right-click block "Disconnect" expands port list, precisely select flow-in/flow-out/parameter/sub-code slots to disconnect, with one-click disconnect all.',
+    'v1019.c2.tag': 'Editor Improvement',
+    'v1019.c3.title': 'Independent JS Editor Window',
+    'v1019.c3.desc': 'JS code editor supports pop-up independent window for editing any node type scripts, no longer limited to Sprite2D. Supports 3D meshes, UI components, etc.',
+    'v1019.c3.tag': 'Code Programming',
+    'v1019.c4.title': '3D Scene Rendering Fix',
+    'v1019.c4.desc': 'Fixed Mesh3D node rendering issues in Three.js viewport for 3D scenes. Auto-sync meshes to renderer when loading 3D scene files.',
+    'v1019.c4.tag': 'Bug Fix',
+    'v1017.tag': '📋 v1.0.17 New Features',
+    'v1017.title': 'Advanced Editor & JS Parallel Execution',
+    'v1017.desc': 'Godot-style professional editor, visual blocks and JS code run simultaneously',
+    'v1017.c1.title': 'Godot-Style Advanced Editor',
+    'v1017.c1.desc': 'Scene tree, property inspector, file system panel, dual blocks and JS programming modes. F11 fullscreen editing, independent code windows, professional creation experience.',
+    'v1017.c1.tag': 'Professional Editor',
+    'v1017.c2.title': 'Full-Featured JS API',
+    'v1017.c2.desc': 'JavaScript programming supports all block functions: sprite.say(), sprite.move(), sprite.isTouchingEdge() complete API proxy system, running parallel to visual blocks.',
+    'v1017.c2.tag': 'Code Programming',
+    'v1017.c3.title': 'Bug Fixes & Enhancements',
+    'v1017.c3.desc': 'Fixed visual blocks and JS concurrent execution blocking, JS editor window control issues, missing block panel, and more. More stable operation.',
+    'v1017.c3.tag': 'Stability',
+    'v1016.tag': '📋 v1.0.16 New Features',
+    'v1016.title': '3D Enhancement & Community Upgrade',
+    'v1016.desc': 'More powerful 3D capabilities, more complete community experience',
+    'v1016.c1.title': '3D Plus Extension',
+    'v1016.c1.desc': 'New object-oriented camera system: create multiple cameras, orbital rotation, follow objects, bind to meshes. Support object group binding, multi-camera projection switching.',
+    'v1016.c1.tag': 'Advanced 3D',
+    'v1016.c2.title': 'Community 3D Preview',
+    'v1016.c2.desc': 'Community works online preview supports 3D mode, automatically saves render mode info on publish, auto-switches to correct render mode on preview.',
+    'v1016.c2.tag': 'Community Enhancement',
+    'v1016.c3.title': 'Dropdown Fix',
+    'v1016.c3.desc': 'Fixed 3D object property dropdown menu not correctly displaying labels and storing values. More stable and reliable property read/write.',
+    'v1016.c3.tag': 'Bug Fix',
+    'v1015.tag': '📋 v1.0.15 New Features',
+    'v1015.title': '3D Support',
+    'v1015.desc': 'Objector no longer limited to 2D',
+    'v1015.c1.title': '3D Module',
+    'v1015.c1.desc': 'New 3D module, supports 3D object creation, movement, rotation, scaling, and 3D camera settings.',
+    'v1015.c1.tag': 'Meta Programming',
+    'download.tag': '📥 Download Now',
+    'download.title': 'Start Your Creative Journey',
+    'footer.copyright': '© 2026 Objector. Build unlimited creativity with blocks.'
+  }
+};
+
+let currentLang = 'zh-CN';
+
+function setLang(lang) {
+  currentLang = lang;
+  document.documentElement.lang = lang;
+  
+  // Update active button
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.remove('active');
+    if ((lang === 'zh-CN' && btn.textContent === '中文') || (lang === 'en' && btn.textContent === 'EN')) {
+      btn.classList.add('active');
+    }
+  });
+  
+  // Translate all elements with data-i18n
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (lang === 'en' && translations.en[key]) {
+      el.innerHTML = translations.en[key];
+    } else if (lang === 'zh-CN') {
+      // For Chinese, restore original content
+      const original = el.getAttribute('data-i18n-original');
+      if (original) {
+        el.innerHTML = original;
+      }
+    }
+  });
+  
+  // Save preference
+  localStorage.setItem('objector-lang', lang);
+}
+
+// Store original Chinese content on page load
+function storeOriginalContent() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.setAttribute('data-i18n-original', el.innerHTML);
+  });
+}
+
+// Initialize on page load
+window.addEventListener('DOMContentLoaded', () => {
+  storeOriginalContent();
+  const savedLang = localStorage.getItem('objector-lang') || 'zh-CN';
+  if (savedLang !== 'zh-CN') {
+    setLang(savedLang);
+  }
+});
+
+// ===== i18n =====
+const i18n = {
+  'zh-CN': {
+    'pageTitle': 'Objector - 图形化积木编程编辑器',
+    'nav.features': '功能特性', 'nav.v1020': 'v1.0.20 新特性', 'nav.modules': '积木模块',
+    'nav.modes': '编辑模式', 'nav.blocksGuide': '📖 积木指南', 'nav.extensionApi': '📖 扩展API',
+    'nav.webVersion': '🌐 网页版', 'nav.download': '立即下载',
+    'hero.badge': 'v1.0.20 桌面版 · 开源免费',
+    'hero.title': '用积木搭建<br><span class="gradient">无限创意</span>',
+    'hero.sub': 'Objector 是一款强大的图形化积木编程编辑器，让零基础用户也能创作动画、游戏和交互式程序。从入门到专业开发，一站搞定。',
+    'hero.download': '免费下载', 'hero.online': '🌐 在线体验网页版', 'hero.learnMore': '了解更多',
+    'hero.blocks': '积木块', 'hero.modules': '功能模块', 'hero.editModes': '编辑模式', 'hero.possibilities': '可能性',
+    'features.tag': '✨ 核心特性', 'features.title': '为创造力而生的编辑器',
+    'features.desc': '不仅仅是 Scratch 的复刻，更是面向专业开发者的全面进化',
+    'features.c1.title': '可视化积木编程',
+    'features.c1.desc': '拖拽式积木操作，所见即所得。支持流程连接、参数嵌入、子代码块，直观的可视化让编程学习零门槛。',
+    'features.c1.tag': '核心引擎',
+    'features.c2.title': '专业调试系统',
+    'features.c2.desc': '开发者模式下支持断点设置、单步执行、变量监视面板。精确追踪每一行代码的执行状态，像真正的 IDE 一样调试。',
+    'features.c2.tag': '开发者级',
+    'features.c3.title': '自定义函数',
+    'features.c3.desc': '支持多参数函数定义与调用，动态参数槽自动扩展。像写真正的代码一样封装可复用的逻辑模块。',
+    'features.c3.tag': '高级功能',
+    'features.c4.title': '物理运动系统',
+    'features.c4.desc': '超越 Scratch：内置速度、加速度、重力、摩擦力、碰撞反弹等物理特性。轻松实现真实物理效果的动画和游戏。',
+    'features.c4.tag': '超越 Scratch',
+    'features.c5.title': '全局造型库',
+    'features.c5.desc': '图片上传到项目统一管理，多个角色共享同一造型文件。智能资源复用，节省存储空间和内存。',
+    'features.c5.tag': '资源管理',
+    'features.c6.title': '扩展系统',
+    'features.c6.desc': '通过 JSON/JS 扩展文件自定义积木类型，为编辑器添加无限新功能。打造属于你自己的编程工具箱。',
+    'features.c6.tag': '可扩展',
+    'features.c7.title': '积木批注',
+    'features.c7.desc': '为任何积木添加注释说明，提升代码可读性。特别适合教学场景和团队协作。',
+    'features.c7.tag': '教学友好',
+    'features.c8.title': '导出 HTML',
+    'features.c8.desc': '一键将项目导出为可独立运行的 HTML 文件。无需安装任何软件即可在任何浏览器中运行你的作品。',
+    'features.c8.tag': '分享便捷',
+    'features.c9.title': '声音系统',
+    'features.c9.desc': '支持加载和播放音频文件，通过声音积木为角色添加音效。让你的作品更加生动有趣。',
+    'features.c9.tag': '多媒体',
+    'v1020.tag': '🆕 v1.0.20 新特性', 'v1020.title': 'Minecraft 模组开发模式',
+    'v1020.desc': '用积木生成 Minecraft 模组代码，支持基岩版、网易版、Java 版',
+    'v1020.c1.title': 'MC 模组开发模式',
+    'v1020.c1.desc': '全新创作模式：拖拽 Minecraft 专用积木，实时预览生成的代码，一键导出为模组包。支持基岩版 (JavaScript)、网易版 (Python)、Java 版 (Fabric) 三大平台。',
+    'v1020.c1.tag': '全新模式',
+    'v1020.c2.title': '34 个 MC 专用积木',
+    'v1020.c2.desc': '事件系统（玩家加入、方块破坏）、命令执行（放置方块、生成实体、传送）、世界操作（时间、天气、游戏规则）等完整 Minecraft API 积木。',
+    'v1020.c2.tag': '积木系统',
+    'v1020.c3.title': '智能代码生成',
+    'v1020.c3.desc': '积木自动转换为对应平台的代码：基岩版 Script API、网易版 ModSDK Python 2.7、Java 版 Fabric。支持平台切换实时预览。',
+    'v1020.c3.tag': '代码生成',
+    'v1020.c4.title': '一键导出模组包',
+    'v1020.c4.desc': '导出为 .mcpack（基岩版）或 .zip（网易版/Java 版），包含完整的 manifest.json 和代码文件，可直接导入游戏使用。',
+    'v1020.c4.tag': '导出功能',
+    'v1020.c5.title': 'Minecraft API 文档',
+    'v1020.c5.desc': '内置完整的 Minecraft API 文档，涵盖三个平台的详细教程、代码示例、最佳实践和常见问题解答。',
+    'v1020.c5.tag': '文档系统',
+    'v1020.c6.title': '稳定性修复',
+    'v1020.c6.desc': '修复重命名项目卡片重复、网页版加载失败、导出功能失效等多项问题，提升整体稳定性。',
+    'v1020.c6.tag': 'BUG 修复',
+    'v1019.tag': '📋 v1.0.19 新特性', 'v1019.title': '多场景系统与编辑器增强',
+    'v1019.desc': '2D/3D/UI 三种场景类型，积木断开端口选择，JS 编辑器独立弹出',
+    'v1019.c1.title': '多场景创建系统',
+    'v1019.c1.desc': '高级模式下支持创建 2D、3D、UI 三种类型的场景文件。2D 场景支持积木+JS 混合编程，3D/UI 场景使用纯 JS 脚本驱动。',
+    'v1019.c1.tag': '场景系统',
+    'v1019.c2.title': '积木断开端口选择',
+    'v1019.c2.desc': '右键积木"断开连接"展开端口列表，可精确选择断开流入/流出/参数连接/子代码槽，支持一键断开全部。',
+    'v1019.c2.tag': '编辑器改进',
+    'v1019.c3.title': 'JS 编辑器独立窗口',
+    'v1019.c3.desc': 'JS 代码编辑器支持弹出独立窗口编辑任意节点类型的脚本，不再局限于 Sprite2D 角色。支持 3D 网格、UI 组件等所有节点。',
+    'v1019.c3.tag': '代码编程',
+    'v1019.c4.title': '3D 场景渲染修复',
+    'v1019.c4.desc': '修复 3D 场景中 Mesh3D 节点无法在 Three.js 视口中渲染的问题。加载 3D 场景文件时自动同步网格到渲染器。',
+    'v1019.c4.tag': 'BUG 修复',
+    'v1017.tag': '📋 v1.0.17 新特性', 'v1017.title': '高级编辑器与 JS 并行执行',
+    'v1017.desc': 'Godot 式专业编辑器，图形化与 JS 代码同时运行',
+    'v1017.c1.title': 'Godot 式高级编辑器',
+    'v1017.c1.desc': '场景树、属性检查器、文件系统面板、积木与 JS 双模式编程。F11 全屏编辑，独立代码窗口，专业级创作体验。',
+    'v1017.c1.tag': '专业编辑器',
+    'v1017.c2.title': 'JS 全功能 API',
+    'v1017.c2.desc': 'JavaScript 编程支持所有积木功能：sprite.say()、sprite.move()、sprite.isTouchingEdge() 等完整 API 代理系统，与图形化积木并行执行。',
+    'v1017.c2.tag': '代码编程',
+    'v1017.c3.title': 'BUG 修复与增强',
+    'v1017.c3.desc': '修复图形化与 JS 并发执行阻塞、JS 编辑器窗口控制失效、积木面板缺失等多项问题，运行更加稳定。',
+    'v1017.c3.tag': '稳定性',
+    'v1016.tag': '📋 v1.0.16 新特性', 'v1016.title': '3D 增强与社区升级',
+    'v1016.desc': '更强大的 3D 能力，更完善的社区体验',
+    'v1016.c1.title': '3D Plus 扩展',
+    'v1016.c1.desc': '新增面向对象的摄像机系统：创建多个摄像机、轨道环绕、跟随物体、绑定到网格。支持物体分组绑定，多摄像机切换投影。',
+    'v1016.c1.tag': '高级3D',
+    'v1016.c2.title': '社区 3D 预览',
+    'v1016.c2.desc': '社区作品在线预览支持 3D 模式，发布时自动保存渲染模式信息，预览时自动切换到正确的渲染模式。',
+    'v1016.c2.tag': '社区增强',
+    'v1016.c3.title': 'Dropdown 修复',
+    'v1016.c3.desc': '修复 3D 物体属性下拉菜单无法正确显示标签和存储值的 BUG，属性读写更加稳定可靠。',
+    'v1016.c3.tag': 'BUG修复',
+    'v1015.tag': '📋 v1.0.15 新特性', 'v1015.title': '3D 支持',
+    'v1015.desc': '让Objector不再局限于平面',
+    'v1015.c1.title': '3D 模块',
+    'v1015.c1.desc': '新增3D模块，支持3D对象创建、移动、旋转、缩放，以及3D相机设置。',
+    'v1015.c1.tag': '元编程',
+    'modules.tag': '🧱 积木模块', 'modules.title': '12 大功能模块', 'modules.desc': '覆盖编程学习的方方面面',
+    'modules.names': ['事件','运动','外观','控制','运算','变量','函数','面向对象','列表','声音','3D','传感'],
+    'modules.counts': ['程序入口 · 消息触发','移动 · 物理 · 追踪','造型 · 对话 · 可见性','循环 · 条件 · 延时','数学 · 逻辑 · 字符串','赋值 · 自增 · 类型转换','定义 · 调用 · 返回值','类 · 继承 · 属性','增删 · 遍历 · 查询','播放 · 停止 · 音量','网格 · 相机 · 场景','鼠标 · 键盘 · 碰撞'],
+    'modes.tag': '🎯 三种模式', 'modes.title': '适合每一个人', 'modes.desc': '无论你是编程新手还是经验丰富的开发者',
+    'modes.c1.name': '新手模式', 'modes.c1.desc': '专为零基础设计',
+    'modes.c1.f1': '精简积木分类，降低复杂度', 'modes.c1.f2': '隐藏高级功能模块',
+    'modes.c1.f3': '分类引导提示', 'modes.c1.f4': '循序渐进的学习曲线',
+    'modes.c2.name': '普通模式', 'modes.c2.desc': '完整的创作体验',
+    'modes.c2.f1': '全部 100+ 积木块', 'modes.c2.f2': '完整函数系统',
+    'modes.c2.f3': '代码折叠', 'modes.c2.f4': '积木批注',
+    'modes.c2.f5': '造型库管理', 'modes.c2.f6': 'HTML 导出',
+    'modes.c3.name': '开发者模式', 'modes.c3.desc': '专业调试工具',
+    'modes.c3.f1': '断点设置与单步执行', 'modes.c3.f2': '变量实时监视面板',
+    'modes.c3.f3': '执行流可视化高亮', 'modes.c3.f4': '运行到此处功能', 'modes.c3.f5': '完整的调试工具链',
+    'tech.tag': '⚙️ 技术架构', 'tech.title': '构建于现代技术之上',
+    'tech.sysReq': '🖥️ 系统要求', 'tech.os': '操作系统',
+    'tech.osVal': 'Windows 10+ / Linux x64 / macOS (网页版)',
+    'tech.install': '安装方式', 'tech.installVal': '绿色免安装 / 安装包',
+    'download.tag': '📥 立即下载', 'download.title': '开始你的创意之旅',
+    'download.version': '版本 1.0.20 · 发布于 2026',
+    'download.desc': '免费下载，无需注册。支持 Windows、Linux 和 macOS（网页版）平台。',
+    'download.winReq': 'Windows 10 及以上 · x64',
+    'download.installer': '安装包 (.exe)', 'download.zip': '免安装压缩包 (.zip)',
+    'download.aliyun': '下载太慢？试试阿里云盘 →',
+    'download.comingSoon': '即将推出', 'download.linuxPending': 'Linux 版本正在准备中，敬请期待',
+    'download.versions': '📜 历史版本下载',
+    'download.onlineEditor': '🌐 在线编辑器（无需安装）', 'download.community': '🌐 社区',
+    'download.guide': '📖 积木用法指南',
+    'ft.features': '功能特性', 'ft.modules': '积木模块', 'ft.modes': '编辑模式', 'ft.download': '下载',
+    'ft.copyright': '© 2026 Objector. 用积木搭建无限创意。'
+  },
+  'en': {
+    'pageTitle': 'Objector - Visual Block Programming Editor',
+    'nav.features': 'Features', 'nav.v1020': "What's New v1.0.20", 'nav.modules': 'Block Modules',
+    'nav.modes': 'Edit Modes', 'nav.blocksGuide': '📖 Blocks Guide', 'nav.extensionApi': '📖 Extension API',
+    'nav.webVersion': '🌐 Web Version', 'nav.download': 'Download',
+    'hero.badge': 'v1.0.20 Desktop · Open Source & Free',
+    'hero.title': 'Build with Blocks<br><span class="gradient">Unlimited Creativity</span>',
+    'hero.sub': 'Objector is a powerful visual block programming editor that enables even beginners to create animations, games, and interactive programs. From beginner to professional development, all in one place.',
+    'hero.download': 'Free Download', 'hero.online': '🌐 Try Online Version', 'hero.learnMore': 'Learn More',
+    'hero.blocks': 'Blocks', 'hero.modules': 'Modules', 'hero.editModes': 'Edit Modes', 'hero.possibilities': 'Possibilities',
+    'features.tag': '✨ Core Features', 'features.title': 'An Editor Built for Creativity',
+    'features.desc': 'Not just a Scratch clone, but a comprehensive evolution for professional developers',
+    'features.c1.title': 'Visual Block Programming',
+    'features.c1.desc': 'Drag-and-drop blocks with WYSIWYG. Supports flow connections, parameter embedding, and sub-code blocks. Intuitive visual programming with zero learning curve.',
+    'features.c1.tag': 'Core Engine',
+    'features.c2.title': 'Professional Debugging',
+    'features.c2.desc': 'Developer mode supports breakpoints, step execution, and variable watch panel. Precisely trace every line of code like a real IDE.',
+    'features.c2.tag': 'Developer Grade',
+    'features.c3.title': 'Custom Functions',
+    'features.c3.desc': 'Supports multi-parameter function definitions and calls with dynamic parameter slots. Encapsulate reusable logic modules like real coding.',
+    'features.c3.tag': 'Advanced',
+    'features.c4.title': 'Physics Motion System',
+    'features.c4.desc': 'Beyond Scratch: built-in velocity, acceleration, gravity, friction, and collision bounce. Easily create animations and games with realistic physics.',
+    'features.c4.tag': 'Beyond Scratch',
+    'features.c5.title': 'Global Costume Library',
+    'features.c5.desc': 'Upload images to unified project management. Multiple sprites share the same costume files. Smart resource reuse saves storage and memory.',
+    'features.c5.tag': 'Resource Mgmt',
+    'features.c6.title': 'Extension System',
+    'features.c6.desc': 'Customize block types via JSON/JS extension files to add unlimited new features. Build your own programming toolbox.',
+    'features.c6.tag': 'Extensible',
+    'features.c7.title': 'Block Annotations',
+    'features.c7.desc': 'Add comments to any block to improve code readability. Perfect for teaching scenarios and team collaboration.',
+    'features.c7.tag': 'Teaching Friendly',
+    'features.c8.title': 'Export HTML',
+    'features.c8.desc': 'One-click export to standalone HTML files. Run your creations in any browser without installing any software.',
+    'features.c8.tag': 'Easy Sharing',
+    'features.c9.title': 'Sound System',
+    'features.c9.desc': 'Load and play audio files, add sound effects to sprites via sound blocks. Make your creations more lively and fun.',
+    'features.c9.tag': 'Multimedia',
+    'v1020.tag': '🆕 v1.0.20 New Features', 'v1020.title': 'Minecraft Mod Development Mode',
+    'v1020.desc': 'Generate Minecraft mod code with blocks, supporting Bedrock, NetEase, and Java editions',
+    'v1020.c1.title': 'MC Mod Dev Mode',
+    'v1020.c1.desc': 'Brand new creation mode: drag Minecraft-specific blocks, preview generated code in real-time, export as mod packs. Supports Bedrock (JavaScript), NetEase (Python), and Java (Fabric).',
+    'v1020.c1.tag': 'New Mode',
+    'v1020.c2.title': '34 MC-Specific Blocks',
+    'v1020.c2.desc': 'Event system (player join, block break), command execution (place blocks, spawn entities, teleport), world operations (time, weather, game rules) and more.',
+    'v1020.c2.tag': 'Block System',
+    'v1020.c3.title': 'Smart Code Generation',
+    'v1020.c3.desc': 'Blocks auto-convert to platform code: Bedrock Script API, NetEase ModSDK Python 2.7, Java Fabric. Switch platforms with real-time preview.',
+    'v1020.c3.tag': 'Code Gen',
+    'v1020.c4.title': 'One-Click Mod Export',
+    'v1020.c4.desc': 'Export as .mcpack (Bedrock) or .zip (NetEase/Java), including complete manifest.json and code files, ready to import into the game.',
+    'v1020.c4.tag': 'Export',
+    'v1020.c5.title': 'Minecraft API Docs',
+    'v1020.c5.desc': 'Built-in complete Minecraft API documentation with detailed tutorials, code examples, best practices, and FAQs for all three platforms.',
+    'v1020.c5.tag': 'Documentation',
+    'v1020.c6.title': 'Stability Fixes',
+    'v1020.c6.desc': 'Fixed project card rename duplication, web version loading failures, export issues, and more for improved overall stability.',
+    'v1020.c6.tag': 'Bug Fixes',
+    'v1019.tag': '📋 v1.0.19 New Features', 'v1019.title': 'Multi-Scene System & Editor Enhancements',
+    'v1019.desc': '2D/3D/UI scene types, block disconnect port selection, standalone JS editor',
+    'v1019.c1.title': 'Multi-Scene System',
+    'v1019.c1.desc': 'Advanced mode supports creating 2D, 3D, and UI scene files. 2D scenes support block+JS hybrid programming, 3D/UI scenes use pure JS scripts.',
+    'v1019.c1.tag': 'Scene System',
+    'v1019.c2.title': 'Block Disconnect Ports',
+    'v1019.c2.desc': 'Right-click "Disconnect" to expand port list. Precisely select disconnect for inflow/outflow/parameter/sub-code slots. One-click disconnect all.',
+    'v1019.c2.tag': 'Editor Improvement',
+    'v1019.c3.title': 'Standalone JS Editor',
+    'v1019.c3.desc': 'JS code editor pops out as standalone window for any node type. No longer limited to Sprite2D. Supports 3D meshes, UI components, and all nodes.',
+    'v1019.c3.tag': 'Code Programming',
+    'v1019.c4.title': '3D Scene Rendering Fix',
+    'v1019.c4.desc': 'Fixed Mesh3D nodes not rendering in Three.js viewport. Auto-syncs meshes to renderer when loading 3D scene files.',
+    'v1019.c4.tag': 'Bug Fix',
+    'v1017.tag': '📋 v1.0.17 New Features', 'v1017.title': 'Advanced Editor & JS Parallel Execution',
+    'v1017.desc': 'Godot-style professional editor, visual blocks and JS code running simultaneously',
+    'v1017.c1.title': 'Godot-Style Editor',
+    'v1017.c1.desc': 'Scene tree, property inspector, filesystem panel, dual block+JS programming. F11 fullscreen, standalone code window, professional creation experience.',
+    'v1017.c1.tag': 'Pro Editor',
+    'v1017.c2.title': 'Full JS API',
+    'v1017.c2.desc': 'JavaScript programming supports all block features: sprite.say(), sprite.move(), sprite.isTouchingEdge() and more. Runs parallel with visual blocks.',
+    'v1017.c2.tag': 'Code Programming',
+    'v1017.c3.title': 'Bug Fixes & Enhancements',
+    'v1017.c3.desc': 'Fixed block+JS concurrent execution blocking, JS editor window control failures, block panel missing, and more.',
+    'v1017.c3.tag': 'Stability',
+    'v1016.tag': '📋 v1.0.16 New Features', 'v1016.title': '3D Enhancement & Community Upgrade',
+    'v1016.desc': 'More powerful 3D capabilities, improved community experience',
+    'v1016.c1.title': '3D Plus Extension',
+    'v1016.c1.desc': 'New OOP camera system: create multiple cameras, orbit, follow objects, bind to meshes. Supports object group binding and multi-camera projection switching.',
+    'v1016.c1.tag': 'Advanced 3D',
+    'v1016.c2.title': 'Community 3D Preview',
+    'v1016.c2.desc': 'Community works online preview supports 3D mode. Auto-saves render mode info on publish and switches to correct render mode on preview.',
+    'v1016.c2.tag': 'Community Enhancement',
+    'v1016.c3.title': 'Dropdown Fix',
+    'v1016.c3.desc': 'Fixed 3D object property dropdown not displaying labels and stored values correctly. More stable and reliable property read/write.',
+    'v1016.c3.tag': 'Bug Fix',
+    'v1015.tag': '📋 v1.0.15 New Features', 'v1015.title': '3D Support',
+    'v1015.desc': 'Objector is no longer limited to 2D',
+    'v1015.c1.title': '3D Module',
+    'v1015.c1.desc': 'New 3D module supporting 3D object creation, movement, rotation, scaling, and 3D camera settings.',
+    'v1015.c1.tag': 'Meta-programming',
+    'modules.tag': '🧱 Block Modules', 'modules.title': '12 Feature Modules', 'modules.desc': 'Covering all aspects of programming',
+    'modules.names': ['Events','Motion','Looks','Control','Operators','Variables','Functions','OOP','Lists','Sound','3D','Sensing'],
+    'modules.counts': ['Entry Points · Messages','Move · Physics · Tracking','Costumes · Dialog · Visibility','Loops · Conditions · Delays','Math · Logic · Strings','Assignment · Increment · Type Cast','Define · Call · Return','Class · Inherit · Properties','Add · Remove · Iterate','Play · Stop · Volume','Mesh · Camera · Scene','Mouse · Keyboard · Collision'],
+    'modes.tag': '🎯 Three Modes', 'modes.title': 'For Everyone', 'modes.desc': 'Whether you are a beginner or an experienced developer',
+    'modes.c1.name': 'Beginner Mode', 'modes.c1.desc': 'Designed for beginners',
+    'modes.c1.f1': 'Simplified block categories', 'modes.c1.f2': 'Hidden advanced modules',
+    'modes.c1.f3': 'Category guidance tips', 'modes.c1.f4': 'Progressive learning curve',
+    'modes.c2.name': 'Normal Mode', 'modes.c2.desc': 'Complete creation experience',
+    'modes.c2.f1': 'All 100+ blocks', 'modes.c2.f2': 'Complete function system',
+    'modes.c2.f3': 'Code folding', 'modes.c2.f4': 'Block annotations',
+    'modes.c2.f5': 'Costume library', 'modes.c2.f6': 'HTML export',
+    'modes.c3.name': 'Developer Mode', 'modes.c3.desc': 'Professional debugging tools',
+    'modes.c3.f1': 'Breakpoints & step execution', 'modes.c3.f2': 'Real-time variable watch',
+    'modes.c3.f3': 'Execution flow highlighting', 'modes.c3.f4': 'Run to cursor', 'modes.c3.f5': 'Complete debug toolchain',
+    'tech.tag': '⚙️ Tech Stack', 'tech.title': 'Built on Modern Technology',
+    'tech.sysReq': '🖥️ System Requirements', 'tech.os': 'Operating System',
+    'tech.osVal': 'Windows 10+ / Linux x64 / macOS (Web)',
+    'tech.install': 'Installation', 'tech.installVal': 'Portable / Installer',
+    'download.tag': '📥 Download Now', 'download.title': 'Start Your Creative Journey',
+    'download.version': 'Version 1.0.20 · Released 2026',
+    'download.desc': 'Free download, no registration required. Supports Windows, Linux, and macOS (web version).',
+    'download.winReq': 'Windows 10 and above · x64',
+    'download.installer': 'Installer (.exe)', 'download.zip': 'Portable (.zip)',
+    'download.aliyun': 'Slow download? Try Aliyun Drive →',
+    'download.comingSoon': 'Coming Soon', 'download.linuxPending': 'Linux version is being prepared, stay tuned',
+    'download.versions': '📜 Previous Versions',
+    'download.onlineEditor': '🌐 Online Editor (No Install)', 'download.community': '🌐 Community',
+    'download.guide': '📖 Blocks Usage Guide',
+    'ft.features': 'Features', 'ft.modules': 'Modules', 'ft.modes': 'Edit Modes', 'ft.download': 'Download',
+    'ft.copyright': '© 2026 Objector. Build unlimited creativity with blocks.'
+  }
+};
+
+function setLang(lang) {
+  document.documentElement.lang = lang;
+  localStorage.setItem('objector-lang', lang);
+  const t = i18n[lang];
+  if (!t) return;
+  // Update all data-i18n elements
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (t[key] !== undefined) {
+      if (key === 'hero.title') el.innerHTML = t[key];
+      else el.textContent = t[key];
+    }
+  });
+  // Module names and counts
+  const names = document.querySelectorAll('#modules .module-name');
+  const counts = document.querySelectorAll('#modules .module-count');
+  if (t['modules.names']) names.forEach((el, i) => { if (t['modules.names'][i]) el.textContent = t['modules.names'][i]; });
+  if (t['modules.counts']) counts.forEach((el, i) => { if (t['modules.counts'][i]) el.textContent = t['modules.counts'][i]; });
+  // Footer links
+  ['features','modules','modes','download'].forEach(k => {
+    const el = document.getElementById('ft-' + k);
+    if (el && t['ft.' + k]) el.textContent = t['ft.' + k];
+  });
+  const cp = document.getElementById('ft-copyright');
+  if (cp && t['ft.copyright']) cp.textContent = t['ft.copyright'];
+  // Update lang switcher buttons
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.trim() === (lang === 'en' ? 'EN' : '中文'));
+  });
+}
+
+// Initialize language
+setLang(localStorage.getItem('objector-lang') || 'zh-CN');
 </script>
 </body>
 </html>
