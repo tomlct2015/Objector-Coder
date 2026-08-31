@@ -1,6 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
+  // 获取编辑器初始化数据（解决中文路径编码问题）
+  getEditorInit: () => ipcRenderer.invoke('get-editor-init'),
   selectFolder: () => ipcRenderer.invoke('select-folder'),
   selectExtensionFile: () => ipcRenderer.invoke('select-extension-file'),
   selectImageFile: () => ipcRenderer.invoke('select-image-file'),
@@ -11,6 +13,7 @@ contextBridge.exposeInMainWorld('api', {
   openEditor: (projectPath, mode, renderMode) => ipcRenderer.invoke('open-editor', projectPath, mode, renderMode),
   readFile: (p) => ipcRenderer.invoke('read-file', p),
   writeFile: (p, c) => ipcRenderer.invoke('write-file', p, c),
+  writeFileBinary: (p, c) => ipcRenderer.invoke('write-file-binary', p, c),
   ensureDir: (d) => ipcRenderer.invoke('ensure-dir', d),
   listDir: (d) => ipcRenderer.invoke('list-dir', d),
   isDir: (p) => ipcRenderer.invoke('is-dir', p),
@@ -34,4 +37,8 @@ contextBridge.exposeInMainWorld('api', {
   // JS 代码编辑器窗口
   openJsEditor: (data) => ipcRenderer.invoke('open-js-editor', data),
   onJsEditorCodeUpdated: (callback) => ipcRenderer.on('js-editor-code-updated', (_e, spriteIdx, code) => callback(spriteIdx, code)),
+  // 右键菜单 / 命令行打开项目
+  onOpenProjectFromArgs: (callback) => ipcRenderer.on('open-project-from-args', (_e, folderPath) => callback(folderPath)),
+  // 解压 ZIP 项目
+  extractZipProject: (zipPath) => ipcRenderer.invoke('extract-zip-project', zipPath),
 });

@@ -227,7 +227,7 @@ html[lang="en"] .mode-card.featured::after{content:'Recommended'}
     </div>
     <div class="nav-links">
       <a href="#features" data-i18n="nav.features">功能特性</a>
-      <a href="#v1020" data-i18n="nav.v1020">v1.0.20 新特性</a>
+      <a href="#v1021" data-i18n="nav.v1021">v1.0.21 新特性</a>
       <a href="#modules" data-i18n="nav.modules">积木模块</a>
       <a href="#modes" data-i18n="nav.modes">编辑模式</a>
       <a href="https://tomlct2015.github.io/Objector-Coder/blocks-guide/" data-i18n="nav.blocksGuide">📖 积木指南</a>
@@ -243,7 +243,7 @@ html[lang="en"] .mode-card.featured::after{content:'Recommended'}
   <div class="container">
     <div class="hero-badge">
       <span class="dot"></span>
-      <span data-i18n="hero.badge">v1.0.20 桌面版 · 开源免费</span>
+      <span data-i18n="hero.badge">v1.0.21.alpha 桌面版 · 开源免费</span>
     </div>
     <h1 data-i18n="hero.title">用积木搭建<br><span class="gradient">无限创意</span></h1>
     <p class="hero-sub" data-i18n="hero.sub">Objector 是一款强大的图形化积木编程编辑器，让零基础用户也能创作动画、游戏和交互式程序。从入门到专业开发，一站搞定。</p>
@@ -359,6 +359,48 @@ html[lang="en"] .mode-card.featured::after{content:'Recommended'}
         <h3 data-i18n="features.c9.title">声音系统</h3>
         <p data-i18n="features.c9.desc">支持加载和播放音频文件，通过声音积木为角色添加音效。让你的作品更加生动有趣。</p>
         <span class="feature-tag" style="background:rgba(0,210,211,.15);color:var(--cyan)" data-i18n="features.c9.tag">多媒体</span>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- What's New in v1.0.21.alpha -->
+<section id="v1021" style="background:linear-gradient(180deg,var(--bg2),var(--bg))">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-tag">🆕 v1.0.21.alpha 新特性</div>
+      <h2 class="section-title">代码编程模式 + 右键菜单</h2>
+      <p class="section-desc">内置代码编辑器支持 Python / C++ / JavaScript，自动查找系统解释器运行代码</p>
+    </div>
+    <div class="feature-grid">
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(108,92,231,.15)">💻</div>
+        <h3>代码编程模式</h3>
+        <p>全新创作模式：内置 CodeMirror 代码编辑器，支持语法高亮、自动补全、括号匹配，可直接编写 Python、C++、JavaScript 代码。</p>
+        <span class="feature-tag" style="background:rgba(0,210,211,.15);color:var(--cyan)">全新模式</span>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(253,203,110,.15)">▶️</div>
+        <h3>一键运行代码</h3>
+        <p>自动查找系统 Python 解释器和 C++ 编译器 (g++)，一键编译运行。JavaScript 使用内置 Node.js 直接执行。流式输出实时显示结果。</p>
+        <span class="feature-tag" style="background:rgba(253,203,110,.15);color:var(--yellow)">智能执行</span>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(166,227,161,.15)">⌨️</div>
+        <h3>stdin 输入支持</h3>
+        <p>Python input() 和 C++ cin >> 完美工作！运行时代码编辑器底部显示输入框，支持向运行中的程序发送输入。</p>
+        <span class="feature-tag" style="background:rgba(166,227,161,.15);color:var(--green)">交互运行</span>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(203,166,247,.15)">📂</div>
+        <h3>右键菜单打开项目</h3>
+        <p>安装后自动注册 Windows 右键菜单：右键文件夹或 ZIP 文件 → “做为Objector项目打开”，快速导入和打开项目。</p>
+        <span class="feature-tag" style="background:rgba(203,166,247,.15);color:var(--mauve)">系统集成</span>
       </div>
 
     </div>
@@ -716,7 +758,7 @@ html[lang="en"] .mode-card.featured::after{content:'Recommended'}
     <div class="download-card reveal" style="padding:40px;">
       <div style="text-align:center;margin-bottom:32px;">
         <h3 style="margin-bottom:8px;">Objector</h3>
-        <div class="version" data-i18n="download.version">版本 1.0.20 · 发布于 2026</div>
+        <div class="version" data-i18n="download.version">版本 1.0.21.alpha · 发布于 2026</div>
         <p style="margin-top:8px;" data-i18n="download.desc">免费下载，无需注册。支持 Windows、Linux 和 macOS（网页版）平台。</p>
       </div>
 
@@ -728,11 +770,11 @@ html[lang="en"] .mode-card.featured::after{content:'Recommended'}
           <img src="WindowsIcon.png" alt="Windows" style="width:48px;height:48px;margin-bottom:16px;">
           <h4 style="color:var(--accent2);margin-bottom:4px;font-size:18px;">Windows</h4>
           <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px;" data-i18n="download.winReq">Windows 10 及以上 · x64</p>
-          <a href="https://github.com/tomlct2015/Objector-Coder/releases/download/v1.0.20/Objector-Setup-1.0.20.exe" class="download-btn" style="width:100%;justify-content:center;background:linear-gradient(to bottom,#8b5cf6,#ab93e4);">
+          <a href="https://github.com/tomlct2015/Objector-Coder/releases/download/v1.0.21.alpha/Objector-Setup-1.0.21-alpha.exe" class="download-btn" style="width:100%;justify-content:center;background:linear-gradient(to bottom,#8b5cf6,#ab93e4);">
             <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span data-i18n="download.installer">安装包 (.exe)</span>
           </a>
-          <a href="https://github.com/tomlct2015/Objector-Coder/releases/download/v1.0.20/Objector-1.0.20-win.zip" class="download-btn" style="width:100%;justify-content:center;margin-top:10px;font-size:14px;padding:10px 24px;background:linear-gradient(135deg,#2d3436,#636e72);">
+          <a href="https://github.com/tomlct2015/Objector-Coder/releases/download/v1.0.21.alpha/Objector-1.0.21-alpha-win.zip" class="download-btn" style="width:100%;justify-content:center;margin-top:10px;font-size:14px;padding:10px 24px;background:linear-gradient(135deg,#2d3436,#636e72);">
             <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span data-i18n="download.zip">免安装压缩包 (.zip)</span>
           </a>

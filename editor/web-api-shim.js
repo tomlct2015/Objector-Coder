@@ -185,6 +185,42 @@
     }
   }
 
+  /** 删除文件夹（递归） */
+  async function deleteFolder(folderPath) {
+    folderPath = norm(folderPath);
+    const prefix = folderPath + '/';
+    try {
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if ((key.startsWith(VFS_PREFIX) || key.startsWith(BINARY_PREFIX)) && key.includes(prefix)) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      localStorage.removeItem(VFS_PREFIX + folderPath + '/__dir__');
+      return { ok: true };
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
+  /** 判断路径是否为目录 */
+  async function isDir(path) {
+    path = norm(path);
+    // 检查目录标记
+    if (localStorage.getItem(VFS_PREFIX + path + '/__dir__') === '1') return true;
+    // 检查是否有子文件
+    const prefix = path + '/';
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if ((key.startsWith(VFS_PREFIX) || key.startsWith(BINARY_PREFIX)) && key.slice(key.indexOf('/') + 1).startsWith(prefix)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /** 路径拼接 */
   function pathJoin(...args) {
     return norm(args.join('/'));
@@ -286,7 +322,10 @@
 
   /** 保存文件对话框（Web 版：触发浏览器下载） */
   async function saveFileDialog(defaultName, filters) {
-    // Web 版：返回 null 让调用方使用 blob 回退
+    // Web 版：从导出函数的内容获取，直接触发浏览器下载
+    // 这个函数由 data-analysis.js 的 _downloadFile 调用
+    // 在 Web 版中，_downloadFile 的 else 分支（blob 下载）已经处理了
+    // 这里返回 null 让调用方使用 blob 回退
     return null;
   }
 
@@ -504,42 +543,6 @@
     });
   })();
 
-  /** 删除文件夹（递归） */
-  async function deleteFolder(folderPath) {
-    folderPath = norm(folderPath);
-    const prefix = folderPath + '/';
-    try {
-      const keysToRemove = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if ((key.startsWith(VFS_PREFIX) || key.startsWith(BINARY_PREFIX)) && key.includes(prefix)) {
-          keysToRemove.push(key);
-        }
-      }
-      keysToRemove.forEach(key => localStorage.removeItem(key));
-      localStorage.removeItem(VFS_PREFIX + folderPath + '/__dir__');
-      return { ok: true };
-    } catch (e) {
-      return { error: e.message };
-    }
-  }
-
-  /** 判断路径是否为目录 */
-  async function isDir(path) {
-    path = norm(path);
-    // 检查目录标记
-    if (localStorage.getItem(VFS_PREFIX + path + '/__dir__') === '1') return true;
-    // 检查是否有子文件
-    const prefix = path + '/';
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if ((key.startsWith(VFS_PREFIX) || key.startsWith(BINARY_PREFIX)) && key.slice(key.indexOf('/') + 1).startsWith(prefix)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   /** 打开社区登录（Web 版不需要） */
   async function openCommunityLogin() {}
 
@@ -584,6 +587,38 @@
     openJsEditor, onJsEditorCodeUpdated, getEditorInit,
     windowMinimize, windowMaximize, windowClose,
     onLoadProject,
+    // 代码运行（Web 版只支持 JS，其他语言提示需要桌面版）
+    runCode: async (lang, code) => {
+      if (lang === 'javascript') {
+        const origLog = console.log;
+        console.log = (...args) => {
+          const text = args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' ');
+          // 通过 onCodeOutput 回调流式推送
+          if (window.api._outputCb) window.api._outputCb(text + '\n');
+          origLog(...args);
+        };
+        try {
+          new Function(code)();
+          console.log = origLog;
+          if (window.api._doneCb) window.api._doneCb(0);
+          return { ok: true, exitCode: 0 };
+        } catch (e) {
+          console.log = origLog;
+          if (window.api._outputCb) window.api._outputCb('❌ ' + e.message + '\n', 'stderr');
+          if (window.api._doneCb) window.api._doneCb(1);
+          return { error: true, message: e.message };
+        }
+      }
+      if (window.api._outputCb) window.api._outputCb('ℹ️ ' + lang + ' 代码只能在桌面版中运行。\n', 'stderr');
+      if (window.api._doneCb) window.api._doneCb(1);
+      return { error: true, message: 'Not supported in web' };
+    },
+    stopCode: async () => ({ stopped: false }),
+    sendCodeStdin: async () => ({ ok: false, error: 'Web 版不支持 stdin' }),
+    onCodeOutput: (cb) => { window.api._outputCb = cb; },
+    onCodeDone: (cb) => { window.api._doneCb = cb; },
+    extractZipProject: async () => ({ error: 'Web 版不支持解压 ZIP 项目' }),
+    onOpenProjectFromArgs: () => {}, // Web 版不支持命令行打开
   };
 
   console.log('[WebShim] window.api registered (localStorage VFS mode)');

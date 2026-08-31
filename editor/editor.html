@@ -24,8 +24,14 @@
   <!-- CodeMirror 5 for JS editor in advanced mode -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/material-darker.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/hint/show-hint.min.css">
   <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/hint/show-hint.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/hint/javascript-hint.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/hint/anyword-hint.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/python/python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/clike/clike.min.js"></script>
   <!-- Chart.js for data analysis charts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <!-- SheetJS for Excel export -->
@@ -88,6 +94,7 @@
         <div class="menu-dropdown">
           <div class="menu-dropdown-item" data-action="advanced-guide">📚 如何使用高级模式</div>
           <div class="menu-dropdown-item" data-action="blocks-guide">📖 积木使用指南</div>
+          <div class="menu-dropdown-item" data-action="minecraft-api">⛏️ Minecraft模组API</div>
         </div>
       </div>
     </div>
@@ -304,6 +311,7 @@
           <option value="bedrock">基岩版 (JavaScript)</option>
           <option value="netease">网易版 (Python)</option>
           <option value="java">Java 版 (Fabric)</option>
+          <option value="mcfunction">.mcfunction 命令文件</option>
         </select>
         <button id="mc-generate-btn" class="tb-btn">生成代码</button>
         <button id="mc-export-btn" class="tb-btn tb-run">导出模组</button>
@@ -322,6 +330,31 @@
         <div id="mc-code-panel">
           <div id="mc-code-header">代码预览</div>
           <div id="mc-code-preview"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 代码编程模式布局（默认隐藏） -->
+    <div id="code-layout" class="hidden">
+      <!-- 顶部工具栏 -->
+      <div id="code-toolbar">
+        <span id="code-lang-label" class="code-lang-badge">Python</span>
+        <button id="code-run-btn" class="tb-btn tb-run">▶ 运行</button>
+        <button id="code-stop-btn" class="tb-btn tb-stop" disabled>⏹ 停止</button>
+        <button id="code-save-btn" class="tb-btn">💾 保存</button>
+        <button id="code-clear-btn" class="tb-btn">🗑️ 清空</button>
+        <span id="code-status" class="code-status-text"></span>
+      </div>
+      <!-- 主体区域：代码编辑器 -->
+      <div id="code-main">
+        <div id="code-editor-wrap"></div>
+        <div id="code-output-wrap" class="hidden">
+          <div id="code-output-header">输出</div>
+          <pre id="code-output"></pre>
+          <div id="code-input-bar" class="hidden">
+            <input id="code-stdin-input" type="text" placeholder="输入内容后按 Enter..." autocomplete="off" spellcheck="false" />
+            <button id="code-stdin-send" class="tb-btn tb-run">发送</button>
+          </div>
         </div>
       </div>
     </div>

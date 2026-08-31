@@ -51,7 +51,7 @@
         <div class="recent-card-path">${proj.path.replace(/\\/g, '/')}</div>
         <div class="recent-card-time">${formatTime(proj.lastOpened)}</div>
         <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
-          <span class="recent-card-mode">${proj.mode === 'extension' ? i18n.t('app.extension') : (proj.mode === 'data' ? '📊 数据分析' : (proj.mode === 'advanced' ? '🔧 高级' : (proj.mode === 'minecraft' ? '⛏️ MC 模组' : i18n.t('app.normal'))))}</span>
+          <span class="recent-card-mode">${proj.mode === 'extension' ? i18n.t('app.extension') : (proj.mode === 'data' ? '📊 数据分析' : (proj.mode === 'advanced' ? '🔧 高级' : (proj.mode === 'minecraft' ? '⛏️ MC 模组' : (proj.mode?.startsWith('code-') ? '💻 代码编程' : i18n.t('app.normal')))))}</span>
           <button class="card-del-btn" title="删除项目">🗑️</button>
           <button class="pin-btn pinned" title="${i18n.t('app.unpin')}">✖</button>
         </div>
@@ -95,7 +95,7 @@
         <div class="recent-card-path">${proj.path.replace(/\\/g, '/')}</div>
         <div class="recent-card-time">${formatTime(proj.lastOpened)}</div>
         <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
-          <span class="recent-card-mode">${proj.mode === 'extension' ? i18n.t('app.extension') : (proj.mode === 'data' ? '📊 数据分析' : (proj.mode === 'advanced' ? '🔧 高级' : (proj.mode === 'minecraft' ? '⛏️ MC 模组' : i18n.t('app.normal'))))}</span>
+          <span class="recent-card-mode">${proj.mode === 'extension' ? i18n.t('app.extension') : (proj.mode === 'data' ? '📊 数据分析' : (proj.mode === 'advanced' ? '🔧 高级' : (proj.mode === 'minecraft' ? '⛏️ MC 模组' : (proj.mode?.startsWith('code-') ? '💻 代码编程' : i18n.t('app.normal')))))}</span>
           <button class="card-del-btn" title="删除项目">🗑️</button>
           <button class="pin-btn${isPinned ? ' pinned' : ''}" title="${isPinned ? i18n.t('app.unpin') : i18n.t('app.pin')}">${isPinned ? '📌' : '📍'}</button>
         </div>
@@ -267,29 +267,36 @@
     await window.api.openEditor(folder, mode, renderMode);
   }
 
-  /** 添加最近项目记录（修复竞态：在异步回调内读取最新列表） */
-  function addRecentProject(folder) {
+  /** 添加最近项目记录（健壮版：即使读取 project.json 失败也添加） */
+  async function addRecentProject(folder) {
     const name = folder.split(/[\\/]/).pop();
+    let mode = 'normal';
+    let projName = name;
 
-    // 读取项目配置获取模式（在回调内读取 localStorage，防止竞态覆盖）
-    window.api.readFile(folder + '/project.json').then(configStr => {
-      if (!configStr) return;
-      try {
-        let list = [];
-        try { list = JSON.parse(localStorage.getItem('recent-projects') || '[]'); } catch {}
+    // 尝试读取项目配置获取模式（在回调内读取 localStorage，防止竞态覆盖）
+    try {
+      const configStr = await window.api.readFile(folder + '/project.json');
+      if (configStr) {
         const config = JSON.parse(configStr);
-        list = list.filter(p => p.path !== folder);
-        list.unshift({
-          name: config.name || name,
-          path: folder,
-          mode: config.mode || 'normal',
-          lastOpened: new Date().toISOString(),
-        });
-        if (list.length > 10) list = list.slice(0, 10);
-        localStorage.setItem('recent-projects', JSON.stringify(list));
-        renderRecentProjects();
-      } catch {}
-    });
+        mode = config.mode || 'normal';
+        projName = config.name || name;
+      }
+    } catch {}
+
+    try {
+      let list = [];
+      try { list = JSON.parse(localStorage.getItem('recent-projects') || '[]'); } catch {}
+      list = list.filter(p => p.path !== folder);
+      list.unshift({
+        name: projName,
+        path: folder,
+        mode: mode,
+        lastOpened: new Date().toISOString(),
+      });
+      if (list.length > 10) list = list.slice(0, 10);
+      localStorage.setItem('recent-projects', JSON.stringify(list));
+      renderRecentProjects();
+    } catch {}
   }
 
   /** 显示模式选择弹窗 */
@@ -307,6 +314,14 @@
   }
   function hideRenderModeDialog() {
     document.getElementById('render-mode-dialog').classList.add('hidden');
+  }
+
+  // 编程语言选择弹窗
+  function showLanguageDialog() {
+    document.getElementById('language-dialog').classList.remove('hidden');
+  }
+  function hideLanguageDialog() {
+    document.getElementById('language-dialog').classList.add('hidden');
   }
   
   /** 新建工程（通过模式弹窗）：选择父文件夹，在其中创建“我的作品”子目录 */
@@ -344,11 +359,11 @@
     await window.api.writeFile(folder + '/project.json', JSON.stringify(config, null, 2));
     await window.api.writeFile(folder + '/scripts/main.json', '{}');
   
+    // 先添加到最近项目（在编辑器打开前，防止时序问题）
+    await addRecentProject(folder);
+
     // 打开编辑器窗口
     await window.api.openEditor(folder, mode, renderMode);
-  
-    // 添加到最近项目并刷新
-    addRecentProject(folder);
   }
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -397,12 +412,27 @@
         } else if (mode === 'minecraft') {
           // Minecraft 模组开发模式
           createNewProject('minecraft', '2d');
+        } else if (mode === 'code') {
+          // 代码编程模式：显示语言选择
+          hideModeDialog();
+          showLanguageDialog();
         } else {
           createNewProject(mode, '2d');
         }
       });
     });
     document.getElementById('mode-cancel').addEventListener('click', hideModeDialog);
+
+    // 编程语言选择
+    document.querySelectorAll('#language-dialog .mode-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const lang = card.dataset.lang;
+        hideLanguageDialog();
+        // 所有语言直接进入代码编辑器
+        createNewProject('code-' + lang, '2d');
+      });
+    });
+    document.getElementById('language-cancel').addEventListener('click', hideLanguageDialog);
 
     // 渲染模式子选择
     document.querySelectorAll('#render-mode-dialog .mode-card').forEach(card => {
@@ -720,6 +750,49 @@
     // 启动时渲染固定项目和最近项目
     renderPinnedProjects();
     renderRecentProjects();
+
+    // 监听主进程发来的“打开项目”指令（右键菜单 / 命令行）
+    if (window.api.onOpenProjectFromArgs) {
+      window.api.onOpenProjectFromArgs(async (projectPath) => {
+        if (!projectPath) return;
+        // 如果是 ZIP 文件，先解压
+        if (projectPath.toLowerCase().endsWith('.zip')) {
+          if (window.api.extractZipProject) {
+            const result = await window.api.extractZipProject(projectPath);
+            if (result && result.error) {
+              console.error('解压失败:', result.error);
+              return;
+            }
+            if (result) {
+              await openProject(result);
+            }
+          }
+        } else {
+          // 如果是普通文件夹，检查是否有 project.json
+          // 如果没有则创建一个基础项目结构
+          const configStr = await window.api.readFile(projectPath + '/project.json');
+          if (!configStr) {
+            // 创建默认项目结构
+            await window.api.ensureDir(projectPath + '/scripts');
+            await window.api.ensureDir(projectPath + '/assets');
+            await window.api.ensureDir(projectPath + '/sounds');
+            const name = projectPath.split(/[\\/]/).pop();
+            const config = {
+              name: name,
+              version: '1.0',
+              mode: 'normal',
+              renderMode: '2d',
+              created: new Date().toISOString(),
+              stageWidth: 480,
+              stageHeight: 360,
+            };
+            await window.api.writeFile(projectPath + '/project.json', JSON.stringify(config, null, 2));
+            await window.api.writeFile(projectPath + '/scripts/main.json', '{}');
+          }
+          await openProject(projectPath);
+        }
+      });
+    }
 
     // ========== 右键菜单事件绑定 ==========
     const ctxMenu = document.getElementById('project-context-menu');

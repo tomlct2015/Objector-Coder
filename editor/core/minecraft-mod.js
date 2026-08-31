@@ -6,26 +6,71 @@
 const MinecraftMod = (function () {
   let _editor = null;        // CodeMirror 实例（只读预览）
   let _initialized = false;
-  let _currentPlatform = 'bedrock';  // bedrock | netease | fabric
+  let _currentPlatform = 'bedrock';  // bedrock | netease | fabric | mcfunction
 
   /** 初始化 Minecraft 模组模式 */
   function init() {
     if (_initialized) return;
     _initialized = true;
 
+    // 先将面板恢复到 main-layout（可能被高级模式或上次模式移走了）
+    const mainLayout = document.getElementById('main-layout');
+    const palettePanel = document.getElementById('palette-panel');
+    const editorPanel = document.getElementById('editor-panel');
+    const stagePanel = document.getElementById('stage-panel');
+    if (mainLayout && palettePanel && palettePanel.parentNode !== mainLayout) {
+      palettePanel.parentNode?.insertBefore(palettePanel, mainLayout.firstChild);
+    }
+    if (mainLayout && editorPanel && editorPanel.parentNode !== mainLayout) {
+      palettePanel?.parentNode?.insertBefore(editorPanel, palettePanel.nextSibling);
+    }
+    if (mainLayout && stagePanel && stagePanel.parentNode !== mainLayout) {
+      mainLayout.appendChild(stagePanel);
+    }
+
     // 显示 MC 模组布局，隐藏其他布局
-    document.getElementById('main-layout')?.classList.add('hidden');
+    mainLayout?.classList.add('hidden');
     document.getElementById('advanced-layout')?.classList.add('hidden');
     document.getElementById('data-layout')?.classList.add('hidden');
     document.getElementById('mc-layout')?.classList.remove('hidden');
 
     // 隐藏普通工具栏和舞台面板
     document.getElementById('toolbar')?.classList.add('hidden');
-    document.getElementById('stage-panel')?.classList.add('hidden');
+    stagePanel?.classList.add('hidden');
+
+    // 将积木面板和编辑器移入 MC 布局左侧（不要清空 mcEditorPanel，会销毁面板！）
+    const mcEditorPanel = document.getElementById('mc-editor-panel');
+    if (mcEditorPanel && palettePanel && editorPanel) {
+      mcEditorPanel.appendChild(palettePanel);
+      mcEditorPanel.appendChild(editorPanel);
+    }
+
+    // 重新初始化积木面板
+    if (typeof Palette !== 'undefined') {
+      Palette.init();
+    }
+
+    // 画布移入新容器后，重新计算尺寸
+    setTimeout(() => {
+      if (typeof EditorCanvas !== 'undefined') {
+        EditorCanvas.resize();
+        EditorCanvas.render();
+      }
+    }, 50);
 
     // 初始化 CodeMirror 预览区（只读）
     const editorEl = document.getElementById('mc-code-preview');
     if (editorEl && typeof CodeMirror !== 'undefined') {
+      // 关键：在 hidden 容器中初始化 CodeMirror 会导致无法计算尺寸
+      // 先临时显示 mc-layout，初始化完再隐藏回来
+      const mcLayout = document.getElementById('mc-layout');
+      const wasHidden = mcLayout?.classList.contains('hidden');
+      if (wasHidden) {
+        mcLayout.style.visibility = 'hidden';
+        mcLayout.style.position = 'absolute';
+        mcLayout.classList.remove('hidden');
+      }
+
       _editor = CodeMirror(editorEl, {
         mode: 'javascript',
         theme: 'material-darker',
@@ -36,6 +81,18 @@ const MinecraftMod = (function () {
         readOnly: true,  // 只读模式
         value: '// Minecraft 模组代码预览\n// 在左侧拖拽积木，代码将自动生成\n',
       });
+
+      // 恢复原始状态
+      if (wasHidden) {
+        mcLayout.classList.add('hidden');
+        mcLayout.style.visibility = '';
+        mcLayout.style.position = '';
+      }
+
+      // 延迟刷新确保正确渲染（布局变为可见时重新计算尺寸）
+      setTimeout(() => {
+        if (_editor) _editor.refresh();
+      }, 200);
     }
 
     // 绑定工具栏按钮
@@ -53,7 +110,7 @@ const MinecraftMod = (function () {
     });
 
     // 平台选择
-    const platformSelect = document.getElementById('mc-platform');
+    const platformSelect = document.getElementById('mc-platform-select');
     if (platformSelect) {
       platformSelect.addEventListener('change', (e) => {
         _currentPlatform = e.target.value;
@@ -61,8 +118,23 @@ const MinecraftMod = (function () {
       });
     }
 
+    // 积木变化时自动更新代码预览
+    if (typeof EditorCanvas !== 'undefined' && EditorCanvas.getCanvas) {
+      const canvas = EditorCanvas.getCanvas();
+      if (canvas) {
+        canvas.addEventListener('mouseup', () => { setTimeout(generateCode, 50); });
+      }
+    }
+
     // 分割条拖拽
     _initDivider();
+
+    // 窗口大小改变时刷新 CodeMirror
+    window.addEventListener('resize', () => {
+      if (_editor) {
+        setTimeout(() => _editor.refresh(), 100);
+      }
+    });
 
     // 初始生成代码
     setTimeout(generateCode, 100);
@@ -110,9 +182,14 @@ const MinecraftMod = (function () {
       case 'fabric':
         code = _generateFabricCode(blocks);
         break;
+      case 'mcfunction':
+        code = _generateMcfunctionPreview(blocks);
+        break;
     }
 
     _editor.setValue(code);
+    // 确保代码变更后正确渲染
+    _editor.refresh();
   }
 
   /** 生成基岩版代码 (JavaScript - Script API) */
@@ -655,6 +732,9 @@ const MinecraftMod = (function () {
       case 'fabric':
         await _exportFabricAddon(zip);
         break;
+      case 'mcfunction':
+        await _exportMcfunction(zip);
+        break;
     }
   }
 
@@ -752,6 +832,111 @@ class ObjectorMod(object):
     URL.revokeObjectURL(url);
   }
 
+  /** 导出 .mcfunction 命令文件 */
+  async function _exportMcfunction(zip) {
+    const blocks = EditorState.blocks || {};
+    
+    // 生成 mcfunction 内容
+    let mcfunctionContent = '# Generated by Objector\n';
+    mcfunctionContent += '# Minecraft function file\n\n';
+    
+    // 遍历所有积木，生成命令
+    const sortedBlocks = Object.values(blocks).sort((a, b) => (a.y || 0) - (b.y || 0));
+    
+    for (const block of sortedBlocks) {
+      const def = BlockRegistry.getBlock(block.type);
+      if (!def || def.category !== 'minecraft') continue;
+      
+      const command = _generateMcfunctionCommand(block, def);
+      if (command) {
+        mcfunctionContent += command + '\n';
+      }
+    }
+    
+    zip.file('functions/main.mcfunction', mcfunctionContent);
+    
+    // 生成简单的 pack.mcmeta
+    const packMcmeta = {
+      pack: {
+        description: "Generated by Objector",
+        pack_format: 15
+      }
+    };
+    zip.file('pack.mcmeta', JSON.stringify(packMcmeta, null, 2));
+    
+    // 生成 ZIP 并下载
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'objector-mcfunction.zip';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  /** 生成单个 mcfunction 命令 */
+  function _generateMcfunctionCommand(block, def) {
+    const p = block.params || {};
+    
+    switch (block.type) {
+      case 'mc_setblock':
+        return `setblock ${p.x || '~'} ${p.y || '~'} ${p.z || '~'} ${p.block || 'stone'}`;
+      case 'mc_fill':
+        return `fill ${p.x1 || '~'} ${p.y1 || '~'} ${p.z1 || '~'} ${p.x2 || '~'} ${p.y2 || '~'} ${p.z2 || '~'} ${p.block || 'stone'}`;
+      case 'mc_summon':
+        return `summon ${p.entity || 'zombie'} ${p.x || '~'} ${p.y || '~'} ${p.z || '~'}`;
+      case 'mc_tp':
+        return `tp ${p.target || '@p'} ${p.x || '~'} ${p.y || '~'} ${p.z || '~'}`;
+      case 'mc_give':
+        return `give ${p.target || '@p'} ${p.item || 'diamond'} ${p.count || 1}`;
+      case 'mc_effect':
+        return `effect give ${p.target || '@p'} ${p.effect || 'speed'} ${p.duration || 30} ${p.level || 1}`;
+      case 'mc_gamerule':
+        return `gamerule ${p.rule || 'keepInventory'} ${p.value || 'true'}`;
+      case 'mc_time':
+        return `time set ${p.time || 'day'}`;
+      case 'mc_weather':
+        return `weather ${p.weather || 'clear'}`;
+      case 'mc_say':
+        return `say ${p.message || 'Hello from Objector!'}`;
+      case 'mc_kill':
+        return `kill ${p.target || '@e[type=!player]'}`;
+      default:
+        return `# Unsupported block: ${block.type}`;
+    }
+  }
+
+  /** 生成 mcfunction 预览代码 */
+  function _generateMcfunctionPreview(blocks) {
+    let code = '# Minecraft Function File (.mcfunction)\n';
+    code += '# Generated by Objector\n';
+    code += '# Place this file in: datapack/data/<namespace>/functions/\n\n';
+    
+    // 遍历所有积木，按 Y 坐标排序生成命令
+    const sortedBlocks = Object.values(blocks)
+      .filter(b => {
+        const def = typeof BlockRegistry !== 'undefined' ? BlockRegistry.getBlock(b.type) : null;
+        return def && def.category === 'minecraft';
+      })
+      .sort((a, b) => (a.y || 0) - (b.y || 0));
+    
+    if (sortedBlocks.length === 0) {
+      code += '# No Minecraft blocks found.\n';
+      code += '# Drag Minecraft blocks to the canvas to generate commands.\n';
+      return code;
+    }
+    
+    for (const block of sortedBlocks) {
+      const def = BlockRegistry.getBlock(block.type);
+      const command = _generateMcfunctionCommand(block, def);
+      if (command) {
+        code += command + '\n';
+      }
+    }
+    
+    return code;
+  }
+
   /** 生成 UUID */
   function _generateUUID() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -761,5 +946,5 @@ class ObjectorMod(object):
     });
   }
 
-  return { init, generateCode, exportAddon };
+  return { init, generateCode, exportAddon, getEditor: () => _editor };
 })();

@@ -67,7 +67,7 @@
       </div>
     </main>
     <footer class="home-footer" style="text-align:center;padding:16px 0 8px;font-size:11px;color:var(--text-muted);opacity:0.6;">
-      Objector v1.0.19
+      Objector v1.0.20
     </footer>
   </div>
 
@@ -102,8 +102,39 @@
           <h3>MC 模组开发</h3>
           <p>使用积木生成 Minecraft 模组代码，支持基岩版、网易版、Java 版</p>
         </div>
+        <div class="mode-card" data-mode="code">
+          <div class="mode-icon">💻</div>
+          <h3>代码编程</h3>
+          <p>使用 Python、C++、JavaScript 等语言进行代码编程</p>
+        </div>
       </div>
       <button id="mode-cancel" class="tb-btn" data-i18n="mode.cancel">取消</button>
+    </div>
+  </div>
+
+  <!-- 编程语言选择弹窗 -->
+  <div id="language-dialog" class="dialog-overlay hidden">
+    <div class="dialog-box mode-dialog-box">
+      <h2>选择编程语言</h2>
+      <p>选择你想要使用的编程语言</p>
+      <div class="mode-cards">
+        <div class="mode-card" data-lang="python">
+          <div class="mode-icon">🐍</div>
+          <h3>Python</h3>
+          <p>简洁易读，适合初学者和数据科学</p>
+        </div>
+        <div class="mode-card" data-lang="cpp">
+          <div class="mode-icon">⚙️</div>
+          <h3>C++</h3>
+          <p>高性能，适合系统编程和游戏开发</p>
+        </div>
+        <div class="mode-card" data-lang="javascript">
+          <div class="mode-icon">🌐</div>
+          <h3>JavaScript</h3>
+          <p>Web 开发首选，前后端通用</p>
+        </div>
+      </div>
+      <button id="language-cancel" class="tb-btn">返回</button>
     </div>
   </div>
 

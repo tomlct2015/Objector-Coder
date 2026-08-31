@@ -895,6 +895,20 @@ window.EditorApp = (function () {
     const advancedLayout = document.getElementById('advanced-layout');
     if (!mainLayout || !advancedLayout) return;
 
+    // 先将面板恢复到 main-layout（可能被 MC 模式或其他模式移走了）
+    const palettePanel = document.getElementById('palette-panel');
+    const editorPanel = document.getElementById('editor-panel');
+    const stagePanel = document.getElementById('stage-panel');
+    if (palettePanel && palettePanel.parentNode !== mainLayout) {
+      mainLayout.insertBefore(palettePanel, mainLayout.firstChild);
+    }
+    if (editorPanel && editorPanel.parentNode !== mainLayout) {
+      palettePanel?.parentNode?.insertBefore(editorPanel, palettePanel.nextSibling);
+    }
+    if (stagePanel && stagePanel.parentNode !== mainLayout) {
+      mainLayout.appendChild(stagePanel);
+    }
+
     // 切换布局
     mainLayout.classList.add('hidden');
     advancedLayout.classList.remove('hidden');
@@ -904,13 +918,19 @@ window.EditorApp = (function () {
     const editorCanvas = document.getElementById('editor-canvas');
     const viewport = document.getElementById('viewport');
     const blocksContent = document.getElementById('script-blocks-content');
-    const palettePanel = document.getElementById('palette-panel');
-    const editorPanel = document.getElementById('editor-panel');
 
     if (stageCanvas && viewport) viewport.appendChild(stageCanvas);
     // 将积木面板和编辑器面板移入脚本区域
     if (palettePanel && blocksContent) blocksContent.appendChild(palettePanel);
     if (editorPanel && blocksContent) blocksContent.appendChild(editorPanel);
+
+    // 画布移入新容器后，重新计算尺寸
+    setTimeout(() => {
+      if (typeof EditorCanvas !== 'undefined') {
+        EditorCanvas.resize();
+        EditorCanvas.render();
+      }
+    }, 50);
 
     // 初始化 SceneGraph（场景图核心）
     const renderMode = (typeof EditorState !== 'undefined' && EditorState.renderMode) || '2d';
@@ -1175,6 +1195,355 @@ window.EditorApp = (function () {
     console.log('[Minecraft 模组模式] 已初始化');
   }
 
+  /** 初始化代码编程模式 */
+  let _codeEditor = null;
+  let _codeModeInitialized = false;
+  let _hintDebounce = null;
+
+  /** 注册代码自动补全 */
+  function _registerCodeHints(editor, cmMode) {
+    // 语言关键词字典
+    const keywords = {
+      'python': [
+        'False', 'None', 'True', 'and', 'as', 'assert', 'async', 'await',
+        'break', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except',
+        'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is',
+        'lambda', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'try',
+        'while', 'with', 'yield',
+        // 内建函数
+        'abs', 'all', 'any', 'bin', 'bool', 'bytes', 'callable', 'chr',
+        'classmethod', 'compile', 'complex', 'delattr', 'dict', 'dir',
+        'divmod', 'enumerate', 'eval', 'exec', 'filter', 'float', 'format',
+        'frozenset', 'getattr', 'globals', 'hasattr', 'hash', 'help', 'hex',
+        'id', 'input', 'int', 'isinstance', 'issubclass', 'iter', 'len',
+        'list', 'locals', 'map', 'max', 'memoryview', 'min', 'next',
+        'object', 'oct', 'open', 'ord', 'pow', 'print', 'property', 'range',
+        'repr', 'reversed', 'round', 'set', 'setattr', 'slice', 'sorted',
+        'staticmethod', 'str', 'sum', 'super', 'tuple', 'type', 'vars', 'zip',
+        // 常用模块
+        'os', 'sys', 'math', 'random', 'time', 'datetime', 'json', 're',
+        'collections', 'itertools', 'functools', 'pathlib', 'subprocess',
+      ],
+      'javascript': [
+        'arguments', 'await', 'break', 'case', 'catch', 'class', 'const',
+        'continue', 'debugger', 'default', 'delete', 'do', 'else', 'export',
+        'extends', 'false', 'finally', 'for', 'function', 'if', 'import',
+        'in', 'instanceof', 'let', 'new', 'null', 'of', 'return', 'static',
+        'super', 'switch', 'this', 'throw', 'true', 'try', 'typeof', 'undefined',
+        'var', 'void', 'while', 'with', 'yield',
+        // 全局对象
+        'console', 'document', 'window', 'Math', 'JSON', 'Array', 'Object',
+        'String', 'Number', 'Boolean', 'Date', 'RegExp', 'Map', 'Set',
+        'Promise', 'Symbol', 'Proxy', 'Reflect', 'parseInt', 'parseFloat',
+        'isNaN', 'isFinite', 'setTimeout', 'setInterval', 'clearTimeout',
+        'clearInterval', 'fetch', 'alert', 'prompt', 'confirm',
+      ],
+      'text/x-c++src': [
+        'alignas', 'alignof', 'and', 'asm', 'auto', 'bitand', 'bitor',
+        'bool', 'break', 'case', 'catch', 'char', 'class', 'compl',
+        'concept', 'const', 'consteval', 'constexpr', 'continue', 'co_await',
+        'co_return', 'co_yield', 'decltype', 'default', 'delete', 'do',
+        'double', 'else', 'enum', 'explicit', 'export', 'extern', 'false',
+        'float', 'for', 'friend', 'goto', 'if', 'inline', 'int', 'long',
+        'mutable', 'namespace', 'new', 'noexcept', 'not', 'nullptr', 'operator',
+        'or', 'private', 'protected', 'public', 'register', 'requires',
+        'return', 'short', 'signed', 'sizeof', 'static', 'struct', 'switch',
+        'template', 'this', 'throw', 'true', 'try', 'typedef', 'typeid',
+        'typename', 'union', 'unsigned', 'using', 'virtual', 'void', 'volatile',
+        'wchar_t', 'while', 'xor',
+        // 标准库
+        'std', 'cout', 'cin', 'endl', 'string', 'vector', 'map', 'set',
+        'array', 'pair', 'queue', 'stack', 'algorithm', 'iostream',
+      ],
+    };
+
+    const words = keywords[cmMode] || keywords['javascript'];
+
+    // 自定义 hint 函数
+    function wordHint(cm) {
+      const cur = cm.getCursor();
+      const token = cm.getTokenAt(cur);
+      let start = token.start;
+      let end = cur.ch;
+      const word = token.string.slice(0, end - start);
+
+      if (!word || word.length < 1) return null;
+
+      const list = words.filter(w => w.startsWith(word) && w !== word);
+
+      // 也从当前文档提取标识符
+      const docText = cm.getValue();
+      const docWords = docText.match(/\b[a-zA-Z_]\w*\b/g) || [];
+      const uniqueDocWords = [...new Set(docWords)].filter(w => w.startsWith(word) && w !== word && !list.includes(w));
+
+      const allList = [...list, ...uniqueDocWords].sort().slice(0, 50);
+
+      if (allList.length === 0) return null;
+
+      return {
+        list: allList,
+        from: CodeMirror.Pos(cur.line, start),
+        to: CodeMirror.Pos(cur.line, end),
+      };
+    }
+
+    // 注册到 CodeMirror
+    CodeMirror.registerHelper('hint', cmMode.includes('python') ? 'python' : (cmMode === 'text/x-c++src' ? 'clike' : 'javascript-custom'), wordHint);
+
+    // 输入时自动弹出补全（防抖 300ms）
+    let debounceTimer = null;
+    editor.on('inputRead', (cm, change) => {
+      if (change.text[0] && /^[a-zA-Z_]$/.test(change.text[0])) {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          const cur = cm.getCursor();
+          const token = cm.getTokenAt(cur);
+          if (token.string.length >= 2 && /^[a-zA-Z_]\w*$/.test(token.string)) {
+            cm.showHint({ hint: wordHint, completeSingle: false });
+          }
+        }, 300);
+      }
+    });
+  }
+
+  function initCodeMode(mode) {
+    if (_codeModeInitialized) return;
+    _codeModeInitialized = true;
+
+    // 语言和 CodeMirror 模式映射
+    const langConfig = {
+      'code-python':     { label: 'Python',     cmMode: 'python',         ext: 'py',  template: '# Python\nprint("Hello, World!")\n' },
+      'code-cpp':        { label: 'C++',        cmMode: 'text/x-c++src',  ext: 'cpp', template: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello, World!" << endl;\n    return 0;\n}\n' },
+      'code-javascript': { label: 'JavaScript', cmMode: 'javascript',     ext: 'js',  template: '// JavaScript\nconsole.log("Hello, World!");\n' },
+    };
+    const cfg = langConfig[mode] || langConfig['code-python'];
+    console.log(`[代码编程模式] ${cfg.label} 已初始化`);
+
+    // 隐藏所有其他布局
+    document.getElementById('main-layout')?.classList.add('hidden');
+    document.getElementById('advanced-layout')?.classList.add('hidden');
+    document.getElementById('data-layout')?.classList.add('hidden');
+    document.getElementById('mc-layout')?.classList.add('hidden');
+    document.getElementById('toolbar')?.classList.add('hidden');
+    document.getElementById('palette-panel')?.classList.add('hidden');
+    document.getElementById('stage-panel')?.classList.add('hidden');
+
+    // 显示代码编辑器布局
+    const codeLayout = document.getElementById('code-layout');
+    if (codeLayout) codeLayout.classList.remove('hidden');
+
+    // 更新语言标签
+    const langLabel = document.getElementById('code-lang-label');
+    if (langLabel) langLabel.textContent = cfg.label;
+
+    // 初始化 CodeMirror
+    const editorWrap = document.getElementById('code-editor-wrap');
+    if (editorWrap && typeof CodeMirror !== 'undefined' && !_codeEditor) {
+      // 临时显示布局以正确计算尺寸
+      const wasHidden = codeLayout.classList.contains('hidden');
+      if (wasHidden) {
+        codeLayout.style.visibility = 'hidden';
+        codeLayout.style.position = 'absolute';
+        codeLayout.classList.remove('hidden');
+      }
+
+      _codeEditor = CodeMirror(editorWrap, {
+        mode: cfg.cmMode,
+        theme: 'material-darker',
+        lineNumbers: true,
+        tabSize: 4,
+        indentWithTabs: false,
+        matchBrackets: true,
+        autoCloseBrackets: true,
+        value: cfg.template,
+        extraKeys: { 'Ctrl-Space': 'autocomplete' },
+        hintOptions: { completeSingle: false },
+      });
+
+      // 注册语言特定的关键词补全
+      _registerCodeHints(_codeEditor, cfg.cmMode);
+
+      if (wasHidden) {
+        codeLayout.classList.add('hidden');
+        codeLayout.style.visibility = '';
+        codeLayout.style.position = '';
+      }
+
+      // 延迟刷新确保正确渲染
+      setTimeout(() => _codeEditor && _codeEditor.refresh(), 100);
+    }
+
+    // 绑定工具栏按钮
+    document.getElementById('code-save-btn')?.addEventListener('click', async () => {
+      if (!_codeEditor || !EditorState.projectPath) return;
+      const code = _codeEditor.getValue();
+      await window.api.writeFile(EditorState.projectPath + '/scripts/main.' + cfg.ext, code);
+      const statusText = document.getElementById('code-status');
+      if (statusText) {
+        statusText.textContent = '✓ 已保存';
+        setTimeout(() => { statusText.textContent = ''; }, 2000);
+      }
+      document.getElementById('status-text').textContent = '代码已保存';
+      setTimeout(() => {
+        document.getElementById('status-text').textContent = i18n.t('status.ready');
+      }, 2000);
+    });
+
+    document.getElementById('code-clear-btn')?.addEventListener('click', () => {
+      if (!_codeEditor) return;
+      if (confirm('确定清空所有代码吗？')) {
+        _codeEditor.setValue('');
+      }
+    });
+
+    document.getElementById('code-run-btn')?.addEventListener('click', async () => {
+      if (!_codeEditor) return;
+      const code = _codeEditor.getValue();
+      const outputWrap = document.getElementById('code-output-wrap');
+      const outputEl = document.getElementById('code-output');
+      const runBtn = document.getElementById('code-run-btn');
+      const stopBtn = document.getElementById('code-stop-btn');
+      const statusEl = document.getElementById('code-status');
+      const inputBar = document.getElementById('code-input-bar');
+      const stdinInput = document.getElementById('code-stdin-input');
+      const stdinSend = document.getElementById('code-stdin-send');
+
+      const langKey = cfg.cmMode === 'python' ? 'python' : (cfg.cmMode === 'javascript' ? 'javascript' : 'cpp');
+
+      // 显示输出面板，清空内容
+      outputWrap?.classList.remove('hidden');
+      if (outputEl) outputEl.textContent = '';
+      if (runBtn) runBtn.disabled = true;
+      if (stopBtn) stopBtn.disabled = false;
+      if (statusEl) statusEl.textContent = '运行中...';
+      // 显示 stdin 输入栏（Python/C++ 可能需要 input()）
+      inputBar?.classList.remove('hidden');
+
+      // 设置流式输出监听（必须在 runCode 之前注册）
+      if (window.api && window.api.onCodeOutput) {
+        window.api.onCodeOutput((text, type) => {
+          if (outputEl) {
+            outputEl.textContent += text;
+            // 自动滚动到底部
+            outputEl.scrollTop = outputEl.scrollHeight;
+          }
+        });
+        window.api.onCodeDone((exitCode) => {
+          if (runBtn) runBtn.disabled = false;
+          if (stopBtn) stopBtn.disabled = true;
+          if (statusEl) statusEl.textContent = exitCode === 0 ? '✓ 完成' : `退出码 ${exitCode}`;
+          if (outputEl) outputEl.textContent += `\n[进程结束, 退出码 ${exitCode}]`;
+          inputBar?.classList.add('hidden');
+          setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 5000);
+        });
+      }
+
+      // stdin 发送函数
+      async function sendStdin() {
+        if (!stdinInput) return;
+        const text = stdinInput.value;
+        stdinInput.value = '';
+        if (outputEl) {
+          outputEl.textContent += text + '\n';
+          outputEl.scrollTop = outputEl.scrollHeight;
+        }
+        if (window.api && window.api.sendCodeStdin) {
+          await window.api.sendCodeStdin(text);
+        }
+      }
+      if (stdinSend) stdinSend.onclick = sendStdin;
+      if (stdinInput) stdinInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); sendStdin(); } };
+
+      try {
+        if (window.api && window.api.runCode) {
+          await window.api.runCode(langKey, code, EditorState.projectPath);
+        } else {
+          // Web 环境回退
+          if (langKey === 'javascript') {
+            if (outputEl) {
+              const origLog = console.log;
+              console.log = (...args) => {
+                outputEl.textContent += args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' ') + '\n';
+                outputEl.scrollTop = outputEl.scrollHeight;
+                origLog(...args);
+              };
+              try {
+                new Function(code)();
+                outputEl.textContent += '[执行完成]\n';
+              } catch (e) {
+                outputEl.textContent += '❌ ' + e.message + '\n';
+              }
+              console.log = origLog;
+            }
+          } else {
+            if (outputEl) {
+              outputEl.textContent = `ℹ️ ${cfg.label} 代码只能在桌面版中运行。`;
+            }
+          }
+          if (runBtn) runBtn.disabled = false;
+          if (stopBtn) stopBtn.disabled = true;
+          inputBar?.classList.add('hidden');
+          if (statusEl) statusEl.textContent = '✓ 完成';
+          setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
+        }
+      } catch (e) {
+        if (outputEl) outputEl.textContent += '❌ ' + e.message + '\n';
+        if (runBtn) runBtn.disabled = false;
+        if (stopBtn) stopBtn.disabled = true;
+        inputBar?.classList.add('hidden');
+        if (statusEl) statusEl.textContent = '❌ 错误';
+      }
+    });
+
+    document.getElementById('code-stop-btn')?.addEventListener('click', async () => {
+      if (window.api && window.api.stopCode) {
+        await window.api.stopCode();
+      }
+      const outputEl = document.getElementById('code-output');
+      if (outputEl) outputEl.textContent += '\n[已停止]';
+      const runBtn = document.getElementById('code-run-btn');
+      const stopBtn = document.getElementById('code-stop-btn');
+      const inputBar = document.getElementById('code-input-bar');
+      if (runBtn) runBtn.disabled = false;
+      if (stopBtn) stopBtn.disabled = true;
+      inputBar?.classList.add('hidden');
+    });
+
+    // 加载已保存的代码
+    _loadCodeFile(cfg.ext).then(code => {
+      if (code && _codeEditor) {
+        _codeEditor.setValue(code);
+        setTimeout(() => _codeEditor && _codeEditor.refresh(), 100);
+      }
+    });
+
+    // 窗口大小改变时刷新
+    window.addEventListener('resize', () => {
+      if (_codeEditor) setTimeout(() => _codeEditor.refresh(), 100);
+    });
+
+    // 在状态栏显示当前语言
+    const statusText = document.getElementById('status-text');
+    if (statusText) {
+      statusText.textContent = `代码编程：${cfg.label}`;
+    }
+  }
+
+  /** 加载已保存的代码文件 */
+  async function _loadCodeFile(ext) {
+    if (!EditorState.projectPath) return null;
+    try {
+      return await window.api.readFile(EditorState.projectPath + '/scripts/main.' + ext);
+    } catch {
+      return null;
+    }
+  }
+
+  /** 获取代码编辑器实例 */
+  function getCodeEditor() {
+    return _codeEditor;
+  }
+
   /** 获取当前精灵的 JS 脚本 */
   function getSpriteScript(index) {
     return _spriteScripts[index] || '';
@@ -1292,6 +1661,11 @@ window.EditorApp = (function () {
       initMinecraftMode();
     }
 
+    // 代码编程模式初始化
+    if (projectMode && projectMode.startsWith('code-')) {
+      initCodeMode(projectMode);
+    }
+
     if (projectPath) {
       loadProject(projectPath, projectMode);
     }
@@ -1353,6 +1727,7 @@ window.EditorApp = (function () {
       'view-code': () => showAllCodeDialog(),
       'blocks-guide': () => window.open('https://tomlct2015.github.io/Objector-Coder/blocks-guide/', '_blank'),
       'advanced-guide': () => window.open('https://tomlct2015.github.io/Objector-Coder/how-to-use-advanced-editor/', '_blank'),
+      'minecraft-api': () => window.open('https://tomlct2015.github.io/Objector-Coder/minecraft-api/', '_blank'),
     };
 
     // 菜单栏下拉交互
@@ -1842,14 +2217,63 @@ window.EditorApp = (function () {
     // Minecraft 模组开发模式：初始化并重新应用布局
     if (EditorState.projectMode === 'minecraft') {
       initMinecraftMode();
+      // 重新将面板移入 mc-editor-panel（loadProject 过程中可能被重置）
       if (typeof MinecraftMod !== 'undefined') {
+        const mcEditorPanel = document.getElementById('mc-editor-panel');
+        const palettePanel = document.getElementById('palette-panel');
+        const editorPanel = document.getElementById('editor-panel');
+        const mainLayout = document.getElementById('main-layout');
+        // 先恢复到 main-layout
+        if (palettePanel && palettePanel.parentNode !== mainLayout) {
+          mainLayout.insertBefore(palettePanel, mainLayout.firstChild);
+        }
+        if (editorPanel && editorPanel.parentNode !== mainLayout) {
+          palettePanel?.parentNode?.insertBefore(editorPanel, palettePanel.nextSibling);
+        }
+        // 再移入 mc-editor-panel
+        if (mcEditorPanel && palettePanel && editorPanel) {
+          mcEditorPanel.appendChild(palettePanel);
+          mcEditorPanel.appendChild(editorPanel);
+        }
         document.getElementById('main-layout')?.classList.add('hidden');
         document.getElementById('advanced-layout')?.classList.add('hidden');
         document.getElementById('data-layout')?.classList.add('hidden');
         document.getElementById('mc-layout')?.classList.remove('hidden');
         document.getElementById('toolbar')?.classList.add('hidden');
         document.getElementById('stage-panel')?.classList.add('hidden');
+        // 重新初始化积木面板
+        if (typeof Palette !== 'undefined') Palette.init();
+        // 延迟刷新 CodeMirror（布局从 hidden 变为可见后需要重新计算尺寸）
+        // 同时重绘画布（移入新容器后需要重新计算尺寸）
+        setTimeout(() => {
+          if (typeof EditorCanvas !== 'undefined') {
+            EditorCanvas.resize();
+            EditorCanvas.render();
+          }
+          if (typeof MinecraftMod !== 'undefined' && MinecraftMod.getEditor && MinecraftMod.getEditor()) {
+            MinecraftMod.getEditor().refresh();
+          }
+        }, 200);
       }
+    }
+
+    // 代码编程模式：重新应用布局
+    if (EditorState.projectMode && EditorState.projectMode.startsWith('code-')) {
+      initCodeMode(EditorState.projectMode);
+      // 重新应用布局（确保隐藏其他布局）
+      document.getElementById('main-layout')?.classList.add('hidden');
+      document.getElementById('advanced-layout')?.classList.add('hidden');
+      document.getElementById('data-layout')?.classList.add('hidden');
+      document.getElementById('mc-layout')?.classList.add('hidden');
+      document.getElementById('toolbar')?.classList.add('hidden');
+      document.getElementById('palette-panel')?.classList.add('hidden');
+      document.getElementById('stage-panel')?.classList.add('hidden');
+      document.getElementById('code-layout')?.classList.remove('hidden');
+      // 延迟刷新 CodeMirror
+      setTimeout(() => {
+        const editor = getCodeEditor();
+        if (editor) editor.refresh();
+      }, 200);
     }
 
     // 加载声音

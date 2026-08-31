@@ -10,6 +10,52 @@ let mainWindow;
 let editorWindow;
 let _pendingEditorInit = null;
 
+// ========== 命令行参数解析（右键菜单 / 文件关联） ==========
+let _startupProjectPath = null;
+
+function parseProjectFromArgs(argv) {
+  // 跳过 electron 和脚本路径，取第一个非标志参数
+  const args = argv.slice(app.isPackaged ? 1 : 2);
+  for (const arg of args) {
+    if (arg.startsWith('--')) continue;
+    const resolved = path.resolve(arg);
+    try {
+      const stat = fs.statSync(resolved);
+      if (stat.isDirectory()) {
+        // 检查是否是 Objector 项目（含 project.json）
+        if (fs.existsSync(path.join(resolved, 'project.json'))) {
+          return resolved;
+        }
+        // 普通文件夹：检查是否可作为项目打开
+        return resolved;
+      }
+      if (stat.isFile() && resolved.toLowerCase().endsWith('.zip')) {
+        return resolved; // zip 文件，需要解压
+      }
+    } catch {}
+  }
+  return null;
+}
+
+_startupProjectPath = parseProjectFromArgs(process.argv);
+
+// ========== 单实例锁（防止多开，支持右键菜单传递参数） ==========
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (_event, commandLine) => {
+    // 第二个实例启动时，将参数传递给第一个实例
+    const projectPath = parseProjectFromArgs(commandLine);
+    if (projectPath && mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+      mainWindow.webContents.send('open-project-from-args', projectPath);
+    }
+  });
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -79,7 +125,17 @@ function createEditorWindow(projectPath, mode, renderMode) {
   });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+
+  // 启动时如果有命令行传入的项目路径，发送给渲染器
+  if (_startupProjectPath) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      mainWindow.webContents.send('open-project-from-args', _startupProjectPath);
+      _startupProjectPath = null;
+    });
+  }
+});
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
 
@@ -439,6 +495,85 @@ ipcMain.handle('open-external', async (_e, url) => {
   } catch (err) {
     console.error('[open-external]', err.message);
     return { error: err.message };
+  }
+});
+
+// IPC: 解压 ZIP 文件到临时目录并返回项目路径
+ipcMain.handle('extract-zip-project', async (_e, zipPath) => {
+  try {
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip(zipPath);
+    const entries = zip.getEntries();
+
+    // 在用户临时目录下创建解压目标
+    const tmpBase = path.join(app.getPath('temp'), 'ObjectorProjects');
+    if (!fs.existsSync(tmpBase)) fs.mkdirSync(tmpBase, { recursive: true });
+
+    // 用 ZIP 文件名作为子目录名
+    const baseName = path.basename(zipPath, '.zip');
+    const destDir = path.join(tmpBase, baseName);
+    if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+
+    zip.extractAllTo(destDir, true);
+
+    // 检查解压后是否有 project.json，如果没有则创建一个
+    if (!fs.existsSync(path.join(destDir, 'project.json'))) {
+      // 检查是否在子目录中
+      const subDirs = fs.readdirSync(destDir, { withFileTypes: true })
+        .filter(e => e.isDirectory());
+      if (subDirs.length === 1 && fs.existsSync(path.join(destDir, subDirs[0].name, 'project.json'))) {
+        return path.join(destDir, subDirs[0].name);
+      }
+      // 创建默认的 project.json
+      const config = {
+        name: baseName,
+        version: '1.0',
+        mode: 'normal',
+        renderMode: '2d',
+        created: new Date().toISOString(),
+        stageWidth: 480,
+        stageHeight: 360,
+      };
+      fs.writeFileSync(path.join(destDir, 'project.json'), JSON.stringify(config, null, 2));
+      if (!fs.existsSync(path.join(destDir, 'scripts'))) fs.mkdirSync(path.join(destDir, 'scripts'));
+      fs.writeFileSync(path.join(destDir, 'scripts', 'main.json'), '{}');
+    }
+
+    return destDir;
+  } catch (err) {
+    console.error('[extract-zip-project]', err.message);
+    // 回退：使用 PowerShell 解压
+    try {
+      const { execSync } = require('child_process');
+      const tmpBase = path.join(app.getPath('temp'), 'ObjectorProjects');
+      if (!fs.existsSync(tmpBase)) fs.mkdirSync(tmpBase, { recursive: true });
+      const baseName = path.basename(zipPath, '.zip');
+      const destDir = path.join(tmpBase, baseName);
+      if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+      execSync(`powershell -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${destDir}' -Force"`);
+      // 检查子目录
+      const subDirs = fs.readdirSync(destDir, { withFileTypes: true }).filter(e => e.isDirectory());
+      if (subDirs.length === 1 && fs.existsSync(path.join(destDir, subDirs[0].name, 'project.json'))) {
+        return path.join(destDir, subDirs[0].name);
+      }
+      if (!fs.existsSync(path.join(destDir, 'project.json'))) {
+        const config = {
+          name: baseName,
+          version: '1.0',
+          mode: 'normal',
+          renderMode: '2d',
+          created: new Date().toISOString(),
+          stageWidth: 480,
+          stageHeight: 360,
+        };
+        fs.writeFileSync(path.join(destDir, 'project.json'), JSON.stringify(config, null, 2));
+        if (!fs.existsSync(path.join(destDir, 'scripts'))) fs.mkdirSync(path.join(destDir, 'scripts'));
+        fs.writeFileSync(path.join(destDir, 'scripts', 'main.json'), '{}');
+      }
+      return destDir;
+    } catch (err2) {
+      return { error: err2.message };
+    }
   }
 });
 
