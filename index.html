@@ -369,38 +369,38 @@ html[lang="en"] .mode-card.featured::after{content:'Recommended'}
 <section id="v1021" style="background:linear-gradient(180deg,var(--bg2),var(--bg))">
   <div class="container">
     <div class="section-header reveal">
-      <div class="section-tag">🆕 v1.0.21.alpha 新特性</div>
-      <h2 class="section-title">代码编程模式 + 右键菜单</h2>
-      <p class="section-desc">内置代码编辑器支持 Python / C++ / JavaScript，自动查找系统解释器运行代码</p>
+      <div class="section-tag" data-i18n="v1021.tag">🆕 v1.0.21.alpha 新特性</div>
+      <h2 class="section-title" data-i18n="v1021.title">代码编程模式 + 右键菜单</h2>
+      <p class="section-desc" data-i18n="v1021.desc">内置代码编辑器支持 Python / C++ / JavaScript，自动查找系统解释器运行代码</p>
     </div>
     <div class="feature-grid">
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(108,92,231,.15)">💻</div>
-        <h3>代码编程模式</h3>
-        <p>全新创作模式：内置 CodeMirror 代码编辑器，支持语法高亮、自动补全、括号匹配，可直接编写 Python、C++、JavaScript 代码。</p>
-        <span class="feature-tag" style="background:rgba(0,210,211,.15);color:var(--cyan)">全新模式</span>
+        <h3 data-i18n="v1021.c1.title">代码编程模式</h3>
+        <p data-i18n="v1021.c1.desc">全新创作模式：内置 CodeMirror 代码编辑器，支持语法高亮、自动补全、括号匹配，可直接编写 Python、C++、JavaScript 代码。</p>
+        <span class="feature-tag" style="background:rgba(0,210,211,.15);color:var(--cyan)" data-i18n="v1021.c1.tag">全新模式</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(253,203,110,.15)">▶️</div>
-        <h3>一键运行代码</h3>
-        <p>自动查找系统 Python 解释器和 C++ 编译器 (g++)，一键编译运行。JavaScript 使用内置 Node.js 直接执行。流式输出实时显示结果。</p>
-        <span class="feature-tag" style="background:rgba(253,203,110,.15);color:var(--yellow)">智能执行</span>
+        <h3 data-i18n="v1021.c2.title">一键运行代码</h3>
+        <p data-i18n="v1021.c2.desc">自动查找系统 Python 解释器和 C++ 编译器 (g++)，一键编译运行。JavaScript 使用内置 Node.js 直接执行。流式输出实时显示结果。</p>
+        <span class="feature-tag" style="background:rgba(253,203,110,.15);color:var(--yellow)" data-i18n="v1021.c2.tag">智能执行</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(166,227,161,.15)">⌨️</div>
-        <h3>stdin 输入支持</h3>
-        <p>Python input() 和 C++ cin >> 完美工作！运行时代码编辑器底部显示输入框，支持向运行中的程序发送输入。</p>
-        <span class="feature-tag" style="background:rgba(166,227,161,.15);color:var(--green)">交互运行</span>
+        <h3 data-i18n="v1021.c3.title">stdin 输入支持</h3>
+        <p data-i18n="v1021.c3.desc">Python input() 和 C++ cin >> 完美工作！运行时代码编辑器底部显示输入框，支持向运行中的程序发送输入。</p>
+        <span class="feature-tag" style="background:rgba(166,227,161,.15);color:var(--green)" data-i18n="v1021.c3.tag">交互运行</span>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon" style="background:rgba(203,166,247,.15)">📂</div>
-        <h3>右键菜单打开项目</h3>
-        <p>安装后自动注册 Windows 右键菜单：右键文件夹或 ZIP 文件 → “做为Objector项目打开”，快速导入和打开项目。</p>
-        <span class="feature-tag" style="background:rgba(203,166,247,.15);color:var(--mauve)">系统集成</span>
+        <h3 data-i18n="v1021.c4.title">右键菜单打开项目</h3>
+        <p data-i18n="v1021.c4.desc">安装后自动注册 Windows 右键菜单：右键文件夹或 ZIP 文件 → "做为Objector项目打开"，快速导入和打开项目。</p>
+        <span class="feature-tag" style="background:rgba(203,166,247,.15);color:var(--mauve)" data-i18n="v1021.c4.tag">系统集成</span>
       </div>
 
     </div>
@@ -677,188 +677,14 @@ window.addEventListener('mousemove', (e) => {
   document.querySelector('.bg-glow-3').style.transform = `translate(${(x - 0.5) * 50}px, ${(y - 0.5) * 50}px)`;
 });
 
-// ===== i18n Language Switching =====
-const translations = {
-  'en': {
-    'pageTitle': 'Objector - Visual Block Programming Editor',
-    'nav.features': 'Features',
-    'nav.v1020': 'v1.0.20 New',
-    'nav.modules': 'Block Modules',
-    'nav.modes': 'Edit Modes',
-    'nav.blocksGuide': '📖 Blocks Guide',
-    'nav.extensionApi': '📖 Extension API',
-    'nav.webVersion': '🌐 Web Version',
-    'nav.download': 'Download Now',
-    'hero.badge': 'v1.0.20 Desktop · Open Source Free',
-    'hero.title': 'Build with Blocks<br><span class="gradient">Unlimited Creativity</span>',
-    'hero.sub': 'Objector is a powerful visual block programming editor that enables users with zero coding experience to create animations, games, and interactive programs. From beginner to professional, all in one place.',
-    'hero.downloadBtn': 'Free Download',
-    'hero.webBtn': '🌐 Try Online Version',
-    'hero.learnBtn': 'Learn More',
-    'features.tag': '✨ Core Features',
-    'features.title': 'Editor Built for Creativity',
-    'features.desc': 'Not just a Scratch clone, but a comprehensive evolution for professional developers',
-    'features.c1.title': 'Visual Block Programming',
-    'features.c1.desc': 'Drag-and-drop blocks with WYSIWYG interface. Supports flow connections, parameter embedding, and sub-code blocks for intuitive visual programming with zero learning curve.',
-    'features.c1.tag': 'Core Engine',
-    'features.c2.title': 'Professional Debugging System',
-    'features.c2.desc': 'Developer mode supports breakpoints, step execution, and variable watch panels. Precisely track every line of code execution like a real IDE.',
-    'features.c2.tag': 'Developer Grade',
-    'features.c3.title': 'Custom Functions',
-    'features.c3.desc': 'Supports multi-parameter function definitions and calls with dynamic parameter slots. Encapsulate reusable logic modules just like real code.',
-    'features.c3.tag': 'Advanced Feature',
-    'features.c4.title': 'Physics Motion System',
-    'features.c4.desc': 'Beyond Scratch: Built-in velocity, acceleration, gravity, friction, collision rebound and other physics properties. Easily create animations and games with realistic physics.',
-    'features.c4.tag': 'Beyond Scratch',
-    'features.c5.title': 'Global Costume Library',
-    'features.c5.desc': 'Images uploaded to project are managed centrally, multiple sprites share the same costume files. Smart resource reuse saves storage space and memory.',
-    'features.c5.tag': 'Resource Management',
-    'features.c6.title': 'Extension System',
-    'features.c6.desc': 'Define custom block types through JSON/JS extension files to add unlimited new features to the editor. Build your own programming toolbox.',
-    'features.c6.tag': 'Extensible',
-    'features.c7.title': 'Block Annotations',
-    'features.c7.desc': 'Add comment annotations to any block to improve code readability. Especially useful for teaching scenarios and team collaboration.',
-    'features.c7.tag': 'Teaching Friendly',
-    'features.c8.title': 'Export to HTML',
-    'features.c8.desc': 'One-click export projects to standalone HTML files. Run your creations in any browser without installing any software.',
-    'features.c8.tag': 'Easy Sharing',
-    'features.c9.title': 'Sound System',
-    'features.c9.desc': 'Load and play audio files, add sound effects to sprites through sound blocks. Make your creations more vivid and engaging.',
-    'features.c9.tag': 'Multimedia',
-    'v1020.tag': '🆕 v1.0.20 New Features',
-    'v1020.title': 'Minecraft Mod Development Mode',
-    'v1020.desc': 'Generate Minecraft mod code with blocks, supporting Bedrock, Netease, and Java editions',
-    'v1020.c1.title': 'MC Mod Development Mode',
-    'v1020.c1.desc': 'New creation mode: drag Minecraft-specific blocks, real-time code preview, one-click export to mod packages. Supports Bedrock (JavaScript), Netease (Python 2.7), Java (Fabric).',
-    'v1020.c1.tag': 'New Mode',
-    'v1020.c2.title': '34 MC-Specific Blocks',
-    'v1020.c2.desc': 'Event system (player join, block break), command execution (place block, summon entity, teleport), world operations (time, weather, gamerules).',
-    'v1020.c2.tag': 'Block System',
-    'v1020.c3.title': 'Smart Code Generation',
-    'v1020.c3.desc': 'Blocks automatically convert to platform-specific code: Bedrock Script API, Netease ModSDK Python 2.7, Java Fabric. Real-time preview on platform switch.',
-    'v1020.c3.tag': 'Code Generation',
-    'v1020.c4.title': 'One-Click Mod Export',
-    'v1020.c4.desc': 'Export as .mcpack (Bedrock) or .zip (Netease/Java), including complete manifest.json and code files, ready to import into game.',
-    'v1020.c4.tag': 'Export Feature',
-    'v1020.c5.title': 'Minecraft API Docs',
-    'v1020.c5.desc': 'Complete API documentation for all three platforms with tutorials, code examples, best practices and FAQ.',
-    'v1020.c5.tag': 'Documentation',
-    'v1020.c6.title': 'Stability Fixes',
-    'v1020.c6.desc': 'Fixed duplicate project cards after rename, web version loading issues, export functionality bugs, and more. Improved overall stability.',
-    'v1020.c6.tag': 'Bug Fixes',
-    'modules.tag': '🧱 Block Modules',
-    'modules.title': '12 Major Feature Modules',
-    'modules.desc': 'Covering all aspects of programming learning',
-    'modes.tag': '🎯 Three Modes',
-    'modes.title': 'Suitable for Everyone',
-    'modes.desc': 'Whether you\'re a beginner or experienced developer',
-    'v1019.tag': '📋 v1.0.19 New Features',
-    'v1019.title': 'Multi-Scene System & Editor Enhancements',
-    'v1019.desc': '2D/3D/UI scene types, block disconnect port selection, independent JS editor',
-    'v1019.c1.title': 'Multi-Scene Creation System',
-    'v1019.c1.desc': 'Advanced mode supports creating 2D, 3D, and UI scene files. 2D scenes support blocks+JS hybrid programming, 3D/UI scenes use pure JS scripts.',
-    'v1019.c1.tag': 'Scene System',
-    'v1019.c2.title': 'Block Disconnect Port Selection',
-    'v1019.c2.desc': 'Right-click block "Disconnect" expands port list, precisely select flow-in/flow-out/parameter/sub-code slots to disconnect, with one-click disconnect all.',
-    'v1019.c2.tag': 'Editor Improvement',
-    'v1019.c3.title': 'Independent JS Editor Window',
-    'v1019.c3.desc': 'JS code editor supports pop-up independent window for editing any node type scripts, no longer limited to Sprite2D. Supports 3D meshes, UI components, etc.',
-    'v1019.c3.tag': 'Code Programming',
-    'v1019.c4.title': '3D Scene Rendering Fix',
-    'v1019.c4.desc': 'Fixed Mesh3D node rendering issues in Three.js viewport for 3D scenes. Auto-sync meshes to renderer when loading 3D scene files.',
-    'v1019.c4.tag': 'Bug Fix',
-    'v1017.tag': '📋 v1.0.17 New Features',
-    'v1017.title': 'Advanced Editor & JS Parallel Execution',
-    'v1017.desc': 'Godot-style professional editor, visual blocks and JS code run simultaneously',
-    'v1017.c1.title': 'Godot-Style Advanced Editor',
-    'v1017.c1.desc': 'Scene tree, property inspector, file system panel, dual blocks and JS programming modes. F11 fullscreen editing, independent code windows, professional creation experience.',
-    'v1017.c1.tag': 'Professional Editor',
-    'v1017.c2.title': 'Full-Featured JS API',
-    'v1017.c2.desc': 'JavaScript programming supports all block functions: sprite.say(), sprite.move(), sprite.isTouchingEdge() complete API proxy system, running parallel to visual blocks.',
-    'v1017.c2.tag': 'Code Programming',
-    'v1017.c3.title': 'Bug Fixes & Enhancements',
-    'v1017.c3.desc': 'Fixed visual blocks and JS concurrent execution blocking, JS editor window control issues, missing block panel, and more. More stable operation.',
-    'v1017.c3.tag': 'Stability',
-    'v1016.tag': '📋 v1.0.16 New Features',
-    'v1016.title': '3D Enhancement & Community Upgrade',
-    'v1016.desc': 'More powerful 3D capabilities, more complete community experience',
-    'v1016.c1.title': '3D Plus Extension',
-    'v1016.c1.desc': 'New object-oriented camera system: create multiple cameras, orbital rotation, follow objects, bind to meshes. Support object group binding, multi-camera projection switching.',
-    'v1016.c1.tag': 'Advanced 3D',
-    'v1016.c2.title': 'Community 3D Preview',
-    'v1016.c2.desc': 'Community works online preview supports 3D mode, automatically saves render mode info on publish, auto-switches to correct render mode on preview.',
-    'v1016.c2.tag': 'Community Enhancement',
-    'v1016.c3.title': 'Dropdown Fix',
-    'v1016.c3.desc': 'Fixed 3D object property dropdown menu not correctly displaying labels and storing values. More stable and reliable property read/write.',
-    'v1016.c3.tag': 'Bug Fix',
-    'v1015.tag': '📋 v1.0.15 New Features',
-    'v1015.title': '3D Support',
-    'v1015.desc': 'Objector no longer limited to 2D',
-    'v1015.c1.title': '3D Module',
-    'v1015.c1.desc': 'New 3D module, supports 3D object creation, movement, rotation, scaling, and 3D camera settings.',
-    'v1015.c1.tag': 'Meta Programming',
-    'download.tag': '📥 Download Now',
-    'download.title': 'Start Your Creative Journey',
-    'footer.copyright': '© 2026 Objector. Build unlimited creativity with blocks.'
-  }
-};
-
-let currentLang = 'zh-CN';
-
-function setLang(lang) {
-  currentLang = lang;
-  document.documentElement.lang = lang;
-  
-  // Update active button
-  document.querySelectorAll('.lang-btn').forEach(btn => {
-    btn.classList.remove('active');
-    if ((lang === 'zh-CN' && btn.textContent === '中文') || (lang === 'en' && btn.textContent === 'EN')) {
-      btn.classList.add('active');
-    }
-  });
-  
-  // Translate all elements with data-i18n
-  document.querySelectorAll('[data-i18n]').forEach(el => {
-    const key = el.getAttribute('data-i18n');
-    if (lang === 'en' && translations.en[key]) {
-      el.innerHTML = translations.en[key];
-    } else if (lang === 'zh-CN') {
-      // For Chinese, restore original content
-      const original = el.getAttribute('data-i18n-original');
-      if (original) {
-        el.innerHTML = original;
-      }
-    }
-  });
-  
-  // Save preference
-  localStorage.setItem('objector-lang', lang);
-}
-
-// Store original Chinese content on page load
-function storeOriginalContent() {
-  document.querySelectorAll('[data-i18n]').forEach(el => {
-    el.setAttribute('data-i18n-original', el.innerHTML);
-  });
-}
-
-// Initialize on page load
-window.addEventListener('DOMContentLoaded', () => {
-  storeOriginalContent();
-  const savedLang = localStorage.getItem('objector-lang') || 'zh-CN';
-  if (savedLang !== 'zh-CN') {
-    setLang(savedLang);
-  }
-});
-
 // ===== i18n =====
 const i18n = {
   'zh-CN': {
     'pageTitle': 'Objector - 图形化积木编程编辑器',
-    'nav.features': '功能特性', 'nav.v1020': 'v1.0.20 新特性', 'nav.modules': '积木模块',
+    'nav.features': '功能特性', 'nav.v1021': 'v1.0.21 新特性', 'nav.modules': '积木模块',
     'nav.modes': '编辑模式', 'nav.blocksGuide': '📖 积木指南', 'nav.extensionApi': '📖 扩展API',
     'nav.webVersion': '🌐 网页版', 'nav.download': '立即下载',
-    'hero.badge': 'v1.0.20 桌面版 · 开源免费',
+    'hero.badge': 'v1.0.21.alpha 桌面版 · 开源免费',
     'hero.title': '用积木搭建<br><span class="gradient">无限创意</span>',
     'hero.sub': 'Objector 是一款强大的图形化积木编程编辑器，让零基础用户也能创作动画、游戏和交互式程序。从入门到专业开发，一站搞定。',
     'hero.download': '免费下载', 'hero.online': '🌐 在线体验网页版', 'hero.learnMore': '了解更多',
@@ -892,67 +718,20 @@ const i18n = {
     'features.c9.title': '声音系统',
     'features.c9.desc': '支持加载和播放音频文件，通过声音积木为角色添加音效。让你的作品更加生动有趣。',
     'features.c9.tag': '多媒体',
-    'v1020.tag': '🆕 v1.0.20 新特性', 'v1020.title': 'Minecraft 模组开发模式',
-    'v1020.desc': '用积木生成 Minecraft 模组代码，支持基岩版、网易版、Java 版',
-    'v1020.c1.title': 'MC 模组开发模式',
-    'v1020.c1.desc': '全新创作模式：拖拽 Minecraft 专用积木，实时预览生成的代码，一键导出为模组包。支持基岩版 (JavaScript)、网易版 (Python)、Java 版 (Fabric) 三大平台。',
-    'v1020.c1.tag': '全新模式',
-    'v1020.c2.title': '34 个 MC 专用积木',
-    'v1020.c2.desc': '事件系统（玩家加入、方块破坏）、命令执行（放置方块、生成实体、传送）、世界操作（时间、天气、游戏规则）等完整 Minecraft API 积木。',
-    'v1020.c2.tag': '积木系统',
-    'v1020.c3.title': '智能代码生成',
-    'v1020.c3.desc': '积木自动转换为对应平台的代码：基岩版 Script API、网易版 ModSDK Python 2.7、Java 版 Fabric。支持平台切换实时预览。',
-    'v1020.c3.tag': '代码生成',
-    'v1020.c4.title': '一键导出模组包',
-    'v1020.c4.desc': '导出为 .mcpack（基岩版）或 .zip（网易版/Java 版），包含完整的 manifest.json 和代码文件，可直接导入游戏使用。',
-    'v1020.c4.tag': '导出功能',
-    'v1020.c5.title': 'Minecraft API 文档',
-    'v1020.c5.desc': '内置完整的 Minecraft API 文档，涵盖三个平台的详细教程、代码示例、最佳实践和常见问题解答。',
-    'v1020.c5.tag': '文档系统',
-    'v1020.c6.title': '稳定性修复',
-    'v1020.c6.desc': '修复重命名项目卡片重复、网页版加载失败、导出功能失效等多项问题，提升整体稳定性。',
-    'v1020.c6.tag': 'BUG 修复',
-    'v1019.tag': '📋 v1.0.19 新特性', 'v1019.title': '多场景系统与编辑器增强',
-    'v1019.desc': '2D/3D/UI 三种场景类型，积木断开端口选择，JS 编辑器独立弹出',
-    'v1019.c1.title': '多场景创建系统',
-    'v1019.c1.desc': '高级模式下支持创建 2D、3D、UI 三种类型的场景文件。2D 场景支持积木+JS 混合编程，3D/UI 场景使用纯 JS 脚本驱动。',
-    'v1019.c1.tag': '场景系统',
-    'v1019.c2.title': '积木断开端口选择',
-    'v1019.c2.desc': '右键积木"断开连接"展开端口列表，可精确选择断开流入/流出/参数连接/子代码槽，支持一键断开全部。',
-    'v1019.c2.tag': '编辑器改进',
-    'v1019.c3.title': 'JS 编辑器独立窗口',
-    'v1019.c3.desc': 'JS 代码编辑器支持弹出独立窗口编辑任意节点类型的脚本，不再局限于 Sprite2D 角色。支持 3D 网格、UI 组件等所有节点。',
-    'v1019.c3.tag': '代码编程',
-    'v1019.c4.title': '3D 场景渲染修复',
-    'v1019.c4.desc': '修复 3D 场景中 Mesh3D 节点无法在 Three.js 视口中渲染的问题。加载 3D 场景文件时自动同步网格到渲染器。',
-    'v1019.c4.tag': 'BUG 修复',
-    'v1017.tag': '📋 v1.0.17 新特性', 'v1017.title': '高级编辑器与 JS 并行执行',
-    'v1017.desc': 'Godot 式专业编辑器，图形化与 JS 代码同时运行',
-    'v1017.c1.title': 'Godot 式高级编辑器',
-    'v1017.c1.desc': '场景树、属性检查器、文件系统面板、积木与 JS 双模式编程。F11 全屏编辑，独立代码窗口，专业级创作体验。',
-    'v1017.c1.tag': '专业编辑器',
-    'v1017.c2.title': 'JS 全功能 API',
-    'v1017.c2.desc': 'JavaScript 编程支持所有积木功能：sprite.say()、sprite.move()、sprite.isTouchingEdge() 等完整 API 代理系统，与图形化积木并行执行。',
-    'v1017.c2.tag': '代码编程',
-    'v1017.c3.title': 'BUG 修复与增强',
-    'v1017.c3.desc': '修复图形化与 JS 并发执行阻塞、JS 编辑器窗口控制失效、积木面板缺失等多项问题，运行更加稳定。',
-    'v1017.c3.tag': '稳定性',
-    'v1016.tag': '📋 v1.0.16 新特性', 'v1016.title': '3D 增强与社区升级',
-    'v1016.desc': '更强大的 3D 能力，更完善的社区体验',
-    'v1016.c1.title': '3D Plus 扩展',
-    'v1016.c1.desc': '新增面向对象的摄像机系统：创建多个摄像机、轨道环绕、跟随物体、绑定到网格。支持物体分组绑定，多摄像机切换投影。',
-    'v1016.c1.tag': '高级3D',
-    'v1016.c2.title': '社区 3D 预览',
-    'v1016.c2.desc': '社区作品在线预览支持 3D 模式，发布时自动保存渲染模式信息，预览时自动切换到正确的渲染模式。',
-    'v1016.c2.tag': '社区增强',
-    'v1016.c3.title': 'Dropdown 修复',
-    'v1016.c3.desc': '修复 3D 物体属性下拉菜单无法正确显示标签和存储值的 BUG，属性读写更加稳定可靠。',
-    'v1016.c3.tag': 'BUG修复',
-    'v1015.tag': '📋 v1.0.15 新特性', 'v1015.title': '3D 支持',
-    'v1015.desc': '让Objector不再局限于平面',
-    'v1015.c1.title': '3D 模块',
-    'v1015.c1.desc': '新增3D模块，支持3D对象创建、移动、旋转、缩放，以及3D相机设置。',
-    'v1015.c1.tag': '元编程',
+    'v1021.tag': '🆕 v1.0.21.alpha 新特性', 'v1021.title': '代码编程模式 + 右键菜单',
+    'v1021.desc': '内置代码编辑器支持 Python / C++ / JavaScript，自动查找系统解释器运行代码',
+    'v1021.c1.title': '代码编程模式',
+    'v1021.c1.desc': '全新创作模式：内置 CodeMirror 代码编辑器，支持语法高亮、自动补全、括号匹配，可直接编写 Python、C++、JavaScript 代码。',
+    'v1021.c1.tag': '全新模式',
+    'v1021.c2.title': '一键运行代码',
+    'v1021.c2.desc': '自动查找系统 Python 解释器和 C++ 编译器 (g++)，一键编译运行。JavaScript 使用内置 Node.js 直接执行。流式输出实时显示结果。',
+    'v1021.c2.tag': '智能执行',
+    'v1021.c3.title': 'stdin 输入支持',
+    'v1021.c3.desc': 'Python input() 和 C++ cin >> 完美工作！运行时代码编辑器底部显示输入框，支持向运行中的程序发送输入。',
+    'v1021.c3.tag': '交互运行',
+    'v1021.c4.title': '右键菜单打开项目',
+    'v1021.c4.desc': '安装后自动注册 Windows 右键菜单：右键文件夹或 ZIP 文件 → "做为Objector项目打开"，快速导入和打开项目。',
+    'v1021.c4.tag': '系统集成',
     'modules.tag': '🧱 积木模块', 'modules.title': '12 大功能模块', 'modules.desc': '覆盖编程学习的方方面面',
     'modules.names': ['事件','运动','外观','控制','运算','变量','函数','面向对象','列表','声音','3D','传感'],
     'modules.counts': ['程序入口 · 消息触发','移动 · 物理 · 追踪','造型 · 对话 · 可见性','循环 · 条件 · 延时','数学 · 逻辑 · 字符串','赋值 · 自增 · 类型转换','定义 · 调用 · 返回值','类 · 继承 · 属性','增删 · 遍历 · 查询','播放 · 停止 · 音量','网格 · 相机 · 场景','鼠标 · 键盘 · 碰撞'],
@@ -972,7 +751,7 @@ const i18n = {
     'tech.osVal': 'Windows 10+ / Linux x64 / macOS (网页版)',
     'tech.install': '安装方式', 'tech.installVal': '绿色免安装 / 安装包',
     'download.tag': '📥 立即下载', 'download.title': '开始你的创意之旅',
-    'download.version': '版本 1.0.20 · 发布于 2026',
+    'download.version': '版本 1.0.21.alpha · 发布于 2026',
     'download.desc': '免费下载，无需注册。支持 Windows、Linux 和 macOS（网页版）平台。',
     'download.winReq': 'Windows 10 及以上 · x64',
     'download.installer': '安装包 (.exe)', 'download.zip': '免安装压缩包 (.zip)',
@@ -986,10 +765,10 @@ const i18n = {
   },
   'en': {
     'pageTitle': 'Objector - Visual Block Programming Editor',
-    'nav.features': 'Features', 'nav.v1020': "What's New v1.0.20", 'nav.modules': 'Block Modules',
+    'nav.features': 'Features', 'nav.v1021': "What's New v1.0.21", 'nav.modules': 'Block Modules',
     'nav.modes': 'Edit Modes', 'nav.blocksGuide': '📖 Blocks Guide', 'nav.extensionApi': '📖 Extension API',
     'nav.webVersion': '🌐 Web Version', 'nav.download': 'Download',
-    'hero.badge': 'v1.0.20 Desktop · Open Source & Free',
+    'hero.badge': 'v1.0.21.alpha Desktop · Open Source & Free',
     'hero.title': 'Build with Blocks<br><span class="gradient">Unlimited Creativity</span>',
     'hero.sub': 'Objector is a powerful visual block programming editor that enables even beginners to create animations, games, and interactive programs. From beginner to professional development, all in one place.',
     'hero.download': 'Free Download', 'hero.online': '🌐 Try Online Version', 'hero.learnMore': 'Learn More',
@@ -1023,67 +802,20 @@ const i18n = {
     'features.c9.title': 'Sound System',
     'features.c9.desc': 'Load and play audio files, add sound effects to sprites via sound blocks. Make your creations more lively and fun.',
     'features.c9.tag': 'Multimedia',
-    'v1020.tag': '🆕 v1.0.20 New Features', 'v1020.title': 'Minecraft Mod Development Mode',
-    'v1020.desc': 'Generate Minecraft mod code with blocks, supporting Bedrock, NetEase, and Java editions',
-    'v1020.c1.title': 'MC Mod Dev Mode',
-    'v1020.c1.desc': 'Brand new creation mode: drag Minecraft-specific blocks, preview generated code in real-time, export as mod packs. Supports Bedrock (JavaScript), NetEase (Python), and Java (Fabric).',
-    'v1020.c1.tag': 'New Mode',
-    'v1020.c2.title': '34 MC-Specific Blocks',
-    'v1020.c2.desc': 'Event system (player join, block break), command execution (place blocks, spawn entities, teleport), world operations (time, weather, game rules) and more.',
-    'v1020.c2.tag': 'Block System',
-    'v1020.c3.title': 'Smart Code Generation',
-    'v1020.c3.desc': 'Blocks auto-convert to platform code: Bedrock Script API, NetEase ModSDK Python 2.7, Java Fabric. Switch platforms with real-time preview.',
-    'v1020.c3.tag': 'Code Gen',
-    'v1020.c4.title': 'One-Click Mod Export',
-    'v1020.c4.desc': 'Export as .mcpack (Bedrock) or .zip (NetEase/Java), including complete manifest.json and code files, ready to import into the game.',
-    'v1020.c4.tag': 'Export',
-    'v1020.c5.title': 'Minecraft API Docs',
-    'v1020.c5.desc': 'Built-in complete Minecraft API documentation with detailed tutorials, code examples, best practices, and FAQs for all three platforms.',
-    'v1020.c5.tag': 'Documentation',
-    'v1020.c6.title': 'Stability Fixes',
-    'v1020.c6.desc': 'Fixed project card rename duplication, web version loading failures, export issues, and more for improved overall stability.',
-    'v1020.c6.tag': 'Bug Fixes',
-    'v1019.tag': '📋 v1.0.19 New Features', 'v1019.title': 'Multi-Scene System & Editor Enhancements',
-    'v1019.desc': '2D/3D/UI scene types, block disconnect port selection, standalone JS editor',
-    'v1019.c1.title': 'Multi-Scene System',
-    'v1019.c1.desc': 'Advanced mode supports creating 2D, 3D, and UI scene files. 2D scenes support block+JS hybrid programming, 3D/UI scenes use pure JS scripts.',
-    'v1019.c1.tag': 'Scene System',
-    'v1019.c2.title': 'Block Disconnect Ports',
-    'v1019.c2.desc': 'Right-click "Disconnect" to expand port list. Precisely select disconnect for inflow/outflow/parameter/sub-code slots. One-click disconnect all.',
-    'v1019.c2.tag': 'Editor Improvement',
-    'v1019.c3.title': 'Standalone JS Editor',
-    'v1019.c3.desc': 'JS code editor pops out as standalone window for any node type. No longer limited to Sprite2D. Supports 3D meshes, UI components, and all nodes.',
-    'v1019.c3.tag': 'Code Programming',
-    'v1019.c4.title': '3D Scene Rendering Fix',
-    'v1019.c4.desc': 'Fixed Mesh3D nodes not rendering in Three.js viewport. Auto-syncs meshes to renderer when loading 3D scene files.',
-    'v1019.c4.tag': 'Bug Fix',
-    'v1017.tag': '📋 v1.0.17 New Features', 'v1017.title': 'Advanced Editor & JS Parallel Execution',
-    'v1017.desc': 'Godot-style professional editor, visual blocks and JS code running simultaneously',
-    'v1017.c1.title': 'Godot-Style Editor',
-    'v1017.c1.desc': 'Scene tree, property inspector, filesystem panel, dual block+JS programming. F11 fullscreen, standalone code window, professional creation experience.',
-    'v1017.c1.tag': 'Pro Editor',
-    'v1017.c2.title': 'Full JS API',
-    'v1017.c2.desc': 'JavaScript programming supports all block features: sprite.say(), sprite.move(), sprite.isTouchingEdge() and more. Runs parallel with visual blocks.',
-    'v1017.c2.tag': 'Code Programming',
-    'v1017.c3.title': 'Bug Fixes & Enhancements',
-    'v1017.c3.desc': 'Fixed block+JS concurrent execution blocking, JS editor window control failures, block panel missing, and more.',
-    'v1017.c3.tag': 'Stability',
-    'v1016.tag': '📋 v1.0.16 New Features', 'v1016.title': '3D Enhancement & Community Upgrade',
-    'v1016.desc': 'More powerful 3D capabilities, improved community experience',
-    'v1016.c1.title': '3D Plus Extension',
-    'v1016.c1.desc': 'New OOP camera system: create multiple cameras, orbit, follow objects, bind to meshes. Supports object group binding and multi-camera projection switching.',
-    'v1016.c1.tag': 'Advanced 3D',
-    'v1016.c2.title': 'Community 3D Preview',
-    'v1016.c2.desc': 'Community works online preview supports 3D mode. Auto-saves render mode info on publish and switches to correct render mode on preview.',
-    'v1016.c2.tag': 'Community Enhancement',
-    'v1016.c3.title': 'Dropdown Fix',
-    'v1016.c3.desc': 'Fixed 3D object property dropdown not displaying labels and stored values correctly. More stable and reliable property read/write.',
-    'v1016.c3.tag': 'Bug Fix',
-    'v1015.tag': '📋 v1.0.15 New Features', 'v1015.title': '3D Support',
-    'v1015.desc': 'Objector is no longer limited to 2D',
-    'v1015.c1.title': '3D Module',
-    'v1015.c1.desc': 'New 3D module supporting 3D object creation, movement, rotation, scaling, and 3D camera settings.',
-    'v1015.c1.tag': 'Meta-programming',
+    'v1021.tag': '🆕 v1.0.21.alpha New Features', 'v1021.title': 'Code Programming Mode + Context Menu',
+    'v1021.desc': 'Built-in code editor supports Python / C++ / JavaScript, auto-detects system interpreters',
+    'v1021.c1.title': 'Code Programming Mode',
+    'v1021.c1.desc': 'Brand new creation mode: built-in CodeMirror editor with syntax highlighting, auto-completion, bracket matching. Write Python, C++, and JavaScript directly.',
+    'v1021.c1.tag': 'New Mode',
+    'v1021.c2.title': 'One-Click Run',
+    'v1021.c2.desc': 'Auto-detects system Python interpreter and C++ compiler (g++). JavaScript runs directly via built-in Node.js. Streaming output shows results in real-time.',
+    'v1021.c2.tag': 'Smart Execution',
+    'v1021.c3.title': 'stdin Input Support',
+    'v1021.c3.desc': 'Python input() and C++ cin >> work perfectly! An input bar appears at the bottom of the editor during runtime to send input to the running program.',
+    'v1021.c3.tag': 'Interactive Run',
+    'v1021.c4.title': 'Context Menu Integration',
+    'v1021.c4.desc': 'Auto-registers Windows context menu after install: right-click folders or ZIP files → "Open as Objector Project" for quick import.',
+    'v1021.c4.tag': 'System Integration',
     'modules.tag': '🧱 Block Modules', 'modules.title': '12 Feature Modules', 'modules.desc': 'Covering all aspects of programming',
     'modules.names': ['Events','Motion','Looks','Control','Operators','Variables','Functions','OOP','Lists','Sound','3D','Sensing'],
     'modules.counts': ['Entry Points · Messages','Move · Physics · Tracking','Costumes · Dialog · Visibility','Loops · Conditions · Delays','Math · Logic · Strings','Assignment · Increment · Type Cast','Define · Call · Return','Class · Inherit · Properties','Add · Remove · Iterate','Play · Stop · Volume','Mesh · Camera · Scene','Mouse · Keyboard · Collision'],
@@ -1103,7 +835,7 @@ const i18n = {
     'tech.osVal': 'Windows 10+ / Linux x64 / macOS (Web)',
     'tech.install': 'Installation', 'tech.installVal': 'Portable / Installer',
     'download.tag': '📥 Download Now', 'download.title': 'Start Your Creative Journey',
-    'download.version': 'Version 1.0.20 · Released 2026',
+    'download.version': 'Version 1.0.21.alpha · Released 2026',
     'download.desc': 'Free download, no registration required. Supports Windows, Linux, and macOS (web version).',
     'download.winReq': 'Windows 10 and above · x64',
     'download.installer': 'Installer (.exe)', 'download.zip': 'Portable (.zip)',
