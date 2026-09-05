@@ -833,6 +833,24 @@ const EditorCanvas = (function () {
       const bpItem = menu.querySelector('[data-action="toggle-breakpoint"]');
       if (bpItem) bpItem.textContent = DevMode.isBreakpoint(blockId) ? '✅ 取消断点' : '🔴 设置断点';
     }
+    // 删除往后积木：只有当此积木有 flowOut 时才显示
+    const deleteChainEl = menu.querySelector('[data-action="delete-chain"]');
+    if (deleteChainEl) {
+      deleteChainEl.style.display = (block && block.flowOut) ? '' : 'none';
+    }
+    // 删除内部积木：只有当此积木是 C 型（有 subBlocks）时才显示
+    const deleteInnerEl = menu.querySelector('[data-action="delete-inner"]');
+    if (deleteInnerEl) {
+      const hasInner = block && (block.subBlocks?.length > 0 || block.ports?.subBlocks?.length > 0);
+      deleteInnerEl.style.display = hasInner ? '' : 'none';
+    }
+    // 分隔线：当两个新菜单项都隐藏时，隐藏分隔线
+    const divider = menu.querySelector('.ctx-divider');
+    if (divider) {
+      const chainVisible = deleteChainEl && deleteChainEl.style.display !== 'none';
+      const innerVisible = deleteInnerEl && deleteInnerEl.style.display !== 'none';
+      divider.style.display = (chainVisible || innerVisible) ? '' : 'none';
+    }
   }
 
   /** 获取积木的所有连接端口信息 */
@@ -1109,6 +1127,78 @@ document.addEventListener('DOMContentLoaded', () => {
           Executor.clearOutput();
           document.getElementById('output-log').textContent = '';
           Executor.run();
+        }
+      } else if (action === 'delete-chain' && blockId) {
+        // 删除往后的所有积木（沿 flowOut 链递归删除）
+        const blocks = window.EditorState?.blocks;
+        if (!blocks) return;
+        let currentId = blocks[blockId]?.flowOut;
+        let deletedCount = 0;
+        while (currentId) {
+          const b = blocks[currentId];
+          if (!b) break;
+          const nextId = b.flowOut;
+          // 删除当前积木
+          delete blocks[currentId];
+          deletedCount++;
+          currentId = nextId;
+        }
+        // 断开起始积木的 flowOut
+        if (blocks[blockId]) {
+          blocks[blockId].flowOut = null;
+        }
+        if (deletedCount > 0) {
+          EditorCanvas.render();
+          // 记录撤销历史
+          if (typeof HistoryManager !== 'undefined') HistoryManager.pushSnapshot();
+        }
+      } else if (action === 'delete-inner' && blockId) {
+        // 删除内部的所有积木（C 型积木的 subBlocks）
+        const blocks = window.EditorState?.blocks;
+        if (!blocks) return;
+        const block = blocks[blockId];
+        if (!block) return;
+        // 收集所有内部积木 ID
+        const subBlocks = block.subBlocks || block.ports?.subBlocks || [];
+        if (subBlocks.length === 0) return;
+        // 递归删除所有内部积木
+        let deletedCount = 0;
+        function _deleteInner(id) {
+          const b = blocks[id];
+          if (!b) return;
+          // 先递归删除子积木
+          const children = b.subBlocks || b.ports?.subBlocks || [];
+          children.forEach(_deleteInner);
+          // 再递归删除 flowOut 链
+          if (b.flowOut) _deleteChain(b.flowOut);
+          // 删除当前积木
+          delete blocks[id];
+          deletedCount++;
+        }
+        function _deleteChain(id) {
+          const b = blocks[id];
+          if (!b) return;
+          const children = b.subBlocks || b.ports?.subBlocks || [];
+          children.forEach(_deleteInner);
+          if (b.flowOut) _deleteChain(b.flowOut);
+          delete blocks[id];
+          deletedCount++;
+        }
+        subBlocks.forEach(id => {
+          const b = blocks[id];
+          if (!b) return;
+          const children = b.subBlocks || b.ports?.subBlocks || [];
+          children.forEach(_deleteInner);
+          if (b.flowOut) _deleteChain(b.flowOut);
+          delete blocks[id];
+          deletedCount++;
+        });
+        // 清空起始积木的内部积木列表
+        if (block.subBlocks) block.subBlocks = [];
+        if (block.ports?.subBlocks) block.ports.subBlocks = [];
+        if (deletedCount > 0) {
+          EditorCanvas.render();
+          if (typeof HistoryManager !== 'undefined') HistoryManager.pushSnapshot();
         }
       }
       menu.classList.add('hidden');

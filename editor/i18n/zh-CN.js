@@ -101,6 +101,8 @@ i18n.load('zh-CN', {
     addListItem: '+ 添加列表项',
     removeListItem: '- 移除最后一项',
     comment: '💬 添加批注',
+    deleteChain: '🗑️ 删除往后的所有积木',
+    deleteInner: '🗑️ 删除内部的所有积木',
     breakpoint: '🔴 设置/取消断点',
     runToHere: '▶ 运行到此处',
   },

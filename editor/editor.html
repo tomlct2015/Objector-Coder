@@ -376,6 +376,9 @@
     <div class="ctx-item" data-action="add-list-item" data-i18n="contextMenu.addListItem">+ 添加列表项</div>
     <div class="ctx-item" data-action="remove-list-item" data-i18n="contextMenu.removeListItem">- 移除最后一项</div>
     <div class="ctx-item" data-action="edit-comment" data-i18n="contextMenu.comment">💬 添加批注</div>
+    <div class="ctx-divider"></div>
+    <div class="ctx-item" data-action="delete-chain" data-i18n="contextMenu.deleteChain">🗑️ 删除往后的所有积木</div>
+    <div class="ctx-item" data-action="delete-inner" data-i18n="contextMenu.deleteInner">🗑️ 删除内部的所有积木</div>
     <div class="ctx-item dev-only hidden" data-action="toggle-breakpoint" data-i18n="contextMenu.breakpoint">🔴 设置/取消断点</div>
     <div class="ctx-item dev-only hidden" data-action="run-to-here" data-i18n="contextMenu.runToHere">▶ 运行到此处</div>
   </div>
@@ -390,6 +393,9 @@
     <div class="ctx-item" data-action="add-list-item">+ 添加列表项</div>
     <div class="ctx-item" data-action="remove-list-item">- 移除最后一项</div>
     <div class="ctx-item" data-action="edit-comment">💬 添加批注</div>
+    <div class="ctx-divider"></div>
+    <div class="ctx-item" data-action="delete-chain" data-i18n="contextMenu.deleteChain">🗑️ 删除往后的所有积木</div>
+    <div class="ctx-item" data-action="delete-inner" data-i18n="contextMenu.deleteInner">🗑️ 删除内部的所有积木</div>
     <div class="ctx-item dev-only hidden" data-action="toggle-breakpoint">🔴 设置/取消断点</div>
     <div class="ctx-item dev-only hidden" data-action="run-to-here">▶ 运行到此处</div>
   </div>
@@ -448,6 +454,9 @@
   <script src="core/sensing-input.js"></script>
   <script src="core/file-editor.js"></script>
   <script src="core/html-exporter.js"></script>
+  <script src="core/history-manager.js"></script>
+  <script src="core/auto-save-manager.js"></script>
+  <script src="core/template-manager.js"></script>
   <script src="core/dev-mode.js"></script>
   <script src="stage/sprite.js"></script>
   <script src="stage/costume-manager.js"></script>

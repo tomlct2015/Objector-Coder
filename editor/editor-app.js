@@ -1820,16 +1820,37 @@ window.EditorApp = (function () {
 
     // 键盘快捷键
     document.addEventListener('keydown', (e) => {
-      if (e.ctrlKey && e.key === 's') {
+      // Ctrl+Z = 撤销
+      if (e.ctrlKey && !e.shiftKey && e.key === 'z') {
+        e.preventDefault();
+        if (typeof HistoryManager !== 'undefined') HistoryManager.undo();
+      }
+      // Ctrl+Y 或 Ctrl+Shift+Z = 重做
+      else if (e.ctrlKey && e.key === 'y') {
+        e.preventDefault();
+        if (typeof HistoryManager !== 'undefined') HistoryManager.redo();
+      }
+      else if (e.ctrlKey && e.shiftKey && e.key === 'Z') {
+        e.preventDefault();
+        if (typeof HistoryManager !== 'undefined') HistoryManager.redo();
+      }
+      // Ctrl+S = 保存
+      else if (e.ctrlKey && e.key === 's') {
         e.preventDefault();
         _actionSave();
-      } else if (e.key === 'F5' && !e.shiftKey) {
+      }
+      // F5 = 运行
+      else if (e.key === 'F5' && !e.shiftKey) {
         e.preventDefault();
         _actionRun();
-      } else if (e.key === 'F5' && e.shiftKey) {
+      }
+      // Shift+F5 = 停止
+      else if (e.key === 'F5' && e.shiftKey) {
         e.preventDefault();
         _actionStop();
-      } else if (e.ctrlKey && e.shiftKey && (e.key === 'Q' || e.key === 'q')) {
+      }
+      // Ctrl+Shift+Q = 强制停止
+      else if (e.ctrlKey && e.shiftKey && (e.key === 'Q' || e.key === 'q')) {
         e.preventDefault();
         _actionForceStop();
       }
@@ -1844,10 +1865,14 @@ window.EditorApp = (function () {
       const spriteName = sprite ? sprite.name : '';
       document.getElementById('block-count').textContent =
         (i18n.isEnglish() ? spriteName + ': ' : spriteName + '：') + count + (i18n.isEnglish() ? ' blocks' : ' 个积木');
-      // 检测积木数据变化，标记未保存状态
+      // 检测积木数据变化，标记未保存状态并记录历史
       const snapshot = JSON.stringify(EditorState.blocks || {});
       if (snapshot !== EditorState._blocksSnapshot) {
         EditorState._isDirty = true;
+        // 记录撤销历史（防抖，避免拖拽时记录太多次）
+        if (typeof HistoryManager !== 'undefined') {
+          HistoryManager.pushSnapshotDebounced();
+        }
       }
     }, 500);
 
@@ -2286,6 +2311,16 @@ window.EditorApp = (function () {
     // 项目加载完成后重置未保存状态
     EditorState._isDirty = false;
     EditorState._blocksSnapshot = JSON.stringify(EditorState.blocks || {});
+
+    // 初始化历史记录管理器（用于撤销/重做）
+    if (typeof HistoryManager !== 'undefined') {
+      HistoryManager.init();
+    }
+
+    // 初始化自动保存管理器
+    if (typeof AutoSaveManager !== 'undefined') {
+      AutoSaveManager.init();
+    }
     } catch(e) {
       console.error('[项目加载失败]', e);
       document.getElementById('status-text').textContent = i18n.t('status.loadFailed', null).replace('{error}', e.message);

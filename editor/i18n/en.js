@@ -101,6 +101,8 @@ i18n.load('en', {
     addListItem: '+ Add list item',
     removeListItem: '- Remove last item',
     comment: '💬 Add comment',
+    deleteChain: '🗑️ Delete all blocks after',
+    deleteInner: '🗑️ Delete all blocks inside',
     breakpoint: '🔴 Toggle breakpoint',
     runToHere: '▶ Run to here',
   },
