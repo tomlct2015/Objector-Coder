@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Objector AI 助手</title>
+  <style>
+    :root {
+      --bg: #1e1e2e; --bg2: #181825; --surface: #313244; --hover: #45475a;
+      --text: #cdd6f4; --text2: #a6adc8; --muted: #6c7086;
+      --border: #45475a; --accent: #89b4fa; --green: #a6e3a1;
+      --red: #f38ba8; --yellow: #f9e2af; --mauve: #cba6f7;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI','Microsoft YaHei',sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Titlebar */
+    #titlebar { height: 32px; background: var(--bg2); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); flex-shrink: 0; -webkit-app-region: drag; padding-left: 12px; }
+    #titlebar .title { font-size: 12px; font-weight: 600; color: var(--accent); }
+    #titlebar .controls { display: flex; -webkit-app-region: no-drag; }
+    #titlebar .controls button { width: 32px; height: 32px; border: none; background: transparent; color: var(--text2); font-size: 14px; cursor: pointer; }
+    #titlebar .controls button:hover { background: var(--hover); }
+    #titlebar .controls .close:hover { background: var(--red); color: #fff; }
+
+    /* Toolbar */
+    #toolbar { height: 36px; background: var(--bg2); display: flex; align-items: center; padding: 0 10px; gap: 6px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    #toolbar .tb-btn { padding: 3px 10px; font-size: 11px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text2); cursor: pointer; transition: all .15s; }
+    #toolbar .tb-btn:hover { border-color: var(--accent); color: var(--accent); }
+    #toolbar .tb-btn.active { background: rgba(137,180,250,.15); border-color: var(--accent); color: var(--accent); }
+    #toolbar .spacer { flex: 1; }
+    #toolbar .status { font-size: 11px; color: var(--muted); }
+
+    /* Chat area */
+    #chat-area { flex: 1; overflow-y: auto; padding: 12px 16px; scroll-behavior: smooth; }
+    .msg { margin-bottom: 14px; display: flex; gap: 8px; animation: fadeIn .3s; }
+    .msg-user { flex-direction: row-reverse; }
+    .msg-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+    .msg-user .msg-avatar { background: rgba(137,180,250,.2); }
+    .msg-ai .msg-avatar { background: rgba(166,227,161,.2); }
+    .msg-system .msg-avatar { background: rgba(249,226,175,.2); }
+    .msg-bubble { max-width: 85%; padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.6; word-break: break-word; }
+    .msg-user .msg-bubble { background: rgba(137,180,250,.12); border-bottom-right-radius: 4px; }
+    .msg-ai .msg-bubble { background: var(--surface); border-bottom-left-radius: 4px; }
+    .msg-system .msg-bubble { background: rgba(249,226,175,.08); font-size: 12px; color: var(--text2); border: 1px solid rgba(249,226,175,.15); }
+    .msg-bubble pre { background: rgba(0,0,0,.3); padding: 6px 10px; border-radius: 6px; margin: 6px 0; font-size: 12px; overflow-x: auto; font-family: 'Cascadia Code','Consolas',monospace; }
+    .msg-bubble code { background: rgba(0,0,0,.2); padding: 1px 4px; border-radius: 3px; font-size: 12px; font-family: 'Cascadia Code','Consolas',monospace; }
+    .msg-bubble .tool-call { background: rgba(203,166,247,.1); border: 1px solid rgba(203,166,247,.2); border-radius: 6px; padding: 6px 10px; margin: 6px 0; font-size: 12px; }
+    .msg-bubble .tool-call .tool-name { color: var(--mauve); font-weight: 600; }
+    .msg-bubble .tool-result { background: rgba(166,227,161,.08); border: 1px solid rgba(166,227,161,.15); border-radius: 6px; padding: 6px 10px; margin: 4px 0; font-size: 12px; }
+    .msg-streaming .msg-bubble::after { content: '▋'; animation: blink 1s infinite; color: var(--accent); }
+
+    /* Thinking indicator */
+    .thinking { display: flex; gap: 4px; padding: 4px 0; }
+    .thinking span { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: bounce .6s infinite alternate; }
+    .thinking span:nth-child(2) { animation-delay: .2s; }
+    .thinking span:nth-child(3) { animation-delay: .4s; }
+
+    /* Input area */
+    #input-area { padding: 10px 16px; border-top: 1px solid var(--border); background: var(--bg2); flex-shrink: 0; }
+    #input-area .quick-bar { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
+    #input-area .quick-btn { padding: 3px 8px; font-size: 11px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text2); cursor: pointer; transition: all .15s; }
+    #input-area .quick-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(137,180,250,.1); }
+    #input-row { display: flex; gap: 8px; align-items: flex-end; }
+    #chat-input { flex: 1; min-height: 36px; max-height: 120px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; resize: none; outline: none; font-family: inherit; line-height: 1.5; }
+    #chat-input:focus { border-color: var(--accent); }
+    #send-btn { width: 36px; height: 36px; border: none; border-radius: 8px; background: var(--accent); color: var(--bg); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all .15s; flex-shrink: 0; }
+    #send-btn:hover { background: #74c7ec; }
+    #send-btn:disabled { opacity: .4; cursor: not-allowed; }
+    #stop-btn { width: 36px; height: 36px; border: none; border-radius: 8px; background: var(--red); color: #fff; font-size: 14px; cursor: pointer; display: none; align-items: center; justify-content: center; flex-shrink: 0; }
+
+    /* Config dialog */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    .overlay.hidden { display: none; }
+    .dialog { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; width: 420px; max-width: 90%; }
+    .dialog h3 { font-size: 14px; color: var(--accent); margin-bottom: 14px; }
+    .dialog label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 4px; }
+    .dialog input, .dialog select { width: 100%; padding: 6px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 13px; margin-bottom: 10px; outline: none; }
+    .dialog input:focus, .dialog select:focus { border-color: var(--accent); }
+    .dialog .btn-row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+    .dialog .btn-row button { padding: 6px 16px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; cursor: pointer; }
+    .dialog .btn-cancel { background: var(--surface); color: var(--text2); }
+    .dialog .btn-save { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+    /* Confirm dialog */
+    .confirm-dialog { max-width: 380px; }
+    .confirm-dialog .confirm-text { font-size: 13px; line-height: 1.6; margin-bottom: 14px; color: var(--text); }
+    .confirm-dialog .confirm-detail { background: rgba(249,226,175,.08); border: 1px solid rgba(249,226,175,.15); border-radius: 6px; padding: 8px 12px; font-size: 12px; margin-bottom: 14px; color: var(--yellow); }
+    .dialog .btn-danger { background: var(--red); color: #fff; border-color: var(--red); }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-4px); } }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+  </style>
+</head>
+<body>
+  <!-- Titlebar -->
+  <div id="titlebar">
+    <span class="title">🤖 Objector AI 助手</span>
+    <div class="controls">
+      <button class="minimize" onclick="window.api?.windowMinimize()">─</button>
+      <button class="maximize" onclick="window.api?.windowMaximize()">□</button>
+      <button class="close" onclick="window.close()">✕</button>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <button class="tb-btn" id="btn-config" title="配置 AI">⚙️ 设置</button>
+    <button class="tb-btn" id="btn-clear" title="清空对话">🗑️ 清空</button>
+    <button class="tb-btn" id="btn-screenshot" title="截取积木区">📷 截图</button>
+    <button class="tb-btn" id="btn-blocks" title="查看当前积木">📋 积木</button>
+    <span class="spacer"></span>
+    <span class="status" id="status-text">就绪</span>
+  </div>
+
+  <!-- Chat -->
+  <div id="chat-area"></div>
+
+  <!-- Input -->
+  <div id="input-area">
+    <div class="quick-bar">
+      <button class="quick-btn" data-prompt="解释一下当前积木代码">📖 解释代码</button>
+      <button class="quick-btn" data-prompt="当前代码有什么问题？给我调试建议">🐛 调试建议</button>
+      <button class="quick-btn" data-prompt="如何优化当前代码？">⚡ 优化建议</button>
+      <button class="quick-btn" data-prompt="帮我生成一个让角色转圈并说话的积木">✨ 生成积木</button>
+      <button class="quick-btn" data-prompt="查阅积木使用文档并告诉我有哪些高级功能">📚 查文档</button>
+    </div>
+    <div id="input-row">
+      <textarea id="chat-input" rows="1" placeholder="和 AI 助手聊天... (Enter 发送, Shift+Enter 换行)"></textarea>
+      <button id="send-btn" title="发送">➤</button>
+      <button id="stop-btn" title="停止生成">⏹</button>
+    </div>
+  </div>
+
+  <!-- Config Dialog -->
+  <div id="config-overlay" class="overlay hidden">
+    <div class="dialog">
+      <h3>⚙️ AI 配置</h3>
+      <label>AI 提供商</label>
+      <select id="cfg-provider">
+        <option value="openai">OpenAI (GPT-4o-mini)</option>
+        <option value="deepseek">DeepSeek</option>
+        <option value="ollama">Ollama (本地)</option>
+        <option value="custom">自定义</option>
+      </select>
+      <label>API Base URL</label>
+      <input id="cfg-url" placeholder="https://api.openai.com/v1" />
+      <label>API Key</label>
+      <input id="cfg-key" type="password" placeholder="sk-..." />
+      <label>模型名称</label>
+      <input id="cfg-model" placeholder="gpt-4o-mini" />
+      <div class="btn-row">
+        <button class="btn-cancel" onclick="closeConfig()">取消</button>
+        <button class="btn-save" onclick="saveConfig()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Dialog -->
+  <div id="confirm-overlay" class="overlay hidden">
+    <div class="dialog confirm-dialog">
+      <h3 id="confirm-title">⚠️ 确认操作</h3>
+      <div class="confirm-text" id="confirm-text"></div>
+      <div class="confirm-detail" id="confirm-detail"></div>
+      <div class="btn-row">
+        <button class="btn-cancel" id="confirm-cancel">取消</button>
+        <button class="btn-danger" id="confirm-ok">确认执行</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const chatArea = document.getElementById('chat-area');
+const chatInput = document.getElementById('chat-input');
+const sendBtn = document.getElementById('send-btn');
+const stopBtn = document.getElementById('stop-btn');
+const statusText = document.getElementById('status-text');
+
+let chatHistory = []; // {role, content}
+let isStreaming = false;
+let currentStreamEl = null;
+let blockCatalog = '';
+let currentBlocks = '';
+
+// ========== Initialization ==========
+window.addEventListener('DOMContentLoaded', () => {
+  // Load config
+  window.api?.getAIConfig().then(cfg => {
+    if (cfg) {
+      document.getElementById('cfg-provider').value = cfg.provider || 'openai';
+      document.getElementById('cfg-url').value = cfg.baseUrl || '';
+      document.getElementById('cfg-key').value = cfg.apiKey || '';
+      document.getElementById('cfg-model').value = cfg.model || '';
+    }
+  });
+
+  // Receive block catalog from editor
+  window.api?.onAIBlockCatalog((catalog) => {
+    blockCatalog = catalog;
+  });
+
+  // Receive current blocks from editor
+  window.api?.onAICurrentBlocks((blocks) => {
+    currentBlocks = blocks;
+  });
+
+  // Welcome message
+  addMessage('system', '你好！我是 Objector AI 编程助手。你可以和我聊天、让我生成积木、解释代码、调试问题等。\n\n提示：先用 ⚙️ 设置配置你的 AI API Key。');
+});
+
+// ========== Chat ==========
+function addMessage(role, content, opts = {}) {
+  const div = document.createElement('div');
+  div.className = 'msg msg-' + role + (opts.streaming ? ' msg-streaming' : '');
+
+  const avatar = document.createElement('div');
+  avatar.className = 'msg-avatar';
+  avatar.textContent = role === 'user' ? '👤' : (role === 'system' ? '⚠️' : '🤖');
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.innerHTML = formatMarkdown(content);
+
+  div.appendChild(avatar);
+  div.appendChild(bubble);
+  chatArea.appendChild(div);
+  chatArea.scrollTop = chatArea.scrollHeight;
+  return bubble;
+}
+
+function addThinking() {
+  const div = document.createElement('div');
+  div.className = 'msg msg-ai';
+  div.id = 'thinking-msg';
+  div.innerHTML = '<div class="msg-avatar">🤖</div><div class="msg-bubble"><div class="thinking"><span></span><span></span><span></span></div></div>';
+  chatArea.appendChild(div);
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function removeThinking() {
+  const el = document.getElementById('thinking-msg');
+  if (el) el.remove();
+}
+
+function formatMarkdown(text) {
+  // Simple markdown: code blocks, inline code, bold, line breaks
+  return text
+    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+}
+
+async function sendMessage(text) {
+  if (!text.trim() || isStreaming) return;
+
+  // Add user message
+  addMessage('user', text);
+  chatHistory.push({ role: 'user', content: text });
+
+  // Build system prompt with full block knowledge
+  const systemPrompt = buildSystemPrompt();
+
+  // Show thinking
+  addThinking();
+  setStreaming(true);
+
+  try {
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...chatHistory.slice(-20), // Keep last 20 messages for context
+    ];
+
+    const result = await window.api?.aiStreamChat(messages);
+    removeThinking();
+
+    if (result?.error) {
+      addMessage('system', '❌ 错误: ' + result.error);
+      setStreaming(false);
+      return;
+    }
+
+    // Streaming is handled by IPC events
+    // Create streaming bubble
+    currentStreamEl = addMessage('ai', '', { streaming: true });
+
+  } catch (e) {
+    removeThinking();
+    addMessage('system', '❌ 连接失败: ' + e.message);
+    setStreaming(false);
+  }
+}
+
+function buildSystemPrompt() {
+  let prompt = `你是 Objector 积木编程助手的 AI。你正在帮助用户使用 Objector 积木编程编辑器。
+
+## 你的能力
+1. **对话**: 回答关于编程、积木、项目的问题
+2. **生成积木**: 根据用户描述生成积木 JSON（使用 generate_blocks 工具）
+3. **修改积木**: 删除、移动、修改现有积木（使用 modify_blocks 工具）
+4. **解释代码**: 分析当前积木代码的功能和逻辑
+5. **调试**: 分析运行输出，找出问题并建议修复
+6. **截图查看**: 可以请求查看当前积木编辑区的截图（使用 screenshot 工具）
+7. **查阅文档**: 可以获取网络内容来回答用户问题（使用 fetch_url 工具）
+
+## 积木编码规则
+- 每个积木有唯一 id（格式: blk_xxxxx）
+- 积木通过 flowOut/flowIn 连接成链（顺序执行）
+- C 型积木（如循环、条件）有 subBlocks 存放子积木
+- reporter/boolean 积木通过 paramConnections 连接到参数槽
+- 事件积木（hat 形状）是程序入口
+
+${blockCatalog ? '## 完整积木目录\n' + blockCatalog : ''}
+
+${currentBlocks ? '## 当前项目积木\n' + currentBlocks : '## 当前项目\n当前项目没有积木。'}
+
+## 重要规则
+- 生成积木时，使用 generate_blocks 工具，传入 JSON 数组
+- 修改/删除积木时，使用 modify_blocks 工具
+- 所有修改操作都会弹出确认对话框，用户确认后才会执行
+- 回答要简洁、有帮助，用中文
+- 如果不确定用户意图，先询问确认
+`;
+  return prompt;
+}
+
+function setStreaming(v) {
+  isStreaming = v;
+  sendBtn.style.display = v ? 'none' : 'flex';
+  stopBtn.style.display = v ? 'flex' : 'none';
+  chatInput.disabled = v;
+  statusText.textContent = v ? 'AI 正在回复...' : '就绪';
+}
+
+// ========== Stream Events from Main Process ==========
+window.api?.onAIStreamToken((token) => {
+  if (currentStreamEl) {
+    // Remove streaming cursor temporarily
+    currentStreamEl.classList.remove('msg-streaming');
+    currentStreamEl.innerHTML = formatMarkdown(currentStreamEl.textContent + token);
+    currentStreamEl.classList.add('msg-streaming');
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+});
+
+window.api?.onAIStreamDone((fullText) => {
+  if (currentStreamEl) {
+    currentStreamEl.classList.remove('msg-streaming');
+    currentStreamEl.innerHTML = formatMarkdown(fullText || currentStreamEl.textContent);
+    chatHistory.push({ role: 'assistant', content: fullText || currentStreamEl.textContent });
+  }
+  currentStreamEl = null;
+  setStreaming(false);
+  chatArea.scrollTop = chatArea.scrollHeight;
+});
+
+window.api?.onAIStreamError((error) => {
+  removeThinking();
+  if (currentStreamEl) {
+    currentStreamEl.classList.remove('msg-streaming');
+  }
+  currentStreamEl = null;
+  addMessage('system', '❌ ' + error);
+  setStreaming(false);
+});
+
+// ========== Tool Calls from AI ==========
+window.api?.onAIToolCall(async (tool) => {
+  const { name, args, id } = tool;
+
+  // Show tool call in chat
+  if (currentStreamEl) {
+    currentStreamEl.classList.remove('msg-streaming');
+    const toolDiv = document.createElement('div');
+    toolDiv.className = 'tool-call';
+    toolDiv.innerHTML = `<span class="tool-name">🔧 ${name}</span><br><code>${JSON.stringify(args).slice(0, 200)}</code>`;
+    currentStreamEl.appendChild(toolDiv);
+  }
+
+  let result = '';
+
+  if (name === 'generate_blocks') {
+    // Confirm with user
+    const blockCount = args.blocks?.length || 0;
+    const confirmed = await showConfirm(
+      '生成积木',
+      `AI 想要添加 ${blockCount} 个积木到编辑区`,
+      JSON.stringify(args.blocks?.slice(0, 3), null, 2) + (blockCount > 3 ? '\n...' : '')
+    );
+    if (confirmed) {
+      result = await window.api?.aiExecuteTool('generate_blocks', args) || 'OK';
+    } else {
+      result = '用户取消了操作';
+    }
+  } else if (name === 'modify_blocks') {
+    const confirmed = await showConfirm(
+      '修改积木',
+      `AI 想要修改/删除积木: ${args.action || '未知操作'}`,
+      JSON.stringify(args, null, 2)
+    );
+    if (confirmed) {
+      result = await window.api?.aiExecuteTool('modify_blocks', args) || 'OK';
+    } else {
+      result = '用户取消了操作';
+    }
+  } else if (name === 'screenshot') {
+    result = await window.api?.aiExecuteTool('screenshot', args) || '截图失败';
+    // Show screenshot in chat
+    if (result && result.startsWith('data:')) {
+      if (currentStreamEl) {
+        const img = document.createElement('img');
+        img.src = result;
+        img.style.maxWidth = '100%';
+        img.style.borderRadius = '6px';
+        img.style.margin = '6px 0';
+        currentStreamEl.appendChild(img);
+      }
+      result = '[截图已发送]';
+    }
+  } else if (name === 'fetch_url') {
+    const confirmed = await showConfirm(
+      '访问网页',
+      `AI 想要访问: ${args.url}`,
+      '这将获取网页内容用于回答你的问题'
+    );
+    if (confirmed) {
+      result = await window.api?.aiExecuteTool('fetch_url', args) || '获取失败';
+    } else {
+      result = '用户取消了操作';
+    }
+  } else {
+    result = await window.api?.aiExecuteTool(name, args) || 'OK';
+  }
+
+  // Show result
+  if (currentStreamEl) {
+    const resDiv = document.createElement('div');
+    resDiv.className = 'tool-result';
+    resDiv.textContent = '✅ ' + (typeof result === 'string' ? result.slice(0, 300) : JSON.stringify(result).slice(0, 300));
+    currentStreamEl.appendChild(resDiv);
+  }
+
+  // Send tool result back to AI
+  window.api?.aiToolResult(id, result);
+});
+
+// ========== Confirm Dialog ==========
+function showConfirm(title, text, detail) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('confirm-overlay');
+    document.getElementById('confirm-title').textContent = '⚠️ ' + title;
+    document.getElementById('confirm-text').textContent = text;
+    document.getElementById('confirm-detail').textContent = detail || '';
+    document.getElementById('confirm-detail').style.display = detail ? 'block' : 'none';
+    overlay.classList.remove('hidden');
+
+    const okBtn = document.getElementById('confirm-ok');
+    const cancelBtn = document.getElementById('confirm-cancel');
+
+    function cleanup() {
+      overlay.classList.add('hidden');
+      okBtn.onclick = null;
+      cancelBtn.onclick = null;
+    }
+
+    okBtn.onclick = () => { cleanup(); resolve(true); };
+    cancelBtn.onclick = () => { cleanup(); resolve(false); };
+  });
+}
+
+// ========== Config Dialog ==========
+function openConfig() {
+  document.getElementById('config-overlay').classList.remove('hidden');
+}
+
+function closeConfig() {
+  document.getElementById('config-overlay').classList.add('hidden');
+}
+
+const PRESETS = {
+  openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+  deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+  ollama: { baseUrl: 'http://localhost:11434/v1', model: 'qwen2.5-coder:7b' },
+  custom: { baseUrl: '', model: '' },
+};
+
+document.getElementById('cfg-provider').addEventListener('change', (e) => {
+  const p = PRESETS[e.target.value];
+  if (p) {
+    document.getElementById('cfg-url').value = p.baseUrl;
+    document.getElementById('cfg-model').value = p.model;
+  }
+});
+
+function saveConfig() {
+  const cfg = {
+    provider: document.getElementById('cfg-provider').value,
+    baseUrl: document.getElementById('cfg-url').value.trim(),
+    apiKey: document.getElementById('cfg-key').value.trim(),
+    model: document.getElementById('cfg-model').value.trim(),
+  };
+  window.api?.saveAIConfig(cfg).then(() => {
+    closeConfig();
+    addMessage('system', '✅ AI 配置已保存');
+  });
+}
+
+// ========== Event Bindings ==========
+document.getElementById('btn-config').addEventListener('click', openConfig);
+
+document.getElementById('btn-clear').addEventListener('click', () => {
+  chatArea.innerHTML = '';
+  chatHistory = [];
+  addMessage('system', '对话已清空');
+});
+
+document.getElementById('btn-screenshot').addEventListener('click', async () => {
+  addMessage('user', '📷 请查看当前积木编辑区截图');
+  addThinking();
+  const result = await window.api?.aiExecuteTool('screenshot', {});
+  removeThinking();
+  if (result && result.startsWith('data:')) {
+    const bubble = addMessage('ai', '这是当前积木编辑区的截图：');
+    const img = document.createElement('img');
+    img.src = result;
+    img.style.maxWidth = '100%';
+    img.style.borderRadius = '6px';
+    img.style.margin = '6px 0';
+    bubble.appendChild(img);
+    currentBlocks = await window.api?.aiGetCurrentBlocks() || '';
+  } else {
+    addMessage('system', '截图失败: ' + (result || '未知错误'));
+  }
+});
+
+document.getElementById('btn-blocks').addEventListener('click', async () => {
+  const blocks = await window.api?.aiGetCurrentBlocks();
+  addMessage('user', '📋 查看当前积木');
+  addMessage('ai', blocks || '当前项目没有积木。');
+  currentBlocks = blocks || '';
+});
+
+// Quick buttons
+document.querySelectorAll('.quick-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    sendMessage(btn.dataset.prompt);
+  });
+});
+
+// Send
+sendBtn.addEventListener('click', () => {
+  sendMessage(chatInput.value);
+  chatInput.value = '';
+  chatInput.style.height = 'auto';
+});
+
+stopBtn.addEventListener('click', () => {
+  window.api?.aiStopStream();
+  setStreaming(false);
+  if (currentStreamEl) {
+    currentStreamEl.classList.remove('msg-streaming');
+    currentStreamEl = null;
+  }
+  removeThinking();
+});
+
+chatInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage(chatInput.value);
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+  }
+});
+
+// Auto-resize textarea
+chatInput.addEventListener('input', () => {
+  chatInput.style.height = 'auto';
+  chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+});
+</script>
+</body>
+</html>
