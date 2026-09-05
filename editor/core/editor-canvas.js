@@ -9,9 +9,11 @@ const EditorCanvas = (function () {
   let panning = false, panStart = { x: 0, y: 0 };
   let spaceDown = false; // 空格键按下 = 拖拽模式
   let selectedBlock = null;
+  let selectedBlocks = []; // 多选积木 ID 列表
   let hoveredPort = null;
   let dragLine = null; // { fromBlockId, fromPort, mx, my }
   let paramEditorState = null; // { blockId, paramName, inputEl }
+  let _clipboard = null; // 剪贴板：{ blocks: {}, connections: [] }
 
 
   // 全局状态
@@ -74,12 +76,39 @@ const EditorCanvas = (function () {
     render();
   }
 
+  /** 获取可见视口的世界坐标范围（用于虚拟化渲染） */
+  function _getViewportBounds() {
+    const padding = 100; // 额外渲染边距，避免滚动时闪烁
+    const cw = canvas.width / dpr;
+    const ch = canvas.height / dpr;
+    return {
+      left: -offsetX / scale - padding,
+      top: -offsetY / scale - padding,
+      right: (cw - offsetX) / scale + padding,
+      bottom: (ch - offsetY) / scale + padding,
+    };
+  }
+
+  /** 检查积木是否在可见视口内 */
+  function _isBlockVisible(block, bounds) {
+    if (!block) return false;
+    const sz = BlockRenderer.measureBlock(block);
+    const bx = block.x;
+    const by = block.y;
+    const bw = sz.width || 120;
+    const bh = sz.height || 40;
+    return !(bx + bw < bounds.left || bx > bounds.right || by + bh < bounds.top || by > bounds.bottom);
+  }
+
   function render() {
     if (!ctx) return;
     try {
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+
+    // 获取可见视口范围（虚拟化渲染优化）
+    const vpBounds = _getViewportBounds();
 
     // 网格
     ctx.save();
@@ -92,6 +121,17 @@ const EditorCanvas = (function () {
     const drawn = new Set();
     function drawBlockWithSubs(blk) {
       if (drawn.has(blk.id)) return;
+      // 虚拟化渲染：跳过不在视口内的积木
+      if (!_isBlockVisible(blk, vpBounds)) {
+        drawn.add(blk.id);
+        // 跳过整条链
+        let cur = blk.flowOut;
+        while (cur && EditorState.blocks[cur]) {
+          drawn.add(cur);
+          cur = EditorState.blocks[cur].flowOut;
+        }
+        return;
+      }
       // 折叠状态：跳过整个链的后续积木
       if (typeof DevMode !== 'undefined' && DevMode.isCollapsed(blk.id)) {
         BlockRenderer.drawBlock(ctx, blk, selectedBlock === blk.id, hoveredPort);
@@ -662,14 +702,47 @@ const EditorCanvas = (function () {
   }
 
   function onKeyDown(e) {
+    // 确保焦点在画布上（不是输入框）
+    if (e.target !== document.body && e.target !== canvas && e.target?.tagName !== 'CANVAS') return;
+    
     if (e.key === 'Delete' && selectedBlock) {
       deleteBlock(selectedBlock);
       selectedBlock = null;
     }
     // Ctrl+T = 跳转到重要代码
-    if (e.key === 't' && e.ctrlKey && e.target === document.body) {
+    if (e.key === 't' && e.ctrlKey && !e.shiftKey) {
       e.preventDefault();
       showGotoLabelDialog();
+    }
+    // Ctrl+C = 复制选中的积木
+    if (e.key === 'c' && e.ctrlKey && !e.shiftKey) {
+      e.preventDefault();
+      _copySelectedBlocks();
+    }
+    // Ctrl+V = 粘贴积木
+    if (e.key === 'v' && e.ctrlKey && !e.shiftKey) {
+      e.preventDefault();
+      _pasteBlocks();
+    }
+    // Ctrl+X = 剪切选中的积木
+    if (e.key === 'x' && e.ctrlKey && !e.shiftKey) {
+      e.preventDefault();
+      _copySelectedBlocks();
+      if (selectedBlock) {
+        deleteBlock(selectedBlock);
+        selectedBlock = null;
+      }
+    }
+    // Ctrl+A = 全选积木
+    if (e.key === 'a' && e.ctrlKey && !e.shiftKey) {
+      e.preventDefault();
+      selectedBlocks = Object.keys(EditorState.blocks);
+      render();
+    }
+    // Ctrl+D = 复制积木（不移除原件）
+    if (e.key === 'd' && e.ctrlKey && !e.shiftKey) {
+      e.preventDefault();
+      _duplicateSelectedBlocks();
     }
     // 空格键 = 拖拽模式
     if (e.key === ' ' && e.target === document.body) {
@@ -709,6 +782,104 @@ const EditorCanvas = (function () {
     }
     delete EditorState.blocks[id];
     updateBlockCount();
+  }
+
+  /** 复制选中的积木（及其连接的链） */
+  function _copySelectedBlocks() {
+    const ids = selectedBlock ? [selectedBlock] : selectedBlocks;
+    if (!ids || ids.length === 0) return;
+    _clipboard = { blocks: {}, connections: [], rootIds: [] };
+    // 收集所有要复制的积木
+    const allIds = new Set();
+    ids.forEach(id => {
+      // 收集整条链
+      let cur = id;
+      while (cur && EditorState.blocks[cur]) {
+        if (allIds.has(cur)) break;
+        allIds.add(cur);
+        const b = EditorState.blocks[cur];
+        // 也收集子积木
+        if (b.subBlocks) {
+          Object.values(b.subBlocks).forEach(subId => {
+            let subCur = subId;
+            while (subCur && EditorState.blocks[subCur]) {
+              allIds.add(subCur);
+              subCur = EditorState.blocks[subCur].flowOut;
+            }
+          });
+        }
+        cur = b.flowOut;
+      }
+    });
+    // 复制积木数据
+    allIds.forEach(id => {
+      const b = EditorState.blocks[id];
+      if (b) _clipboard.blocks[id] = JSON.parse(JSON.stringify(b));
+    });
+    _clipboard.rootIds = ids.filter(id => allIds.has(id));
+    if (_clipboard.rootIds.length > 0) {
+      const statusEl = document.getElementById('status-text');
+      if (statusEl) {
+        statusEl.textContent = `已复制 ${allIds.size} 个积木`;
+        setTimeout(() => { statusEl.textContent = i18n.t('status.ready'); }, 1500);
+      }
+    }
+  }
+
+  /** 粘贴积木 */
+  function _pasteBlocks() {
+    if (!_clipboard || !_clipboard.blocks) return;
+    const idMap = {}; // oldId -> newId
+    // 生成新 ID
+    Object.keys(_clipboard.blocks).forEach(oldId => {
+      const newId = 'blk_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+      idMap[oldId] = newId;
+    });
+    // 复制并更新引用
+    const newBlocks = {};
+    Object.entries(_clipboard.blocks).forEach(([oldId, block]) => {
+      const nb = JSON.parse(JSON.stringify(block));
+      nb.id = idMap[oldId];
+      nb.x = (nb.x || 0) + 30; // 偏移粘贴位置
+      nb.y = (nb.y || 0) + 30;
+      // 更新连接引用
+      if (nb.flowIn && idMap[nb.flowIn]) nb.flowIn = idMap[nb.flowIn];
+      else nb.flowIn = null;
+      if (nb.flowOut && idMap[nb.flowOut]) nb.flowOut = idMap[nb.flowOut];
+      else nb.flowOut = null;
+      // 更新子积木引用
+      if (nb.subBlocks) {
+        const newSubs = {};
+        Object.entries(nb.subBlocks).forEach(([port, subId]) => {
+          newSubs[port] = idMap[subId] || subId;
+        });
+        nb.subBlocks = newSubs;
+      }
+      newBlocks[nb.id] = nb;
+    });
+    // 添加到编辑器
+    Object.assign(EditorState.blocks, newBlocks);
+    // 选中粘贴的积木
+    const newRootIds = _clipboard.rootIds.map(id => idMap[id]).filter(Boolean);
+    selectedBlocks = newRootIds;
+    selectedBlock = newRootIds[0] || null;
+    render();
+    updateBlockCount();
+    // 记录撤销历史
+    if (typeof HistoryManager !== 'undefined') HistoryManager.pushSnapshot();
+    const statusEl = document.getElementById('status-text');
+    if (statusEl) {
+      statusEl.textContent = `已粘贴 ${Object.keys(newBlocks).length} 个积木`;
+      setTimeout(() => { statusEl.textContent = i18n.t('status.ready'); }, 1500);
+    }
+  }
+
+  /** 复制选中的积木（不移除原件） */
+  function _duplicateSelectedBlocks() {
+    const ids = selectedBlock ? [selectedBlock] : selectedBlocks;
+    if (!ids || ids.length === 0) return;
+    _copySelectedBlocks();
+    _pasteBlocks();
   }
 
   /** 从面板拖入新积木 */

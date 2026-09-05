@@ -25,93 +25,10 @@ const Executor = (function () {
   /** 注册 event_start 完成后的回调（高级模式 JS 脚本在此执行） */
   function setPostStartCallback(cb) { _postStartCallback = cb; }
 
-  /** Minecraft 积木执行器（编辑器内预览：模拟 MC 命令输出） */
-  async function _executeMinecraftBlock(type, p, block) {
-    const _mcLog = (msg) => log(msg);
-    switch (type) {
-      case 'mc_place_block':
-      case 'mc_set_block':
-        _mcLog('/setblock ' + p.x + ' ' + p.y + ' ' + p.z + ' ' + p.type);
-        break;
-      case 'mc_fill_blocks':
-        _mcLog('/fill ' + p.x1 + ' ' + p.y1 + ' ' + p.z1 + ' ' + p.x2 + ' ' + p.y2 + ' ' + p.z2 + ' ' + p.type);
-        break;
-      case 'mc_get_block':
-        _mcLog('[获取方块] (' + p.x + ',' + p.y + ',' + p.z + ')');
-        return 'stone';
-      case 'mc_spawn_entity':
-        _mcLog('/summon ' + p.type + ' ' + p.x + ' ' + p.y + ' ' + p.z);
-        break;
-      case 'mc_spawn_item':
-        _mcLog('/summon item ' + p.x + ' ' + p.y + ' ' + p.z + ' {Item:{id:"' + p.item + '",Count:1}}');
-        break;
-      case 'mc_kill_entity':
-        _mcLog('/kill ' + p.target);
-        break;
-      case 'mc_teleport':
-        _mcLog('/tp ' + p.target + ' ' + p.x + ' ' + p.y + ' ' + p.z);
-        break;
-      case 'mc_give_item':
-        _mcLog('/give ' + p.target + ' ' + p.item + ' ' + p.count);
-        break;
-      case 'mc_get_player_pos':
-        return 0;
-      case 'mc_gamemode':
-        _mcLog('/gamemode ' + p.mode + ' ' + (p.target || '@p'));
-        break;
-      case 'mc_set_time':
-        _mcLog('/time set ' + p.time);
-        break;
-      case 'mc_set_weather':
-        _mcLog('/weather ' + p.weather);
-        break;
-      case 'mc_explode':
-        _mcLog('[爆炸] (' + p.x + ',' + p.y + ',' + p.z + ') 威力:' + p.power);
-        break;
-      case 'mc_send_message':
-        _mcLog('[聊天] ' + p.msg);
-        break;
-      case 'mc_set_title':
-        _mcLog('/title @a title {"text":"' + p.title + '"}');
-        if (p.subtitle) _mcLog('/title @a subtitle {"text":"' + p.subtitle + '"}');
-        break;
-      case 'mc_play_sound':
-        _mcLog('/playsound ' + p.sound + ' master ' + p.target);
-        break;
-      case 'mc_set_scoreboard':
-        _mcLog('/scoreboard players set ' + p.target + ' ' + p.name + ' ' + p.score);
-        break;
-      case 'mc_enchant':
-        _mcLog('/enchant ' + p.target + ' ' + p.enchant + ' ' + p.level);
-        break;
-      case 'mc_effect':
-        _mcLog('/effect give ' + p.target + ' ' + p.effect + ' ' + p.duration + ' ' + p.level);
-        break;
-      case 'mc_run_command':
-        _mcLog(String(p.cmd));
-        break;
-      case 'mc_on_event':
-        break;
-      default:
-        _mcLog('[MC] 未知命令: ' + type);
-    }
-  }
-
   function log(msg) {
     _output.push(String(msg));
     const logEl = document.getElementById('output-log');
     if (logEl) logEl.textContent = _output.join('\n');
-    // Minecraft 模式：同时输出到 MC 聊天预览面板
-    if (typeof EditorState !== 'undefined' && EditorState.projectMode === 'minecraft') {
-      const chatEl = document.getElementById('mc-chat-log');
-      if (chatEl) {
-        const line = document.createElement('div');
-        line.className = 'mc-chat-line';
-        line.textContent = '[Objector] ' + String(msg);
-        chatEl.appendChild(line);
-        chatEl.scrollTop = chatEl.scrollHeight;
-      }
-    }
   }
 
   /** 运行所有事件积木 */
@@ -637,6 +554,23 @@ const Executor = (function () {
       }
     }
     else if (type === 'stop_all') { return '__STOP__'; }
+    else if (type === 'clone_self') {
+      // 创建当前精灵的克隆
+      const idx = StageManager.getActiveSpriteIdx();
+      if (typeof StageManager.cloneSprite === 'function') {
+        StageManager.cloneSprite(idx);
+        log(`精灵 ${StageManager.getActiveSprite()?.name || idx} 创建了克隆`);
+      }
+    }
+    else if (type === 'delete_clone') {
+      // 删除当前克隆（只有克隆才能删除自己）
+      const idx = StageManager.getActiveSpriteIdx();
+      const sprite = StageManager.getActiveSprite();
+      if (sprite && sprite.name && sprite.name.includes('_clone')) {
+        StageManager.removeSprite(idx);
+        return '__STOP__'; // 停止当前克隆的执行
+      }
+    }
     else if (type === 'control_label_run') {
       // 执行 C 型体内部的积木链
       const subTop = getSubTop(block, 'body');
@@ -886,12 +820,6 @@ const Executor = (function () {
       }
     }
 
-    // === Minecraft 积木（编辑器内预览 + 导出用） ===
-    else if (type.startsWith('mc_')) {
-      const result = await _executeMinecraftBlock(type, p, block);
-      if (result !== undefined) return result;
-    }
-
     // === 声音 ===
     else if (type === 'sound_play') { SoundManager.play(String(p.name)); }
     else if (type === 'sound_play_wait') { await SoundManager.playAndWait(String(p.name)); }
@@ -996,11 +924,6 @@ const Executor = (function () {
         const idx = StageManager.getActiveSpriteIdx();
         await StageManager.setSpriteCostume(idx, String(p.name));
       }
-    }
-
-    // === Minecraft 兼容层：处理不兼容积木 ===
-    else if (typeof MinecraftCompat !== 'undefined' && MinecraftCompat.isMinecraftMode()) {
-      MinecraftCompat.handleIncompatibleBlock(type, p);
     }
 
     await delay(1);
