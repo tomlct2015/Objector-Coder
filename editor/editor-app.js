@@ -1768,6 +1768,24 @@ window.EditorApp = (function () {
     document.getElementById('btn-run')?.addEventListener('click', _actionRun);
     document.getElementById('btn-stop')?.addEventListener('click', _actionStop);
 
+    // AI 助手按钮
+    document.getElementById('btn-ai-assistant')?.addEventListener('click', () => {
+      if (typeof AIAssistant !== 'undefined') {
+        AIAssistant.showPanel();
+      } else {
+        alert('AI 助手模块未加载');
+      }
+    });
+
+    // 协作管理按钮
+    document.getElementById('btn-collab')?.addEventListener('click', () => {
+      if (typeof CollaborationManager !== 'undefined') {
+        CollaborationManager.showPanel();
+      } else {
+        alert('协作管理模块未加载');
+      }
+    });
+
     // 社区用户信息显示
     const communityUserInfo = document.getElementById('community-user-info');
 
